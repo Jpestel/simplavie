@@ -37,6 +37,15 @@ export const DEFAULT_MODULES: Module[] = [
     enabled: true,
     order: 3,
   },
+  {
+    id: 'aidants',
+    name: 'aidants',
+    label: 'Mes aidants',
+    description: 'Société, intervenants et planning',
+    icon: '🤝',
+    enabled: true,
+    order: 4,
+  },
 ]
 
 export const DEFAULT_CONFIG: AppConfig = {

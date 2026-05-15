@@ -75,3 +75,32 @@ export type UserProfile = {
   profileCompleted: boolean
   createdAt: string
 }
+
+export type Caregiver = {
+  id: string
+  name: string
+  role: string
+  mobile?: string
+  phone?: string
+}
+
+export type CareVisit = {
+  id: string
+  caregiverId?: string
+  days: number[] // 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat, 0=Sun
+  time: string   // "08:00"
+  notes?: string
+}
+
+export type CareData = {
+  company: {
+    name: string
+    phone?: string
+    mobile?: string
+    email?: string
+    address?: string
+    city?: string
+  }
+  caregivers: Caregiver[]
+  visits: CareVisit[]
+}

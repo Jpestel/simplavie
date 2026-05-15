@@ -69,3 +69,13 @@ create policy "Allow all" on app_config for all using (true) with check (true);
 create policy "Allow all" on user_profile for all using (true) with check (true);
 create policy "Allow all" on routine_steps for all using (true) with check (true);
 create policy "Allow all" on routine_completions for all using (true) with check (true);
+
+-- ─── Care data ────────────────────────────────────────────────
+create table if not exists care_data (
+  id text primary key default 'default',
+  payload jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+alter table care_data enable row level security;
+create policy "Allow all" on care_data for all using (true) with check (true);
