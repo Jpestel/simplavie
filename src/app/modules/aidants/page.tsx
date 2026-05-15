@@ -20,8 +20,15 @@ function getAnchor(view: View, offset: number): Date {
   return base
 }
 
+function localISO(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 function getDates(view: View, anchor: Date): string[] {
-  if (view === 'jour') return [anchor.toISOString().slice(0, 10)]
+  if (view === 'jour') return [localISO(anchor)]
 
   if (view === 'semaine') {
     const day = anchor.getDay()
@@ -30,14 +37,14 @@ function getDates(view: View, anchor: Date): string[] {
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(monday)
       d.setDate(monday.getDate() + i)
-      return d.toISOString().slice(0, 10)
+      return localISO(d)
     })
   }
 
   if (view === 'mois') {
     const y = anchor.getFullYear(), m = anchor.getMonth()
     const days = new Date(y, m + 1, 0).getDate()
-    return Array.from({ length: days }, (_, i) => new Date(y, m, i + 1).toISOString().slice(0, 10))
+    return Array.from({ length: days }, (_, i) => localISO(new Date(y, m, i + 1)))
   }
 
   // annee
@@ -45,7 +52,7 @@ function getDates(view: View, anchor: Date): string[] {
   const dates: string[] = []
   for (let m = 0; m < 12; m++) {
     const days = new Date(y, m + 1, 0).getDate()
-    for (let i = 1; i <= days; i++) dates.push(new Date(y, m, i).toISOString().slice(0, 10))
+    for (let i = 1; i <= days; i++) dates.push(localISO(new Date(y, m, i)))
   }
   return dates
 }
