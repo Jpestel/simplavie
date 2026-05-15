@@ -6,7 +6,7 @@ const STORAGE_KEY = 'simplavie_care_data'
 export const EMPTY_CARE_DATA: CareData = {
   company: { name: '' },
   caregivers: [],
-  visits: [],
+  appointments: [],
 }
 
 export async function loadCareData(): Promise<CareData> {

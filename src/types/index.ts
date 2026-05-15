@@ -84,12 +84,16 @@ export type Caregiver = {
   phone?: string
 }
 
-export type CareVisit = {
+export type CareAppointment = {
   id: string
+  date: string        // "YYYY-MM-DD"
+  time: string        // "08:00"
+  endTime?: string    // "09:00"
   caregiverId?: string
-  days: number[] // 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat, 0=Sun
-  time: string   // "08:00"
+  caregiverName?: string  // raw name from PDF if not matched to a caregiver
   notes?: string
+  status: 'planned' | 'modified' | 'cancelled'
+  modifiedNote?: string   // e.g. "Sophie malade, remplacée par Marc"
 }
 
 export type CareData = {
@@ -102,5 +106,5 @@ export type CareData = {
     city?: string
   }
   caregivers: Caregiver[]
-  visits: CareVisit[]
+  appointments: CareAppointment[]
 }

@@ -1,19 +1,36 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { CareData, Caregiver, CareVisit } from '@/types'
+import { CareData, Caregiver, CareAppointment } from '@/types'
 import { loadCareData, saveCareData, EMPTY_CARE_DATA } from '@/lib/careService'
 
-const DAYS_LABELS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
+const DAYS_SHORT = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
+
+function getWeekDates(offset: number = 0): string[] {
+  const now = new Date()
+  const day = now.getDay()
+  const monday = new Date(now)
+  monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1) + offset * 7)
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + i)
+    return d.toISOString().slice(0, 10)
+  })
+}
 
 export default function AidantsAdminPage() {
   const router = useRouter()
   const [care, setCare] = useState<CareData>(EMPTY_CARE_DATA)
   const [loading, setLoading] = useState(true)
+  const [weekOffset, setWeekOffset] = useState(0)
   const [newCg, setNewCg] = useState<Partial<Caregiver>>({})
   const [showCgForm, setShowCgForm] = useState(false)
-  const [newVisit, setNewVisit] = useState<Partial<CareVisit> & { days: number[] }>({ days: [], time: '08:00' })
-  const [showVisitForm, setShowVisitForm] = useState(false)
+  const [editAppt, setEditAppt] = useState<Partial<CareAppointment> | null>(null)
+  const [showApptForm, setShowApptForm] = useState(false)
+  const [pdfLoading, setPdfLoading] = useState(false)
+  const [pdfResult, setPdfResult] = useState<{ count: number; error?: string } | null>(null)
+  const [activeTab, setActiveTab] = useState<'planning' | 'company' | 'caregivers'>('planning')
+  const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { loadCareData().then(d => { setCare(d); setLoading(false) }) }, [])
 
@@ -22,8 +39,38 @@ export default function AidantsAdminPage() {
     await saveCareData(updated)
   }
 
-  const setCompany = (field: string, value: string) => {
-    save({ ...care, company: { ...care.company, [field]: value } })
+  const weekDates = getWeekDates(weekOffset)
+  const today = new Date().toISOString().slice(0, 10)
+
+  const getAppts = (date: string) =>
+    (care.appointments || []).filter(a => a.date === date).sort((a, b) => a.time.localeCompare(b.time))
+
+  const addAppointment = () => {
+    if (!editAppt?.date || !editAppt?.time) return
+    const appt: CareAppointment = {
+      id: Date.now().toString(),
+      date: editAppt.date,
+      time: editAppt.time,
+      endTime: editAppt.endTime,
+      caregiverId: editAppt.caregiverId,
+      caregiverName: editAppt.caregiverName,
+      notes: editAppt.notes,
+      status: 'planned',
+    }
+    save({ ...care, appointments: [...(care.appointments || []), appt] })
+    setEditAppt(null)
+    setShowApptForm(false)
+  }
+
+  const updateApptStatus = (id: string, status: CareAppointment['status'], modifiedNote?: string) => {
+    const updated = (care.appointments || []).map(a =>
+      a.id === id ? { ...a, status, modifiedNote } : a
+    )
+    save({ ...care, appointments: updated })
+  }
+
+  const deleteAppt = (id: string) => {
+    save({ ...care, appointments: (care.appointments || []).filter(a => a.id !== id) })
   }
 
   const addCaregiver = () => {
@@ -34,137 +81,226 @@ export default function AidantsAdminPage() {
     setShowCgForm(false)
   }
 
-  const removeCaregiver = (id: string) => save({ ...care, caregivers: care.caregivers.filter(c => c.id !== id) })
-
-  const addVisit = () => {
-    if (newVisit.days.length === 0 || !newVisit.time) return
-    const v: CareVisit = { id: Date.now().toString(), caregiverId: newVisit.caregiverId, days: newVisit.days, time: newVisit.time, notes: newVisit.notes }
-    save({ ...care, visits: [...care.visits, v] })
-    setNewVisit({ days: [], time: '08:00' })
-    setShowVisitForm(false)
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPdfLoading(true)
+    setPdfResult(null)
+    try {
+      const fd = new FormData()
+      fd.append('pdf', file)
+      const res = await fetch('/api/parse-planning', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (data.error && !data.appointments?.length) {
+        setPdfResult({ count: 0, error: data.error })
+      } else {
+        const newAppts: CareAppointment[] = (data.appointments || []).map((a: Partial<CareAppointment> & { caregiverName?: string }) => ({
+          id: Date.now().toString() + Math.random(),
+          date: a.date || today,
+          time: a.time || '08:00',
+          endTime: a.endTime,
+          caregiverName: a.caregiverName,
+          notes: a.notes,
+          status: 'planned' as const,
+        }))
+        const existing = (care.appointments || []).filter(a => !newAppts.some(n => n.date === a.date && n.time === a.time))
+        save({ ...care, appointments: [...existing, ...newAppts] })
+        setPdfResult({ count: newAppts.length })
+      }
+    } catch {
+      setPdfResult({ count: 0, error: 'Erreur réseau' })
+    } finally {
+      setPdfLoading(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
   }
 
-  const removeVisit = (id: string) => save({ ...care, visits: care.visits.filter(v => v.id !== id) })
-
-  const toggleDay = (day: number) => {
-    setNewVisit(prev => ({
-      ...prev,
-      days: prev.days.includes(day) ? prev.days.filter(d => d !== day) : [...prev.days, day]
-    }))
-  }
+  const input = "w-full border border-gray-200 rounded-xl p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
 
   if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="text-xl text-gray-400">Chargement...</div></div>
 
-  const input = "w-full border border-gray-200 rounded-xl p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-
   return (
     <main className="min-h-screen p-6 max-w-2xl mx-auto">
-      <div className="flex items-center gap-4 mb-8">
+      <div className="flex items-center gap-4 mb-6">
         <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-600 text-xl">←</button>
         <h1 className="text-2xl font-bold text-gray-800">Mes aidants</h1>
       </div>
 
-      {/* Company */}
-      <section className="bg-white rounded-2xl p-6 shadow-sm mb-5 space-y-3">
-        <h2 className="text-lg font-semibold text-gray-700">🏢 Société</h2>
-        <div><label className="block text-sm text-gray-500 mb-1">Nom de la société</label><input className={input} value={care.company.name} onChange={e => setCompany('name', e.target.value)} placeholder="SSIAD du Havre..." /></div>
-        <div><label className="block text-sm text-gray-500 mb-1">Téléphone fixe</label><input className={input} type="tel" value={care.company.phone || ''} onChange={e => setCompany('phone', e.target.value)} /></div>
-        <div><label className="block text-sm text-gray-500 mb-1">Mobile</label><input className={input} type="tel" value={care.company.mobile || ''} onChange={e => setCompany('mobile', e.target.value)} /></div>
-        <div><label className="block text-sm text-gray-500 mb-1">Adresse</label><input className={input} value={care.company.address || ''} onChange={e => setCompany('address', e.target.value)} /></div>
-        <div><label className="block text-sm text-gray-500 mb-1">Ville</label><input className={input} value={care.company.city || ''} onChange={e => setCompany('city', e.target.value)} /></div>
-      </section>
+      {/* Tabs */}
+      <div className="flex gap-2 mb-6 bg-gray-100 rounded-2xl p-1">
+        {([['planning', '📅 Planning'], ['company', '🏢 Société'], ['caregivers', '👩‍⚕️ Intervenants']] as const).map(([tab, label]) => (
+          <button key={tab} onClick={() => setActiveTab(tab)}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeTab === tab ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
 
-      {/* Caregivers */}
-      <section className="bg-white rounded-2xl p-6 shadow-sm mb-5">
-        <h2 className="text-lg font-semibold text-gray-700 mb-4">👩‍⚕️ Intervenants</h2>
-        <div className="space-y-2 mb-4">
-          {care.caregivers.map(cg => (
-            <div key={cg.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50">
-              <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-500 text-sm shrink-0">{cg.name.charAt(0)}</div>
-              <div className="flex-1">
-                <div className="font-medium text-gray-700">{cg.name}</div>
-                <div className="text-sm text-gray-400">{cg.role}{cg.mobile ? ` · ${cg.mobile}` : ''}</div>
-              </div>
-              <button onClick={() => removeCaregiver(cg.id)} className="text-red-400 hover:text-red-600">✕</button>
-            </div>
-          ))}
-        </div>
-        {showCgForm ? (
-          <div className="bg-indigo-50 rounded-xl p-4 space-y-2">
-            <input className={input} placeholder="Prénom Nom *" value={newCg.name || ''} onChange={e => setNewCg(p => ({ ...p, name: e.target.value }))} />
-            <input className={input} placeholder="Rôle (ex: Auxiliaire de vie)" value={newCg.role || ''} onChange={e => setNewCg(p => ({ ...p, role: e.target.value }))} />
-            <input className={input} type="tel" placeholder="Mobile" value={newCg.mobile || ''} onChange={e => setNewCg(p => ({ ...p, mobile: e.target.value }))} />
-            <input className={input} type="tel" placeholder="Fixe" value={newCg.phone || ''} onChange={e => setNewCg(p => ({ ...p, phone: e.target.value }))} />
-            <div className="flex gap-2">
-              <button onClick={() => { setShowCgForm(false); setNewCg({}) }} className="flex-1 py-2 rounded-xl border border-gray-300 text-gray-600">Annuler</button>
-              <button onClick={addCaregiver} disabled={!newCg.name} className="flex-1 py-2 rounded-xl bg-indigo-500 text-white font-semibold disabled:opacity-40">Ajouter</button>
-            </div>
-          </div>
-        ) : (
-          <button onClick={() => setShowCgForm(true)} className="w-full py-3 rounded-xl border-2 border-dashed border-indigo-300 text-indigo-500 hover:bg-indigo-50">+ Ajouter un intervenant</button>
-        )}
-      </section>
+      {/* ── PLANNING TAB ── */}
+      {activeTab === 'planning' && (
+        <div className="space-y-5">
 
-      {/* Visits / Schedule */}
-      <section className="bg-white rounded-2xl p-6 shadow-sm mb-8">
-        <h2 className="text-lg font-semibold text-gray-700 mb-4">📅 Planning des passages</h2>
-        <div className="space-y-2 mb-4">
-          {care.visits.map(v => {
-            const cg = care.caregivers.find(c => c.id === v.caregiverId)
-            return (
-              <div key={v.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50">
-                <div className="text-sm font-bold text-indigo-500 w-12">{v.time}</div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-gray-700">
-                    {v.days.sort().map(d => DAYS_LABELS[d]).join(', ')}
-                  </div>
-                  {cg && <div className="text-sm text-gray-400">{cg.name}</div>}
-                  {v.notes && <div className="text-xs text-gray-400">{v.notes}</div>}
-                </div>
-                <button onClick={() => removeVisit(v.id)} className="text-red-400 hover:text-red-600">✕</button>
-              </div>
-            )
-          })}
-        </div>
-        {showVisitForm ? (
-          <div className="bg-indigo-50 rounded-xl p-4 space-y-3">
-            <div>
-              <div className="text-sm text-gray-600 mb-2">Jours de passage *</div>
-              <div className="flex gap-2 flex-wrap">
-                {[1,2,3,4,5,6,0].map(d => (
-                  <button key={d} onClick={() => toggleDay(d)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${newVisit.days.includes(d) ? 'bg-indigo-500 text-white' : 'bg-white border border-gray-200 text-gray-600'}`}>
-                    {DAYS_LABELS[d]}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm text-gray-600 mb-1">Heure *</div>
-              <input type="time" className={input} value={newVisit.time} onChange={e => setNewVisit(p => ({ ...p, time: e.target.value }))} />
-            </div>
-            {care.caregivers.length > 0 && (
-              <div>
-                <div className="text-sm text-gray-600 mb-1">Intervenant</div>
-                <select className={input} value={newVisit.caregiverId || ''} onChange={e => setNewVisit(p => ({ ...p, caregiverId: e.target.value || undefined }))}>
-                  <option value="">Non précisé</option>
-                  {care.caregivers.map(cg => <option key={cg.id} value={cg.id}>{cg.name} — {cg.role}</option>)}
-                </select>
+          {/* PDF import */}
+          <section className="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-5">
+            <h2 className="text-base font-bold text-indigo-700 mb-1">📄 Importer un planning PDF</h2>
+            <p className="text-sm text-indigo-600 mb-4">Sélectionne le PDF envoyé par Vitalliance — les passages seront extraits automatiquement.</p>
+            <input ref={fileRef} type="file" accept="application/pdf" onChange={handlePdfUpload} className="hidden" />
+            <button onClick={() => fileRef.current?.click()} disabled={pdfLoading}
+              className="w-full py-3 rounded-xl bg-indigo-500 text-white font-bold hover:bg-indigo-600 active:scale-95 transition-all disabled:opacity-50">
+              {pdfLoading ? '⏳ Analyse en cours...' : '📂 Choisir un fichier PDF'}
+            </button>
+            {pdfResult && (
+              <div className={`mt-3 p-3 rounded-xl text-sm font-medium ${pdfResult.error ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>
+                {pdfResult.error ? `❌ ${pdfResult.error}` : `✅ ${pdfResult.count} passage(s) importé(s)`}
               </div>
             )}
-            <div>
-              <div className="text-sm text-gray-600 mb-1">Notes (optionnel)</div>
-              <input className={input} placeholder="ex: toilette, repas..." value={newVisit.notes || ''} onChange={e => setNewVisit(p => ({ ...p, notes: e.target.value }))} />
-            </div>
+          </section>
+
+          {/* Week navigation */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold text-gray-700">Passages</h2>
             <div className="flex gap-2">
-              <button onClick={() => { setShowVisitForm(false); setNewVisit({ days: [], time: '08:00' }) }} className="flex-1 py-2 rounded-xl border border-gray-300 text-gray-600">Annuler</button>
-              <button onClick={addVisit} disabled={newVisit.days.length === 0} className="flex-1 py-2 rounded-xl bg-indigo-500 text-white font-semibold disabled:opacity-40">Ajouter</button>
+              <button onClick={() => setWeekOffset(w => w - 1)} className="px-3 py-1.5 rounded-xl bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 active:scale-95 text-sm">← Préc.</button>
+              <button onClick={() => setWeekOffset(0)} className={`px-3 py-1.5 rounded-xl border text-sm font-medium ${weekOffset === 0 ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-white border-gray-200 text-gray-600'}`}>Cette sem.</button>
+              <button onClick={() => setWeekOffset(w => w + 1)} className="px-3 py-1.5 rounded-xl bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 active:scale-95 text-sm">Suiv. →</button>
             </div>
           </div>
-        ) : (
-          <button onClick={() => setShowVisitForm(true)} className="w-full py-3 rounded-xl border-2 border-dashed border-indigo-300 text-indigo-500 hover:bg-indigo-50">+ Ajouter un passage</button>
-        )}
-      </section>
+
+          {/* Week days */}
+          <div className="space-y-2">
+            {weekDates.map(date => {
+              const appts = getAppts(date)
+              const d = new Date(date + 'T00:00:00')
+              const isToday = date === today
+              return (
+                <div key={date} className={`bg-white rounded-2xl p-4 border-2 ${isToday ? 'border-indigo-200 bg-indigo-50' : 'border-gray-100'}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className={`font-semibold text-sm ${isToday ? 'text-indigo-600' : 'text-gray-600'}`}>
+                      {DAYS_SHORT[d.getDay()]} {d.getDate()}/{d.getMonth()+1}{isToday ? ' — Aujourd\'hui' : ''}
+                    </div>
+                    <button onClick={() => { setEditAppt({ date, status: 'planned' }); setShowApptForm(true) }}
+                      className="text-xs text-indigo-500 hover:text-indigo-700 font-medium">+ Ajouter</button>
+                  </div>
+                  {appts.length === 0 ? (
+                    <div className="text-gray-300 text-sm">Aucun passage</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {appts.map(a => {
+                        const cgName = a.caregiverId ? care.caregivers.find(c => c.id === a.caregiverId)?.name : a.caregiverName
+                        return (
+                          <div key={a.id} className={`flex items-start gap-2 p-2 rounded-xl ${a.status === 'cancelled' ? 'bg-red-50' : a.status === 'modified' ? 'bg-orange-50' : 'bg-gray-50'}`}>
+                            <div className="text-sm font-bold text-indigo-500 w-12 shrink-0">{a.time}</div>
+                            <div className="flex-1 min-w-0">
+                              <div className={`text-sm font-medium ${a.status === 'cancelled' ? 'line-through text-gray-400' : 'text-gray-700'}`}>{cgName || '—'}</div>
+                              {a.notes && <div className="text-xs text-gray-400">{a.notes}</div>}
+                              {a.status !== 'planned' && (
+                                <div className={`text-xs font-medium mt-0.5 ${a.status === 'cancelled' ? 'text-red-500' : 'text-orange-500'}`}>
+                                  {a.status === 'cancelled' ? '✕ Annulé' : '⚠️ Modifié'}{a.modifiedNote ? ` — ${a.modifiedNote}` : ''}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex gap-1 shrink-0">
+                              {a.status === 'planned' && (
+                                <>
+                                  <button onClick={() => { const note = prompt('Note de modification (optionnel):') ?? undefined; updateApptStatus(a.id, 'modified', note) }}
+                                    className="text-xs px-2 py-1 rounded-lg bg-orange-100 text-orange-600 hover:bg-orange-200">⚠️</button>
+                                  <button onClick={() => { if (confirm('Annuler ce passage ?')) updateApptStatus(a.id, 'cancelled') }}
+                                    className="text-xs px-2 py-1 rounded-lg bg-red-100 text-red-500 hover:bg-red-200">✕</button>
+                                </>
+                              )}
+                              {a.status !== 'planned' && (
+                                <button onClick={() => updateApptStatus(a.id, 'planned', undefined)}
+                                  className="text-xs px-2 py-1 rounded-lg bg-green-100 text-green-600 hover:bg-green-200">↩</button>
+                              )}
+                              <button onClick={() => deleteAppt(a.id)} className="text-xs px-2 py-1 rounded-lg bg-gray-100 text-gray-400 hover:bg-gray-200">🗑</button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Add appointment modal */}
+          {showApptForm && editAppt && (
+            <div className="fixed inset-0 bg-black/40 flex items-end justify-center z-50 p-4">
+              <div className="bg-white rounded-3xl p-6 w-full max-w-lg space-y-3">
+                <h3 className="text-lg font-bold text-gray-800">Ajouter un passage</h3>
+                <div><label className="block text-sm text-gray-500 mb-1">Date</label>
+                  <input type="date" className={input} value={editAppt.date || ''} onChange={e => setEditAppt(p => ({ ...p, date: e.target.value }))} /></div>
+                <div className="flex gap-3">
+                  <div className="flex-1"><label className="block text-sm text-gray-500 mb-1">Heure début</label>
+                    <input type="time" className={input} value={editAppt.time || ''} onChange={e => setEditAppt(p => ({ ...p, time: e.target.value }))} /></div>
+                  <div className="flex-1"><label className="block text-sm text-gray-500 mb-1">Heure fin</label>
+                    <input type="time" className={input} value={editAppt.endTime || ''} onChange={e => setEditAppt(p => ({ ...p, endTime: e.target.value }))} /></div>
+                </div>
+                {care.caregivers.length > 0 ? (
+                  <div><label className="block text-sm text-gray-500 mb-1">Intervenant</label>
+                    <select className={input} value={editAppt.caregiverId || ''} onChange={e => setEditAppt(p => ({ ...p, caregiverId: e.target.value || undefined }))}>
+                      <option value="">Non précisé</option>
+                      {care.caregivers.map(cg => <option key={cg.id} value={cg.id}>{cg.name} — {cg.role}</option>)}
+                    </select></div>
+                ) : (
+                  <div><label className="block text-sm text-gray-500 mb-1">Nom intervenant</label>
+                    <input className={input} placeholder="Sophie, Marc..." value={editAppt.caregiverName || ''} onChange={e => setEditAppt(p => ({ ...p, caregiverName: e.target.value }))} /></div>
+                )}
+                <div><label className="block text-sm text-gray-500 mb-1">Notes (optionnel)</label>
+                  <input className={input} placeholder="Toilette, repas..." value={editAppt.notes || ''} onChange={e => setEditAppt(p => ({ ...p, notes: e.target.value }))} /></div>
+                <div className="flex gap-3 pt-2">
+                  <button onClick={() => { setShowApptForm(false); setEditAppt(null) }} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600">Annuler</button>
+                  <button onClick={addAppointment} disabled={!editAppt.date || !editAppt.time} className="flex-1 py-3 rounded-xl bg-indigo-500 text-white font-bold disabled:opacity-40">Ajouter</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── COMPANY TAB ── */}
+      {activeTab === 'company' && (
+        <section className="bg-white rounded-2xl p-6 shadow-sm space-y-3">
+          <div><label className="block text-sm text-gray-500 mb-1">Nom de la société</label><input className={input} value={care.company.name} onChange={e => save({ ...care, company: { ...care.company, name: e.target.value } })} placeholder="Vitalliance..." /></div>
+          <div><label className="block text-sm text-gray-500 mb-1">Téléphone fixe</label><input className={input} type="tel" value={care.company.phone || ''} onChange={e => save({ ...care, company: { ...care.company, phone: e.target.value } })} /></div>
+          <div><label className="block text-sm text-gray-500 mb-1">Mobile</label><input className={input} type="tel" value={care.company.mobile || ''} onChange={e => save({ ...care, company: { ...care.company, mobile: e.target.value } })} /></div>
+          <div><label className="block text-sm text-gray-500 mb-1">Adresse</label><input className={input} value={care.company.address || ''} onChange={e => save({ ...care, company: { ...care.company, address: e.target.value } })} /></div>
+          <div><label className="block text-sm text-gray-500 mb-1">Ville</label><input className={input} value={care.company.city || ''} onChange={e => save({ ...care, company: { ...care.company, city: e.target.value } })} /></div>
+        </section>
+      )}
+
+      {/* ── CAREGIVERS TAB ── */}
+      {activeTab === 'caregivers' && (
+        <section className="bg-white rounded-2xl p-6 shadow-sm">
+          <div className="space-y-2 mb-4">
+            {care.caregivers.map(cg => (
+              <div key={cg.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50">
+                <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-500 text-sm shrink-0">{cg.name.charAt(0)}</div>
+                <div className="flex-1">
+                  <div className="font-medium text-gray-700">{cg.name}</div>
+                  <div className="text-sm text-gray-400">{cg.role}{cg.mobile ? ` · ${cg.mobile}` : ''}</div>
+                </div>
+                <button onClick={() => save({ ...care, caregivers: care.caregivers.filter(c => c.id !== cg.id) })} className="text-red-400 hover:text-red-600">✕</button>
+              </div>
+            ))}
+          </div>
+          {showCgForm ? (
+            <div className="bg-indigo-50 rounded-xl p-4 space-y-2">
+              <input className={input} placeholder="Prénom Nom *" value={newCg.name || ''} onChange={e => setNewCg(p => ({ ...p, name: e.target.value }))} />
+              <input className={input} placeholder="Rôle (ex: Auxiliaire de vie)" value={newCg.role || ''} onChange={e => setNewCg(p => ({ ...p, role: e.target.value }))} />
+              <input className={input} type="tel" placeholder="Mobile" value={newCg.mobile || ''} onChange={e => setNewCg(p => ({ ...p, mobile: e.target.value }))} />
+              <input className={input} type="tel" placeholder="Fixe" value={newCg.phone || ''} onChange={e => setNewCg(p => ({ ...p, phone: e.target.value }))} />
+              <div className="flex gap-2">
+                <button onClick={() => { setShowCgForm(false); setNewCg({}) }} className="flex-1 py-2 rounded-xl border border-gray-300 text-gray-600">Annuler</button>
+                <button onClick={addCaregiver} disabled={!newCg.name} className="flex-1 py-2 rounded-xl bg-indigo-500 text-white font-semibold disabled:opacity-40">Ajouter</button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => setShowCgForm(true)} className="w-full py-3 rounded-xl border-2 border-dashed border-indigo-300 text-indigo-500 hover:bg-indigo-50">+ Ajouter un intervenant</button>
+          )}
+        </section>
+      )}
     </main>
   )
 }

@@ -1,20 +1,40 @@
 'use client'
+import { useState, useEffect } from 'react'
 import { useConfig } from '@/lib/configContext'
 import { useProfile } from '@/lib/profileContext'
-import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { loadCareData } from '@/lib/careService'
 
 export default function HomePage() {
   const { config, isLoading: configLoading } = useConfig()
   const { profile, isLoading: profileLoading } = useProfile()
   const router = useRouter()
+  const [careAlert, setCareAlert] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!profileLoading && profile.profileCompleted) {
+      router.prefetch('/onboarding')
+    }
+  }, [profileLoading, profile.profileCompleted, router])
 
   useEffect(() => {
     if (!profileLoading && !profile.profileCompleted) {
       router.push('/onboarding')
     }
   }, [profileLoading, profile.profileCompleted, router])
+
+  useEffect(() => {
+    if (!profileLoading && profile.profileCompleted) {
+      loadCareData().then(care => {
+        const today = new Date().toISOString().slice(0, 10)
+        const alerts = (care.appointments || []).filter(a => a.date === today && a.status !== 'planned')
+        if (alerts.length > 0) {
+          setCareAlert(`⚠️ ${alerts.length} changement(s) dans ton planning aujourd'hui`)
+        }
+      })
+    }
+  }, [profileLoading, profile.profileCompleted])
 
   if (configLoading || profileLoading) {
     return (
@@ -38,6 +58,16 @@ export default function HomePage() {
           {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
         </p>
       </div>
+
+      {careAlert && (
+        <div
+          onClick={() => router.push('/modules/aidants')}
+          className="bg-orange-50 border-2 border-orange-300 rounded-2xl p-4 mb-6 cursor-pointer active:scale-95 transition-all"
+        >
+          <p className="text-orange-700 font-semibold text-center">{careAlert}</p>
+          <p className="text-orange-500 text-sm text-center mt-1">Appuie pour voir les détails →</p>
+        </div>
+      )}
 
       {activeModules.length === 0 ? (
         <div className="text-center text-gray-400 mt-20">
