@@ -143,7 +143,7 @@ export default function AidantsAdminPage() {
           {/* PDF import */}
           <section className="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-5">
             <h2 className="text-base font-bold text-indigo-700 mb-1">📄 Importer un planning PDF</h2>
-            <p className="text-sm text-indigo-600 mb-4">Sélectionne le PDF envoyé par Vitalliance — les passages seront extraits automatiquement.</p>
+            <p className="text-sm text-indigo-600 mb-4">Sélectionne le PDF de planning mensuel — les passages seront extraits automatiquement.</p>
             <input ref={fileRef} type="file" accept="application/pdf" onChange={handlePdfUpload} className="hidden" />
             <button onClick={() => fileRef.current?.click()} disabled={pdfLoading}
               className="w-full py-3 rounded-xl bg-indigo-500 text-white font-bold hover:bg-indigo-600 active:scale-95 transition-all disabled:opacity-50">
@@ -262,7 +262,7 @@ export default function AidantsAdminPage() {
       {/* ── COMPANY TAB ── */}
       {activeTab === 'company' && (
         <section className="bg-white rounded-2xl p-6 shadow-sm space-y-3">
-          <div><label className="block text-sm text-gray-500 mb-1">Nom de la société</label><input className={input} value={care.company.name} onChange={e => save({ ...care, company: { ...care.company, name: e.target.value } })} placeholder="Vitalliance..." /></div>
+          <div><label className="block text-sm text-gray-500 mb-1">Nom de la société</label><input className={input} value={care.company.name} onChange={e => save({ ...care, company: { ...care.company, name: e.target.value } })} placeholder="Nom de la société..." /></div>
           <div><label className="block text-sm text-gray-500 mb-1">Téléphone fixe</label><input className={input} type="tel" value={care.company.phone || ''} onChange={e => save({ ...care, company: { ...care.company, phone: e.target.value } })} /></div>
           <div><label className="block text-sm text-gray-500 mb-1">Mobile</label><input className={input} type="tel" value={care.company.mobile || ''} onChange={e => save({ ...care, company: { ...care.company, mobile: e.target.value } })} /></div>
           <div><label className="block text-sm text-gray-500 mb-1">Adresse</label><input className={input} value={care.company.address || ''} onChange={e => save({ ...care, company: { ...care.company, address: e.target.value } })} /></div>

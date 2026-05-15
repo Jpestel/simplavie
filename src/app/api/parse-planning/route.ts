@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
           },
           {
             type: 'text',
-            text: `Ce document est un planning mensuel d'interventions de la société Vitalliance (aide à domicile française).
+            text: `Ce document est un planning mensuel d'interventions d'une société d'aide à domicile française.
 
 Le format du planning est un tableau avec les jours de la semaine en colonnes (lun. mar. mer. jeu. ven. sam. dim.) et les semaines en lignes. Chaque cellule contient le numéro du jour du mois et une liste d'interventions au format : "HH:MM - HH:MM PRENOM N." (prénom complet + initiale du nom).
 
