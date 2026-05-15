@@ -39,24 +39,23 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    async function load() {
-      if (isSupabaseConfigured) {
-        const { data } = await supabase.from('app_config').select('*').eq('id', 'default').maybeSingle()
+    // Affichage immédiat depuis localStorage
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored) {
+      try { setConfig(JSON.parse(stored)) } catch { /* keep default */ }
+    }
+    setIsLoading(false)
+
+    // Sync Supabase en arrière-plan
+    if (isSupabaseConfigured) {
+      supabase.from('app_config').select('*').eq('id', 'default').maybeSingle().then(({ data }) => {
         if (data) {
           const c = fromRow(data)
           setConfig(c)
           localStorage.setItem(STORAGE_KEY, JSON.stringify(c))
-          setIsLoading(false)
-          return
         }
-      }
-      const stored = localStorage.getItem(STORAGE_KEY)
-      if (stored) {
-        try { setConfig(JSON.parse(stored)) } catch { /* keep default */ }
-      }
-      setIsLoading(false)
+      })
     }
-    load()
   }, [])
 
   const updateConfig = (updates: Partial<AppConfig>) => {

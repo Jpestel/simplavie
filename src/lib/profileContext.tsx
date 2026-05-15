@@ -87,24 +87,23 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    async function load() {
-      if (isSupabaseConfigured) {
-        const { data } = await supabase.from('user_profile').select('*').eq('id', 'default').maybeSingle()
+    // Affichage immédiat depuis localStorage
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored) {
+      try { setProfile(JSON.parse(stored)) } catch { /* keep default */ }
+    }
+    setIsLoading(false)
+
+    // Sync Supabase en arrière-plan
+    if (isSupabaseConfigured) {
+      supabase.from('user_profile').select('*').eq('id', 'default').maybeSingle().then(({ data }) => {
         if (data) {
           const p = fromRow(data)
           setProfile(p)
           localStorage.setItem(STORAGE_KEY, JSON.stringify(p))
-          setIsLoading(false)
-          return
         }
-      }
-      const stored = localStorage.getItem(STORAGE_KEY)
-      if (stored) {
-        try { setProfile(JSON.parse(stored)) } catch { /* keep default */ }
-      }
-      setIsLoading(false)
+      })
     }
-    load()
   }, [])
 
   const updateProfile = (updates: Partial<UserProfile>) => {

@@ -10,18 +10,20 @@ export const EMPTY_CARE_DATA: CareData = {
 }
 
 export async function loadCareData(): Promise<CareData> {
-  if (isSupabaseConfigured) {
-    const { data } = await supabase.from('care_data').select('payload').eq('id', 'default').maybeSingle()
-    if (data?.payload) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data.payload))
-      return data.payload as CareData
-    }
-  }
+  // localStorage d'abord — instantané
   const stored = localStorage.getItem(STORAGE_KEY)
-  if (stored) {
-    try { return JSON.parse(stored) } catch { /* fall through */ }
+  const local = stored ? (() => { try { return JSON.parse(stored) } catch { return null } })() : null
+
+  // Sync Supabase en arrière-plan
+  if (isSupabaseConfigured) {
+    supabase.from('care_data').select('payload').eq('id', 'default').maybeSingle().then(({ data }) => {
+      if (data?.payload) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data.payload))
+      }
+    })
   }
-  return EMPTY_CARE_DATA
+
+  return local ?? EMPTY_CARE_DATA
 }
 
 export async function saveCareData(care: CareData) {

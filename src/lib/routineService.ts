@@ -28,25 +28,26 @@ function rowsToSteps(rows: Record<string, unknown>[]): RoutineStep[] {
 }
 
 export async function loadSteps(defaultSteps: RoutineStep[]): Promise<RoutineStep[]> {
-  if (isSupabaseConfigured) {
-    const { data } = await supabase.from('routine_steps').select('*')
-    if (data && data.length > 0) {
-      const steps = rowsToSteps(data as Record<string, unknown>[])
-      localStorage.setItem(STEPS_KEY, JSON.stringify(steps))
-      return steps
-    }
-  }
+  // localStorage d'abord — instantané
   const stored = localStorage.getItem(STEPS_KEY)
-  if (stored) {
-    try { return JSON.parse(stored) } catch { /* fall through */ }
+  const local = stored ? (() => { try { return JSON.parse(stored) } catch { return null } })() : null
+
+  // Sync Supabase en arrière-plan
+  if (isSupabaseConfigured) {
+    supabase.from('routine_steps').select('*').then(({ data }) => {
+      if (data && data.length > 0) {
+        const steps = rowsToSteps(data as Record<string, unknown>[])
+        localStorage.setItem(STEPS_KEY, JSON.stringify(steps))
+      }
+    })
   }
-  return defaultSteps
+
+  return local ?? defaultSteps
 }
 
 export async function saveSteps(steps: RoutineStep[]) {
   localStorage.setItem(STEPS_KEY, JSON.stringify(steps))
   if (!isSupabaseConfigured) return
-  // Delete all and re-insert (simplest for reordering)
   await supabase.from('routine_steps').delete().neq('id', '__none__')
   if (steps.length > 0) {
     await supabase.from('routine_steps').insert(stepsToRows(steps))
@@ -54,16 +55,21 @@ export async function saveSteps(steps: RoutineStep[]) {
 }
 
 export async function loadCompletions(date: string): Promise<string[]> {
-  if (isSupabaseConfigured) {
-    const { data } = await supabase.from('routine_completions').select('step_id').eq('date', date)
-    if (data) {
-      const ids = data.map((r: Record<string, unknown>) => r.step_id as string)
-      localStorage.setItem(DONE_PREFIX + date, JSON.stringify(ids))
-      return ids
-    }
-  }
+  // localStorage d'abord — instantané
   const stored = localStorage.getItem(DONE_PREFIX + date)
-  return stored ? JSON.parse(stored) : []
+  const local: string[] = stored ? JSON.parse(stored) : []
+
+  // Sync Supabase en arrière-plan
+  if (isSupabaseConfigured) {
+    supabase.from('routine_completions').select('step_id').eq('date', date).then(({ data }) => {
+      if (data) {
+        const ids = data.map((r: Record<string, unknown>) => r.step_id as string)
+        localStorage.setItem(DONE_PREFIX + date, JSON.stringify(ids))
+      }
+    })
+  }
+
+  return local
 }
 
 export async function toggleCompletion(date: string, stepId: string, done: boolean) {
