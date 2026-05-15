@@ -2,8 +2,7 @@
 import { useState, useEffect } from 'react'
 import { RoutineStep } from '@/types'
 import { useRouter } from 'next/navigation'
-
-const STORAGE_KEY = 'simplavie_routine_steps'
+import { loadSteps, saveSteps } from '@/lib/routineService'
 
 const DEFAULT_STEPS: RoutineStep[] = [
   { id: '1', label: 'Se lever', icon: '🌅', order: 0, done: false },
@@ -14,19 +13,18 @@ const DEFAULT_STEPS: RoutineStep[] = [
 
 export default function RoutineAdminPage() {
   const router = useRouter()
-  const [steps, setSteps] = useState<RoutineStep[]>(DEFAULT_STEPS)
+  const [steps, setSteps] = useState<RoutineStep[]>([])
   const [newLabel, setNewLabel] = useState('')
   const [newIcon, setNewIcon] = useState('✅')
   const [newTime, setNewTime] = useState('')
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) setSteps(JSON.parse(stored))
+    loadSteps(DEFAULT_STEPS).then(setSteps)
   }, [])
 
-  const save = (updated: RoutineStep[]) => {
+  const save = async (updated: RoutineStep[]) => {
     setSteps(updated)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+    await saveSteps(updated)
   }
 
   const addStep = () => {
@@ -45,9 +43,7 @@ export default function RoutineAdminPage() {
     setNewTime('')
   }
 
-  const removeStep = (id: string) => {
-    save(steps.filter(s => s.id !== id))
-  }
+  const removeStep = (id: string) => save(steps.filter(s => s.id !== id))
 
   const moveUp = (index: number) => {
     if (index === 0) return
@@ -70,50 +66,29 @@ export default function RoutineAdminPage() {
         <h1 className="text-2xl font-bold text-gray-800">Routine du jour</h1>
       </div>
 
-      {/* Add step */}
       <section className="bg-white rounded-2xl p-6 shadow-sm mb-6">
         <h2 className="text-lg font-semibold text-gray-700 mb-4">Ajouter une étape</h2>
         <div className="space-y-3">
           <div className="flex gap-3">
-            <input
-              type="text"
-              placeholder="Icône (emoji)"
-              value={newIcon}
-              onChange={e => setNewIcon(e.target.value)}
-              className="w-20 border border-gray-200 rounded-xl p-3 text-center text-xl focus:outline-none focus:ring-2 focus:ring-indigo-300"
-            />
-            <input
-              type="text"
-              placeholder="Nom de l'étape"
-              value={newLabel}
-              onChange={e => setNewLabel(e.target.value)}
+            <input type="text" placeholder="Icône (emoji)" value={newIcon} onChange={e => setNewIcon(e.target.value)}
+              className="w-20 border border-gray-200 rounded-xl p-3 text-center text-xl focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+            <input type="text" placeholder="Nom de l'étape" value={newLabel} onChange={e => setNewLabel(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && addStep()}
-              className="flex-1 border border-gray-200 rounded-xl p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-            />
+              className="flex-1 border border-gray-200 rounded-xl p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
           </div>
           <div className="flex gap-3 items-center">
-            <input
-              type="time"
-              value={newTime}
-              onChange={e => setNewTime(e.target.value)}
-              className="border border-gray-200 rounded-xl p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-            />
+            <input type="time" value={newTime} onChange={e => setNewTime(e.target.value)}
+              className="border border-gray-200 rounded-xl p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
             <span className="text-sm text-gray-400">Heure optionnelle</span>
           </div>
-          <button
-            onClick={addStep}
-            className="w-full bg-indigo-500 text-white rounded-xl p-3 font-semibold hover:bg-indigo-600 active:scale-95 transition-all"
-          >
+          <button onClick={addStep} className="w-full bg-indigo-500 text-white rounded-xl p-3 font-semibold hover:bg-indigo-600 active:scale-95 transition-all">
             + Ajouter
           </button>
         </div>
       </section>
 
-      {/* Steps list */}
       <section className="bg-white rounded-2xl p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-700 mb-4">
-          Étapes ({steps.length})
-        </h2>
+        <h2 className="text-lg font-semibold text-gray-700 mb-4">Étapes ({steps.length})</h2>
         {steps.length === 0 ? (
           <p className="text-gray-400 text-center py-4">Aucune étape</p>
         ) : (
