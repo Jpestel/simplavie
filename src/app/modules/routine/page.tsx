@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { RoutineStep } from '@/types'
 import { useRouter } from 'next/navigation'
 import { useConfig } from '@/lib/configContext'
+import BackBar from '@/components/BackBar'
 import { loadSteps, loadCompletions, toggleCompletion } from '@/lib/routineService'
 
 const DEFAULT_STEPS: RoutineStep[] = [
@@ -49,13 +50,10 @@ export default function RoutinePage() {
   }
 
   return (
-    <main className="min-h-screen p-6 max-w-2xl mx-auto">
-      <div className="flex items-center gap-4 mb-6">
-        <button onClick={() => router.push('/')} className="text-3xl text-gray-400 hover:text-gray-600 active:scale-95 transition-all">←</button>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Ma journée</h1>
-          <p className="text-gray-400">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-        </div>
+    <main className="min-h-screen p-6 pb-28 max-w-2xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Ma journée</h1>
+        <p className="text-gray-400">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
       </div>
 
       <div className="bg-white rounded-2xl p-4 shadow-sm mb-6">
@@ -94,6 +92,7 @@ export default function RoutinePage() {
           </button>
         ))}
       </div>
+      <BackBar />
     </main>
   )
 }

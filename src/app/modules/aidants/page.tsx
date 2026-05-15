@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { CareData, CareAppointment } from '@/types'
 import { loadCareData, EMPTY_CARE_DATA } from '@/lib/careService'
+import BackBar from '@/components/BackBar'
 
 const DAYS_FULL = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
 const DAYS_SHORT = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
@@ -56,13 +57,10 @@ export default function AidantsPage() {
   }
 
   return (
-    <main className="min-h-screen p-6 max-w-2xl mx-auto">
-      <div className="flex items-center gap-4 mb-6">
-        <button onClick={() => router.push('/')} className="text-3xl text-gray-400 hover:text-gray-600 active:scale-95 transition-all">←</button>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Mes aidants</h1>
-          <p className="text-gray-400">{DAYS_FULL[new Date().getDay()]} {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}</p>
-        </div>
+    <main className="min-h-screen p-6 pb-28 max-w-2xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Mes aidants</h1>
+        <p className="text-gray-400">{DAYS_FULL[new Date().getDay()]} {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}</p>
       </div>
 
       {!hasCompany && (care.appointments || []).length === 0 && care.caregivers.length === 0 ? (
@@ -137,9 +135,9 @@ export default function AidantsPage() {
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-bold text-gray-700">Planning</h2>
               <div className="flex gap-2">
-                <button onClick={() => setWeekOffset(w => w - 1)} className="px-3 py-1.5 rounded-xl bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 active:scale-95">←</button>
+                <button onClick={() => setWeekOffset(w => w - 1)} className="px-5 py-3 rounded-2xl bg-white border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 active:scale-95 text-base">← Préc.</button>
                 <button onClick={() => setWeekOffset(0)} className={`px-3 py-1.5 rounded-xl border text-sm font-medium active:scale-95 ${weekOffset === 0 ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>Cette semaine</button>
-                <button onClick={() => setWeekOffset(w => w + 1)} className="px-3 py-1.5 rounded-xl bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 active:scale-95">→</button>
+                <button onClick={() => setWeekOffset(w => w + 1)} className="px-5 py-3 rounded-2xl bg-white border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 active:scale-95 text-base">Suiv. →</button>
               </div>
             </div>
             <div className="bg-white rounded-3xl shadow-sm border-2 border-gray-100 overflow-hidden">
@@ -203,6 +201,7 @@ export default function AidantsPage() {
           )}
         </div>
       )}
+      <BackBar />
     </main>
   )
 }
