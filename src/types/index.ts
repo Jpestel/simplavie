@@ -96,6 +96,14 @@ export type CareAppointment = {
   modifiedNote?: string   // e.g. "Sophie malade, remplacée par Marc"
 }
 
+export type AgendaEvent = {
+  id: string
+  date: string    // YYYY-MM-DD
+  time?: string   // HH:MM
+  title: string
+  notes?: string
+}
+
 export type CareData = {
   company: {
     name: string

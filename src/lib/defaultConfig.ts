@@ -25,7 +25,7 @@ export const DEFAULT_MODULES: Module[] = [
     label: 'Agenda',
     description: 'Calendrier simplifié',
     icon: '📅',
-    enabled: false,
+    enabled: true,
     order: 2,
   },
   {
