@@ -273,6 +273,7 @@ export default function AidantsAdminPage() {
           <div><label className="block text-sm text-gray-500 mb-1">Mobile</label><input className={input} type="tel" value={care.company.mobile || ''} onChange={e => save({ ...care, company: { ...care.company, mobile: e.target.value } })} /></div>
           <div><label className="block text-sm text-gray-500 mb-1">Adresse</label><input className={input} value={care.company.address || ''} onChange={e => save({ ...care, company: { ...care.company, address: e.target.value } })} /></div>
           <div><label className="block text-sm text-gray-500 mb-1">Ville</label><input className={input} value={care.company.city || ''} onChange={e => save({ ...care, company: { ...care.company, city: e.target.value } })} /></div>
+          <div><label className="block text-sm text-gray-500 mb-1">E-mail</label><input className={input} type="email" value={care.company.email || ''} onChange={e => save({ ...care, company: { ...care.company, email: e.target.value } })} placeholder="contact@societe.fr" /></div>
         </section>
       )}
 
