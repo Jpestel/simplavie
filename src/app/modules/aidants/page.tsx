@@ -7,15 +7,29 @@ import BackBar from '@/components/BackBar'
 
 const DAYS_FULL = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
 const DAYS_SHORT = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
+const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 
-function getWeekDates(offset: number = 0): string[] {
-  const now = new Date()
-  const day = now.getDay()
-  const monday = new Date(now)
-  monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1) + offset * 7)
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday)
-    d.setDate(monday.getDate() + i)
+type View = 'jour' | 'semaine' | 'mois'
+
+function getDatesForView(view: View, today: string): string[] {
+  const now = new Date(today + 'T00:00:00')
+  if (view === 'jour') return [today]
+  if (view === 'semaine') {
+    const day = now.getDay()
+    const monday = new Date(now)
+    monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1))
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday)
+      d.setDate(monday.getDate() + i)
+      return d.toISOString().slice(0, 10)
+    })
+  }
+  // mois
+  const year = now.getFullYear()
+  const month = now.getMonth()
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  return Array.from({ length: daysInMonth }, (_, i) => {
+    const d = new Date(year, month, i + 1)
     return d.toISOString().slice(0, 10)
   })
 }
@@ -24,7 +38,7 @@ export default function AidantsPage() {
   const router = useRouter()
   const [care, setCare] = useState<CareData>(EMPTY_CARE_DATA)
   const [loading, setLoading] = useState(true)
-  const [weekOffset, setWeekOffset] = useState(0)
+  const [view, setView] = useState<View>('semaine')
   const today = new Date().toISOString().slice(0, 10)
 
   useEffect(() => {
@@ -37,7 +51,6 @@ export default function AidantsPage() {
     </div>
   )
 
-  const weekDates = getWeekDates(weekOffset)
   const hasCompany = care.company.name.trim().length > 0
 
   const getAppt = (date: string): CareAppointment[] =>
@@ -56,11 +69,27 @@ export default function AidantsPage() {
     return appt.caregiverName || 'Intervenant'
   }
 
+  const dates = getDatesForView(view, today)
+  const datesWithAppts = view === 'mois' ? dates.filter(d => getAppt(d).length > 0) : dates
+
+  const now = new Date()
+  const viewLabel = view === 'jour'
+    ? DAYS_FULL[now.getDay()] + ' ' + now.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+    : view === 'semaine'
+    ? 'Semaine du ' + new Date(dates[0] + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+    : MONTHS[now.getMonth()] + ' ' + now.getFullYear()
+
+  const views: { key: View; label: string; icon: string }[] = [
+    { key: 'jour', label: 'Aujourd\'hui', icon: '📅' },
+    { key: 'semaine', label: 'Cette semaine', icon: '🗓️' },
+    { key: 'mois', label: 'Ce mois', icon: '📆' },
+  ]
+
   return (
     <main className="min-h-screen p-6 pb-28 max-w-2xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Mes aidants</h1>
-        <p className="text-gray-400">{DAYS_FULL[new Date().getDay()]} {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}</p>
+        <p className="text-gray-400">{DAYS_FULL[now.getDay()]} {now.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}</p>
       </div>
 
       {!hasCompany && (care.appointments || []).length === 0 && care.caregivers.length === 0 ? (
@@ -86,28 +115,61 @@ export default function AidantsPage() {
             </div>
           )}
 
-          {/* Today's appointments */}
-          {todayAppts.length > 0 && (
-            <section className="bg-indigo-50 border-2 border-indigo-200 rounded-3xl p-5">
-              <h2 className="text-lg font-bold text-indigo-700 mb-3">📅 Aujourd&apos;hui</h2>
-              <div className="space-y-2">
-                {todayAppts.map(appt => (
-                  <div key={appt.id} className={`flex items-center gap-3 bg-white rounded-2xl p-3 ${appt.status === 'cancelled' ? 'opacity-50' : ''}`}>
-                    <div className="shrink-0 text-center">
-                      <div className="text-xl font-bold text-indigo-500">{appt.time}</div>
-                      {appt.endTime && <div className="text-xs text-gray-400">→ {appt.endTime}</div>}
+          {/* View selector */}
+          <div className="grid grid-cols-3 gap-3">
+            {views.map(v => (
+              <button
+                key={v.key}
+                onClick={() => setView(v.key)}
+                className={`flex flex-col items-center gap-1 py-4 rounded-2xl font-semibold text-sm transition-all active:scale-95 ${
+                  view === v.key
+                    ? 'bg-indigo-500 text-white shadow-md'
+                    : 'bg-white border-2 border-gray-200 text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <span className="text-2xl">{v.icon}</span>
+                <span>{v.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Planning */}
+          <section>
+            <h2 className="text-base font-bold text-gray-500 mb-3">{viewLabel}</h2>
+            <div className="bg-white rounded-3xl shadow-sm border-2 border-gray-100 overflow-hidden">
+              {datesWithAppts.length === 0 ? (
+                <div className="p-6 text-center text-gray-400">Aucune intervention</div>
+              ) : (
+                datesWithAppts.map((date) => {
+                  const appts = getAppt(date)
+                  const isToday = date === today
+                  const d = new Date(date + 'T00:00:00')
+                  return (
+                    <div key={date} className={`flex gap-3 p-4 border-b border-gray-50 last:border-0 ${isToday ? 'bg-indigo-50' : ''}`}>
+                      <div className="w-16 shrink-0">
+                        <div className={`text-sm font-bold ${isToday ? 'text-indigo-600' : 'text-gray-500'}`}>{DAYS_SHORT[d.getDay()]}</div>
+                        <div className={`text-xs ${isToday ? 'text-indigo-400' : 'text-gray-400'}`}>{d.getDate()} {MONTHS[d.getMonth()].slice(0,3)}.</div>
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        {appts.length === 0 ? (
+                          <span className="text-gray-300 text-sm">—</span>
+                        ) : appts.map(a => (
+                          <div key={a.id} className={`flex items-center gap-2 ${a.status === 'cancelled' ? 'opacity-40' : ''}`}>
+                            <span className={`text-sm font-semibold ${a.status === 'cancelled' ? 'line-through text-gray-400' : isToday ? 'text-indigo-600' : 'text-gray-700'}`}>
+                              {a.time}{a.endTime ? ` → ${a.endTime}` : ''}
+                            </span>
+                            <span className={`text-sm ${a.status === 'cancelled' ? 'line-through text-gray-400' : 'text-gray-500'}`}>{getCaregiverName(a)}</span>
+                            {a.status === 'modified' && <span className="text-xs text-orange-500">⚠️</span>}
+                            {a.status === 'cancelled' && <span className="text-xs text-red-400">✕</span>}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <div className={`font-semibold text-gray-800 ${appt.status === 'cancelled' ? 'line-through' : ''}`}>{getCaregiverName(appt)}</div>
-                      {appt.notes && <div className="text-sm text-gray-500">{appt.notes}</div>}
-                      {appt.status === 'modified' && appt.modifiedNote && <div className="text-sm text-orange-600 font-medium">→ {appt.modifiedNote}</div>}
-                      {appt.status === 'cancelled' && <div className="text-sm text-red-500">Annulé</div>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
+                  )
+                })
+              )}
+            </div>
+          </section>
 
           {/* Company card */}
           {hasCompany && (
@@ -129,51 +191,6 @@ export default function AidantsPage() {
               </div>
             </section>
           )}
-
-          {/* Weekly schedule */}
-          <section>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-bold text-gray-700">Planning</h2>
-              <div className="flex gap-2">
-                <button onClick={() => setWeekOffset(w => w - 1)} className="px-5 py-3 rounded-2xl bg-white border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 active:scale-95 text-base">← Préc.</button>
-                <button onClick={() => setWeekOffset(0)} className={`px-3 py-1.5 rounded-xl border text-sm font-medium active:scale-95 ${weekOffset === 0 ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>Cette semaine</button>
-                <button onClick={() => setWeekOffset(w => w + 1)} className="px-5 py-3 rounded-2xl bg-white border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 active:scale-95 text-base">Suiv. →</button>
-              </div>
-            </div>
-            <div className="bg-white rounded-3xl shadow-sm border-2 border-gray-100 overflow-hidden">
-              {weekDates.map((date) => {
-                const appts = getAppt(date)
-                const isToday = date === today
-                const d = new Date(date + 'T00:00:00')
-                return (
-                  <div key={date} className={`flex gap-3 p-4 border-b border-gray-50 last:border-0 ${isToday ? 'bg-indigo-50' : ''}`}>
-                    <div className="w-14 shrink-0">
-                      <div className={`text-sm font-bold ${isToday ? 'text-indigo-600' : 'text-gray-400'}`}>{DAYS_SHORT[d.getDay()]}</div>
-                      <div className={`text-xs ${isToday ? 'text-indigo-400' : 'text-gray-300'}`}>{d.getDate()}/{d.getMonth()+1}</div>
-                    </div>
-                    <div className="flex-1">
-                      {appts.length === 0 ? (
-                        <span className="text-gray-300 text-sm">—</span>
-                      ) : (
-                        <div className="space-y-1">
-                          {appts.map(a => (
-                            <div key={a.id} className={`flex items-center gap-2 ${a.status === 'cancelled' ? 'opacity-40' : ''}`}>
-                              <span className={`text-sm font-semibold ${a.status === 'cancelled' ? 'line-through text-gray-400' : isToday ? 'text-indigo-600' : 'text-gray-700'}`}>
-                                {a.time}{a.endTime ? ` → ${a.endTime}` : ''}
-                              </span>
-                              <span className={`text-sm ${a.status === 'cancelled' ? 'line-through text-gray-400' : 'text-gray-500'}`}>{getCaregiverName(a)}</span>
-                              {a.status === 'modified' && <span className="text-xs text-orange-500">⚠️</span>}
-                              {a.status === 'cancelled' && <span className="text-xs text-red-400">✕</span>}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </section>
 
           {/* Caregivers */}
           {care.caregivers.length > 0 && (
