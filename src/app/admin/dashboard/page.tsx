@@ -110,6 +110,13 @@ export default function AdminDashboard() {
             <span>👤 Profil utilisateur</span>
             <span className="text-gray-400">→</span>
           </Link>
+          <Link
+            href="/admin/modules/contacts"
+            className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
+          >
+            <span>📞 Contacts d&apos;urgence</span>
+            <span className="text-gray-400">→</span>
+          </Link>
         </div>
       </section>
     </main>

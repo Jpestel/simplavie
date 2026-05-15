@@ -34,7 +34,7 @@ export const DEFAULT_MODULES: Module[] = [
     label: 'Contacts',
     description: "Contacts d'urgence en un clic",
     icon: '📞',
-    enabled: false,
+    enabled: true,
     order: 3,
   },
 ]
