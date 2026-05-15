@@ -68,8 +68,8 @@ export default function AidantsPage() {
       {!hasCompany && (care.appointments || []).length === 0 && care.caregivers.length === 0 ? (
         <div className="text-center mt-20 text-gray-400">
           <div className="text-5xl mb-4">🤝</div>
-          <p className="text-xl">Aucun aidant enregistré</p>
-          <p className="mt-2 text-sm">Demande à ton parent de configurer ce module.</p>
+          <p className="text-xl">Ce module n&apos;est pas encore configuré</p>
+          <p className="mt-2 text-sm">Tu peux le configurer depuis l&apos;espace famille ⚙️</p>
         </div>
       ) : (
         <div className="space-y-5">

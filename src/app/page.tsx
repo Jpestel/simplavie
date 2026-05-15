@@ -72,7 +72,7 @@ export default function HomePage() {
       {activeModules.length === 0 ? (
         <div className="text-center text-gray-400 mt-20">
           <p className="text-xl">Aucun module activé</p>
-          <p className="mt-2">Demande à ton aidant de configurer l&apos;application.</p>
+          <p className="mt-2">Tu peux activer des modules depuis l&apos;espace famille ⚙️</p>
         </div>
       ) : (
         <div className="grid gap-4">
