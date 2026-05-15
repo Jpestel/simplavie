@@ -278,7 +278,7 @@ export default function AidantsPage() {
         const subject = encodeURIComponent(`Absence intervenant - ${name}`)
         const body = encodeURIComponent(`Bonjour,\n\nL'intervenant(e) ${name} n'est pas arrivé(e) pour l'intervention prévue à ${alertAppt.time}${alertAppt.endTime ? ` (jusqu'à ${alertAppt.endTime})` : ''} le ${dateStr}.\n\nMerci de prendre contact rapidement.\n\nCordialement`)
         return (
-          <div className="fixed inset-0 z-50 flex flex-col justify-end">
+          <div className="fixed inset-0 z-[60] flex flex-col justify-end">
             <div className="absolute inset-0 bg-black/30" onClick={() => setAlertAppt(null)} />
             <div className="relative bg-white rounded-t-3xl p-6 shadow-2xl max-w-2xl w-full mx-auto">
               <div className="text-center mb-5">

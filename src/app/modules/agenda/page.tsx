@@ -133,7 +133,7 @@ export default function AgendaPage() {
 
       {/* Add form - bottom sheet */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end">
+        <div className="fixed inset-0 z-[60] flex flex-col justify-end">
           <div className="absolute inset-0 bg-black/30" onClick={() => setShowForm(false)} />
           <div className="relative bg-white rounded-t-3xl p-6 shadow-2xl max-w-2xl w-full mx-auto">
             <h2 className="text-xl font-bold text-gray-800 mb-5">Nouveau rendez-vous</h2>
