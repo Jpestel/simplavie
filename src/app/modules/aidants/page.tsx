@@ -84,6 +84,7 @@ export default function AidantsPage() {
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<View>('semaine')
   const [offset, setOffset] = useState(0)
+  const [alertAppt, setAlertAppt] = useState<CareAppointment | null>(null)
   const today = new Date().toISOString().slice(0, 10)
 
   useEffect(() => {
@@ -205,13 +206,22 @@ export default function AidantsPage() {
                       {appts.length === 0 ? (
                         <span className="text-gray-300 text-sm">—</span>
                       ) : appts.map(a => (
-                        <div key={a.id} className={`flex items-center gap-2 flex-wrap ${a.status === 'cancelled' ? 'opacity-40' : ''}`}>
-                          <span className={`text-sm font-semibold ${a.status === 'cancelled' ? 'line-through text-gray-400' : isToday ? 'text-indigo-600' : 'text-gray-700'}`}>
-                            {a.time}{a.endTime ? ` → ${a.endTime}` : ''}
-                          </span>
-                          <span className={`text-sm ${a.status === 'cancelled' ? 'line-through text-gray-400' : 'text-gray-500'}`}>{getCaregiverName(a)}</span>
-                          {a.status === 'modified' && <span className="text-xs text-orange-500">⚠️</span>}
-                          {a.status === 'cancelled' && <span className="text-xs text-red-400">✕</span>}
+                        <div key={a.id} className={`flex items-center gap-2 ${a.status === 'cancelled' ? 'opacity-40' : ''}`}>
+                          <div className="flex-1 flex items-center gap-2 flex-wrap">
+                            <span className={`text-sm font-semibold ${a.status === 'cancelled' ? 'line-through text-gray-400' : isToday ? 'text-indigo-600' : 'text-gray-700'}`}>
+                              {a.time}{a.endTime ? ` → ${a.endTime}` : ''}
+                            </span>
+                            <span className={`text-sm ${a.status === 'cancelled' ? 'line-through text-gray-400' : 'text-gray-500'}`}>{getCaregiverName(a)}</span>
+                            {a.status === 'modified' && <span className="text-xs text-orange-500">⚠️</span>}
+                            {a.status === 'cancelled' && <span className="text-xs text-red-400">✕</span>}
+                          </div>
+                          <button
+                            onClick={() => setAlertAppt(a)}
+                            className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl bg-orange-50 text-orange-400 hover:bg-orange-100 active:scale-95 transition-all text-base"
+                            title="Signaler une absence"
+                          >
+                            🔔
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -260,6 +270,66 @@ export default function AidantsPage() {
           )}
         </div>
       )}
+      {/* Alert absence bottom sheet */}
+      {alertAppt && (() => {
+        const name = getCaregiverName(alertAppt)
+        const d = new Date(alertAppt.date + 'T00:00:00')
+        const dateStr = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+        const subject = encodeURIComponent(`Absence intervenant - ${name}`)
+        const body = encodeURIComponent(`Bonjour,\n\nL'intervenant(e) ${name} n'est pas arrivé(e) pour l'intervention prévue à ${alertAppt.time}${alertAppt.endTime ? ` (jusqu'à ${alertAppt.endTime})` : ''} le ${dateStr}.\n\nMerci de prendre contact rapidement.\n\nCordialement`)
+        return (
+          <div className="fixed inset-0 z-50 flex flex-col justify-end">
+            <div className="absolute inset-0 bg-black/30" onClick={() => setAlertAppt(null)} />
+            <div className="relative bg-white rounded-t-3xl p-6 shadow-2xl max-w-2xl w-full mx-auto">
+              <div className="text-center mb-5">
+                <div className="text-4xl mb-2">🔔</div>
+                <h2 className="text-xl font-bold text-gray-800">Signaler une absence</h2>
+                <p className="text-gray-500 mt-1"><span className="font-semibold text-gray-700">{name}</span> — {alertAppt.time}{alertAppt.endTime ? ` → ${alertAppt.endTime}` : ''}</p>
+              </div>
+              <div className="space-y-3">
+                {care.company.phone && (
+                  <a href={`tel:${care.company.phone}`}
+                    className="flex items-center gap-4 bg-blue-50 border-2 border-blue-100 rounded-2xl p-4 active:scale-95 transition-all">
+                    <span className="text-3xl">📞</span>
+                    <div>
+                      <div className="font-bold text-blue-700">Appeler {care.company.name || 'la société'}</div>
+                      <div className="text-sm text-blue-500">{care.company.phone}</div>
+                    </div>
+                  </a>
+                )}
+                {care.company.mobile && (
+                  <a href={`tel:${care.company.mobile}`}
+                    className="flex items-center gap-4 bg-green-50 border-2 border-green-100 rounded-2xl p-4 active:scale-95 transition-all">
+                    <span className="text-3xl">📱</span>
+                    <div>
+                      <div className="font-bold text-green-700">Mobile {care.company.name || 'la société'}</div>
+                      <div className="text-sm text-green-500">{care.company.mobile}</div>
+                    </div>
+                  </a>
+                )}
+                {care.company.email && (
+                  <a href={`mailto:${care.company.email}?subject=${subject}&body=${body}`}
+                    className="flex items-center gap-4 bg-indigo-50 border-2 border-indigo-100 rounded-2xl p-4 active:scale-95 transition-all">
+                    <span className="text-3xl">✉️</span>
+                    <div>
+                      <div className="font-bold text-indigo-700">Envoyer un e-mail</div>
+                      <div className="text-sm text-indigo-400">Message pré-rempli</div>
+                    </div>
+                  </a>
+                )}
+                {!care.company.phone && !care.company.mobile && !care.company.email && (
+                  <p className="text-center text-gray-400 py-4">Aucun contact configuré pour la société</p>
+                )}
+              </div>
+              <button onClick={() => setAlertAppt(null)}
+                className="mt-4 w-full py-4 rounded-2xl border-2 border-gray-200 text-gray-600 font-semibold text-lg active:scale-95 transition-all">
+                Fermer
+              </button>
+            </div>
+          </div>
+        )
+      })()}
+
       <BackBar />
     </main>
   )
