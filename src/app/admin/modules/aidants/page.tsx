@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { CareData, Caregiver, CareAppointment } from '@/types'
 import { loadCareData, saveCareData, EMPTY_CARE_DATA } from '@/lib/careService'
+import { loadAlertMessages, saveAlertMessages } from '@/lib/alertMessagesService'
 
 const DAYS_SHORT = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
 
@@ -29,10 +30,15 @@ export default function AidantsAdminPage() {
   const [showApptForm, setShowApptForm] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [pdfResult, setPdfResult] = useState<{ count: number; error?: string } | null>(null)
-  const [activeTab, setActiveTab] = useState<'planning' | 'company' | 'caregivers'>('planning')
+  const [activeTab, setActiveTab] = useState<'planning' | 'company' | 'caregivers' | 'messages'>('planning')
+  const [alertMessages, setAlertMessages] = useState<string[]>([])
+  const [newMessage, setNewMessage] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => { loadCareData().then(d => { setCare(d); setLoading(false) }) }, [])
+  useEffect(() => {
+    loadCareData().then(d => { setCare(d); setLoading(false) })
+    loadAlertMessages().then(setAlertMessages)
+  }, [])
 
   const save = async (updated: CareData) => {
     setCare(updated)
@@ -127,10 +133,10 @@ export default function AidantsAdminPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 bg-gray-100 rounded-2xl p-1">
-        {([['planning', '📅 Planning'], ['company', '🏢 Société'], ['caregivers', '👩‍⚕️ Intervenants']] as const).map(([tab, label]) => (
+      <div className="grid grid-cols-4 gap-1 mb-6 bg-gray-100 rounded-2xl p-1">
+        {([['planning', '📅 Planning'], ['company', '🏢 Société'], ['caregivers', '👩‍⚕️ Intervenants'], ['messages', '💬 Messages']] as const).map(([tab, label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeTab === tab ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>
+            className={`py-2.5 rounded-xl text-xs font-semibold transition-all ${activeTab === tab ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>
             {label}
           </button>
         ))}
@@ -267,6 +273,46 @@ export default function AidantsAdminPage() {
           <div><label className="block text-sm text-gray-500 mb-1">Mobile</label><input className={input} type="tel" value={care.company.mobile || ''} onChange={e => save({ ...care, company: { ...care.company, mobile: e.target.value } })} /></div>
           <div><label className="block text-sm text-gray-500 mb-1">Adresse</label><input className={input} value={care.company.address || ''} onChange={e => save({ ...care, company: { ...care.company, address: e.target.value } })} /></div>
           <div><label className="block text-sm text-gray-500 mb-1">Ville</label><input className={input} value={care.company.city || ''} onChange={e => save({ ...care, company: { ...care.company, city: e.target.value } })} /></div>
+        </section>
+      )}
+
+      {/* ── MESSAGES TAB ── */}
+      {activeTab === 'messages' && (
+        <section className="space-y-4">
+          <p className="text-sm text-gray-500">Ces phrases apparaissent quand Quentin appuie sur 🔔 pour signaler une absence. Il peut aussi saisir un message libre.</p>
+          <div className="space-y-2">
+            {alertMessages.map((msg, i) => (
+              <div key={i} className="flex items-start gap-3 bg-white rounded-2xl p-4 border-2 border-gray-100">
+                <p className="flex-1 text-gray-700 text-sm">{msg}</p>
+                <button onClick={async () => {
+                  const next = alertMessages.filter((_, j) => j !== i)
+                  setAlertMessages(next)
+                  await saveAlertMessages(next)
+                }} className="text-red-400 hover:text-red-600 shrink-0 text-lg">✕</button>
+              </div>
+            ))}
+          </div>
+          <div className="bg-indigo-50 rounded-2xl p-4 space-y-3">
+            <textarea
+              className="w-full border border-gray-200 rounded-xl p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white resize-none"
+              rows={3}
+              placeholder="Nouvelle phrase type..."
+              value={newMessage}
+              onChange={e => setNewMessage(e.target.value)}
+            />
+            <button
+              onClick={async () => {
+                if (!newMessage.trim()) return
+                const next = [...alertMessages, newMessage.trim()]
+                setAlertMessages(next)
+                await saveAlertMessages(next)
+                setNewMessage('')
+              }}
+              disabled={!newMessage.trim()}
+              className="w-full py-3 rounded-xl bg-indigo-500 text-white font-bold disabled:opacity-40">
+              + Ajouter ce message
+            </button>
+          </div>
         </section>
       )}
 

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { CareData, CareAppointment } from '@/types'
 import { loadCareData, EMPTY_CARE_DATA } from '@/lib/careService'
+import { loadAlertMessages } from '@/lib/alertMessagesService'
 import BackBar from '@/components/BackBar'
 
 const DAYS_FULL = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
@@ -85,10 +86,14 @@ export default function AidantsPage() {
   const [view, setView] = useState<View>('semaine')
   const [offset, setOffset] = useState(0)
   const [alertAppt, setAlertAppt] = useState<CareAppointment | null>(null)
+  const [alertStep, setAlertStep] = useState<'contact' | 'email'>('contact')
+  const [alertMessages, setAlertMessages] = useState<string[]>([])
+  const [freeText, setFreeText] = useState('')
   const today = new Date().toISOString().slice(0, 10)
 
   useEffect(() => {
     loadCareData().then(d => { setCare(d); setLoading(false) })
+    loadAlertMessages().then(setAlertMessages)
   }, [])
 
   function switchView(v: View) { setView(v); setOffset(0) }
@@ -274,57 +279,102 @@ export default function AidantsPage() {
       {alertAppt && (() => {
         const name = getCaregiverName(alertAppt)
         const d = new Date(alertAppt.date + 'T00:00:00')
-        const dateStr = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
-        const subject = encodeURIComponent(`Absence intervenant - ${name}`)
-        const body = encodeURIComponent(`Bonjour,\n\nL'intervenant(e) ${name} n'est pas arrivé(e) pour l'intervention prévue à ${alertAppt.time}${alertAppt.endTime ? ` (jusqu'à ${alertAppt.endTime})` : ''} le ${dateStr}.\n\nMerci de prendre contact rapidement.\n\nCordialement`)
+        const dateShort = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`
+        const subject = encodeURIComponent(`Intervention de ${name} ce ${dateShort} à ${alertAppt.time}`)
+
+        const closeSheet = () => { setAlertAppt(null); setAlertStep('contact'); setFreeText('') }
+
+        const sendEmail = (message: string) => {
+          const body = encodeURIComponent(`Bonjour,\n\n${message}\n\nIntervenant(e) : ${name}\nDate : ${dateShort} à ${alertAppt.time}${alertAppt.endTime ? ` → ${alertAppt.endTime}` : ''}\n\nCordialement`)
+          window.location.href = `mailto:${care.company.email}?subject=${subject}&body=${body}`
+        }
+
         return (
           <div className="fixed inset-0 z-[60] flex flex-col justify-end">
-            <div className="absolute inset-0 bg-black/30" onClick={() => setAlertAppt(null)} />
+            <div className="absolute inset-0 bg-black/30" onClick={closeSheet} />
             <div className="relative bg-white rounded-t-3xl p-6 shadow-2xl max-w-2xl w-full mx-auto">
+
+              {/* Header */}
               <div className="text-center mb-5">
                 <div className="text-4xl mb-2">🔔</div>
                 <h2 className="text-xl font-bold text-gray-800">Signaler une absence</h2>
-                <p className="text-gray-500 mt-1"><span className="font-semibold text-gray-700">{name}</span> — {alertAppt.time}{alertAppt.endTime ? ` → ${alertAppt.endTime}` : ''}</p>
+                <p className="text-gray-500 mt-1 text-sm">
+                  <span className="font-semibold text-gray-700">{name}</span> — {dateShort} à {alertAppt.time}{alertAppt.endTime ? ` → ${alertAppt.endTime}` : ''}
+                </p>
               </div>
-              <div className="space-y-3">
-                {care.company.phone && (
-                  <a href={`tel:${care.company.phone}`}
-                    className="flex items-center gap-4 bg-blue-50 border-2 border-blue-100 rounded-2xl p-4 active:scale-95 transition-all">
-                    <span className="text-3xl">📞</span>
-                    <div>
-                      <div className="font-bold text-blue-700">Appeler {care.company.name || 'la société'}</div>
-                      <div className="text-sm text-blue-500">{care.company.phone}</div>
-                    </div>
-                  </a>
-                )}
-                {care.company.mobile && (
-                  <a href={`tel:${care.company.mobile}`}
-                    className="flex items-center gap-4 bg-green-50 border-2 border-green-100 rounded-2xl p-4 active:scale-95 transition-all">
-                    <span className="text-3xl">📱</span>
-                    <div>
-                      <div className="font-bold text-green-700">Mobile {care.company.name || 'la société'}</div>
-                      <div className="text-sm text-green-500">{care.company.mobile}</div>
-                    </div>
-                  </a>
-                )}
-                {care.company.email && (
-                  <a href={`mailto:${care.company.email}?subject=${subject}&body=${body}`}
-                    className="flex items-center gap-4 bg-indigo-50 border-2 border-indigo-100 rounded-2xl p-4 active:scale-95 transition-all">
-                    <span className="text-3xl">✉️</span>
-                    <div>
-                      <div className="font-bold text-indigo-700">Envoyer un e-mail</div>
-                      <div className="text-sm text-indigo-400">Message pré-rempli</div>
-                    </div>
-                  </a>
-                )}
-                {!care.company.phone && !care.company.mobile && !care.company.email && (
-                  <p className="text-center text-gray-400 py-4">Aucun contact configuré pour la société</p>
-                )}
-              </div>
-              <button onClick={() => setAlertAppt(null)}
-                className="mt-4 w-full py-4 rounded-2xl border-2 border-gray-200 text-gray-600 font-semibold text-lg active:scale-95 transition-all">
-                Fermer
-              </button>
+
+              {/* Étape 1 : choisir contact ou email */}
+              {alertStep === 'contact' && (
+                <div className="space-y-3">
+                  {care.company.phone && (
+                    <a href={`tel:${care.company.phone}`} className="flex items-center gap-4 bg-blue-50 border-2 border-blue-100 rounded-2xl p-4 active:scale-95 transition-all">
+                      <span className="text-3xl">📞</span>
+                      <div>
+                        <div className="font-bold text-blue-700">Appeler {care.company.name || 'la société'}</div>
+                        <div className="text-sm text-blue-500">{care.company.phone}</div>
+                      </div>
+                    </a>
+                  )}
+                  {care.company.mobile && (
+                    <a href={`tel:${care.company.mobile}`} className="flex items-center gap-4 bg-green-50 border-2 border-green-100 rounded-2xl p-4 active:scale-95 transition-all">
+                      <span className="text-3xl">📱</span>
+                      <div>
+                        <div className="font-bold text-green-700">Mobile {care.company.name || 'la société'}</div>
+                        <div className="text-sm text-green-500">{care.company.mobile}</div>
+                      </div>
+                    </a>
+                  )}
+                  {care.company.email && (
+                    <button onClick={() => setAlertStep('email')} className="w-full flex items-center gap-4 bg-indigo-50 border-2 border-indigo-100 rounded-2xl p-4 active:scale-95 transition-all text-left">
+                      <span className="text-3xl">✉️</span>
+                      <div>
+                        <div className="font-bold text-indigo-700">Envoyer un e-mail</div>
+                        <div className="text-sm text-indigo-400">Choisir ou rédiger un message</div>
+                      </div>
+                      <span className="ml-auto text-indigo-300 text-xl">›</span>
+                    </button>
+                  )}
+                  {!care.company.phone && !care.company.mobile && !care.company.email && (
+                    <p className="text-center text-gray-400 py-4">Aucun contact configuré pour la société</p>
+                  )}
+                  <button onClick={closeSheet} className="w-full py-4 rounded-2xl border-2 border-gray-200 text-gray-600 font-semibold text-lg active:scale-95 transition-all">Fermer</button>
+                </div>
+              )}
+
+              {/* Étape 2 : choisir le message */}
+              {alertStep === 'email' && (
+                <div className="space-y-3">
+                  <button onClick={() => setAlertStep('contact')} className="text-indigo-500 text-sm font-semibold flex items-center gap-1 mb-1">‹ Retour</button>
+                  <p className="text-sm font-semibold text-gray-500 mb-2">Choisir un message ou en saisir un :</p>
+
+                  {/* Template messages */}
+                  <div className="space-y-2 max-h-52 overflow-y-auto">
+                    {alertMessages.map((msg, i) => (
+                      <button key={i} onClick={() => sendEmail(msg)}
+                        className="w-full text-left bg-gray-50 border-2 border-gray-100 hover:border-indigo-300 hover:bg-indigo-50 rounded-2xl p-4 text-gray-700 text-sm active:scale-95 transition-all">
+                        {msg}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Free text */}
+                  <div className="border-t border-gray-100 pt-3">
+                    <textarea
+                      rows={3}
+                      className="w-full border-2 border-gray-200 rounded-2xl p-3 text-gray-700 focus:outline-none focus:border-indigo-400 resize-none text-sm"
+                      placeholder="Ou écris ton propre message..."
+                      value={freeText}
+                      onChange={e => setFreeText(e.target.value)}
+                    />
+                    <button
+                      onClick={() => sendEmail(freeText)}
+                      disabled={!freeText.trim()}
+                      className="w-full py-4 rounded-2xl bg-indigo-500 disabled:bg-gray-200 text-white font-bold text-lg active:scale-95 transition-all mt-2">
+                      Envoyer
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )
