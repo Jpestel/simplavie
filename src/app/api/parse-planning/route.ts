@@ -61,7 +61,8 @@ Si le document ne contient pas de planning lisible, réponds : {"appointments": 
     const parsed = JSON.parse(match[0])
     return NextResponse.json(parsed)
   } catch (err) {
-    console.error('PDF parse error:', err)
-    return NextResponse.json({ appointments: [], error: 'Erreur lors de l\'analyse' }, { status: 500 })
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('PDF parse error:', msg)
+    return NextResponse.json({ appointments: [], error: `Erreur : ${msg}` }, { status: 500 })
   }
 }
