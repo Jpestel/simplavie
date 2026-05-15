@@ -95,14 +95,16 @@ export default function AidantsPage() {
               <div className="space-y-2">
                 {todayAppts.map(appt => (
                   <div key={appt.id} className={`flex items-center gap-3 bg-white rounded-2xl p-3 ${appt.status === 'cancelled' ? 'opacity-50' : ''}`}>
-                    <div className="text-2xl font-bold text-indigo-500 w-16 text-center shrink-0">{appt.time}</div>
+                    <div className="shrink-0 text-center">
+                      <div className="text-xl font-bold text-indigo-500">{appt.time}</div>
+                      {appt.endTime && <div className="text-xs text-gray-400">→ {appt.endTime}</div>}
+                    </div>
                     <div className="flex-1">
                       <div className={`font-semibold text-gray-800 ${appt.status === 'cancelled' ? 'line-through' : ''}`}>{getCaregiverName(appt)}</div>
                       {appt.notes && <div className="text-sm text-gray-500">{appt.notes}</div>}
                       {appt.status === 'modified' && appt.modifiedNote && <div className="text-sm text-orange-600 font-medium">→ {appt.modifiedNote}</div>}
                       {appt.status === 'cancelled' && <div className="text-sm text-red-500">Annulé</div>}
                     </div>
-                    {appt.endTime && <div className="text-sm text-gray-400 shrink-0">→ {appt.endTime}</div>}
                   </div>
                 ))}
               </div>
@@ -158,7 +160,9 @@ export default function AidantsPage() {
                         <div className="space-y-1">
                           {appts.map(a => (
                             <div key={a.id} className={`flex items-center gap-2 ${a.status === 'cancelled' ? 'opacity-40' : ''}`}>
-                              <span className={`text-sm font-semibold ${a.status === 'cancelled' ? 'line-through text-gray-400' : isToday ? 'text-indigo-600' : 'text-gray-700'}`}>{a.time}</span>
+                              <span className={`text-sm font-semibold ${a.status === 'cancelled' ? 'line-through text-gray-400' : isToday ? 'text-indigo-600' : 'text-gray-700'}`}>
+                                {a.time}{a.endTime ? ` → ${a.endTime}` : ''}
+                              </span>
                               <span className={`text-sm ${a.status === 'cancelled' ? 'line-through text-gray-400' : 'text-gray-500'}`}>{getCaregiverName(a)}</span>
                               {a.status === 'modified' && <span className="text-xs text-orange-500">⚠️</span>}
                               {a.status === 'cancelled' && <span className="text-xs text-red-400">✕</span>}
