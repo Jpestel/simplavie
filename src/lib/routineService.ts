@@ -3,6 +3,9 @@ import { supabase, isSupabaseConfigured } from './supabase'
 
 const STEPS_KEY = 'simplavie_routine_steps'
 const DONE_PREFIX = 'simplavie_routine_done_'
+const CANCELLED_PREFIX = 'simplavie_routine_cancelled_'
+const POSTPONED_PREFIX = 'simplavie_routine_postponed_'
+const EXTRA_PREFIX = 'simplavie_routine_extra_'
 
 export async function loadSteps(defaultSteps: RoutineStep[]): Promise<RoutineStep[]> {
   const stored = localStorage.getItem(STEPS_KEY)
@@ -56,5 +59,43 @@ export async function toggleCompletion(date: string, stepId: string, done: boole
     await supabase.from('routine_completions').upsert({ date, step_id: stepId })
   } else {
     await supabase.from('routine_completions').delete().eq('date', date).eq('step_id', stepId)
+  }
+}
+
+export async function loadCancellations(date: string): Promise<string[]> {
+  const stored = localStorage.getItem(CANCELLED_PREFIX + date)
+  return stored ? JSON.parse(stored) : []
+}
+
+export async function toggleCancellation(date: string, stepId: string, cancelled: boolean) {
+  const stored = localStorage.getItem(CANCELLED_PREFIX + date)
+  const current: string[] = stored ? JSON.parse(stored) : []
+  const next = cancelled ? [...new Set([...current, stepId])] : current.filter(id => id !== stepId)
+  localStorage.setItem(CANCELLED_PREFIX + date, JSON.stringify(next))
+}
+
+export async function loadPostponements(date: string): Promise<string[]> {
+  const stored = localStorage.getItem(POSTPONED_PREFIX + date)
+  return stored ? JSON.parse(stored) : []
+}
+
+export async function togglePostponement(date: string, stepId: string, postponed: boolean) {
+  const stored = localStorage.getItem(POSTPONED_PREFIX + date)
+  const current: string[] = stored ? JSON.parse(stored) : []
+  const next = postponed ? [...new Set([...current, stepId])] : current.filter(id => id !== stepId)
+  localStorage.setItem(POSTPONED_PREFIX + date, JSON.stringify(next))
+}
+
+export async function loadExtras(date: string): Promise<RoutineStep[]> {
+  const stored = localStorage.getItem(EXTRA_PREFIX + date)
+  return stored ? JSON.parse(stored) : []
+}
+
+export async function postponeStep(step: RoutineStep, fromDate: string, toDate: string) {
+  await togglePostponement(fromDate, step.id, true)
+  const stored = localStorage.getItem(EXTRA_PREFIX + toDate)
+  const extras: RoutineStep[] = stored ? JSON.parse(stored) : []
+  if (!extras.find(s => s.id === step.id)) {
+    localStorage.setItem(EXTRA_PREFIX + toDate, JSON.stringify([...extras, step]))
   }
 }
