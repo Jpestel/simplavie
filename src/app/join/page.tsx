@@ -20,6 +20,7 @@ function JoinInner() {
   const [invite, setInvite] = useState<Invite | null>(null)
   const [status, setStatus] = useState<'loading' | 'invalid' | 'valid' | 'no-auth' | 'done' | 'error'>('loading')
   const [busy, setBusy] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
 
   useEffect(() => {
     async function checkToken() {
@@ -65,14 +66,14 @@ function JoinInner() {
       .update({ role: 'admin', owner_id: invite.owner_id, permission: invite.permission ?? 'read' })
       .eq('id', session.user.id)
 
-    if (profileError) { setStatus('error'); setBusy(false); return }
+    if (profileError) { setStatus('error'); setErrorMsg('Profil: ' + profileError.message); setBusy(false); return }
 
     const { error: inviteError } = await client
       .from('admin_invites')
       .update({ used_by: session.user.id })
       .eq('token', invite.token)
 
-    if (inviteError) { setStatus('error'); setBusy(false); return }
+    if (inviteError) { setStatus('error'); setErrorMsg('Invite: ' + inviteError.message); setBusy(false); return }
 
     setStatus('done')
     setBusy(false)
@@ -130,6 +131,7 @@ function JoinInner() {
           <p className="text-2xl font-semibold text-red-500">
             Une erreur est survenue. Réessaie plus tard.
           </p>
+          {errorMsg && <p className="mt-4 text-sm text-red-400 font-mono break-all">{errorMsg}</p>}
         </div>
       </main>
     )
