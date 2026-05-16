@@ -46,6 +46,15 @@ export const DEFAULT_MODULES: Module[] = [
     enabled: true,
     order: 4,
   },
+  {
+    id: 'services',
+    name: 'services',
+    label: 'Services utiles',
+    description: 'CAF, CPAM, impôts, santé…',
+    icon: '🔗',
+    enabled: true,
+    order: 5,
+  },
 ]
 
 export const DEFAULT_CONFIG: AppConfig = {
