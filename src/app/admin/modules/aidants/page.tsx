@@ -100,17 +100,28 @@ export default function AidantsAdminPage() {
       if (data.error && !data.appointments?.length) {
         setPdfResult({ count: 0, error: data.error })
       } else {
-        const newAppts: CareAppointment[] = (data.appointments || []).map((a: Partial<CareAppointment> & { caregiverName?: string }) => ({
-          id: Date.now().toString() + Math.random(),
-          date: a.date || today,
-          time: a.time || '08:00',
-          endTime: a.endTime,
-          caregiverName: a.caregiverName,
-          notes: a.notes,
-          status: 'planned' as const,
-        }))
-        const existing = (care.appointments || []).filter(a => !newAppts.some(n => n.date === a.date && n.time === a.time))
-        save({ ...care, appointments: [...existing, ...newAppts] })
+        const incoming = data.appointments || []
+        // Detect the month(s) covered by the PDF
+        const importedMonths = new Set(incoming.map((a: { date?: string }) => (a.date || '').slice(0, 7)))
+
+        const newAppts: CareAppointment[] = incoming.map((a: Partial<CareAppointment>) => {
+          // Preserve existing annotation if same date+time
+          const existing = (care.appointments || []).find(e => e.date === a.date && e.time === a.time)
+          return {
+            id: existing?.id || (Date.now().toString() + Math.random()),
+            date: a.date || today,
+            time: a.time || '08:00',
+            endTime: a.endTime,
+            caregiverName: a.caregiverName,
+            notes: a.notes,
+            status: existing?.status ?? 'planned',
+            modifiedNote: existing?.modifiedNote,
+          }
+        })
+
+        // Keep appointments from other months untouched
+        const otherMonths = (care.appointments || []).filter(a => !importedMonths.has(a.date.slice(0, 7)))
+        save({ ...care, appointments: [...otherMonths, ...newAppts] })
         setPdfResult({ count: newAppts.length })
       }
     } catch {
@@ -218,7 +229,6 @@ export default function AidantsAdminPage() {
                                 <button onClick={() => updateApptStatus(a.id, 'planned', undefined)}
                                   className="text-xs px-2 py-1 rounded-lg bg-green-100 text-green-600 hover:bg-green-200">↩</button>
                               )}
-                              <button onClick={() => deleteAppt(a.id)} className="text-xs px-2 py-1 rounded-lg bg-gray-100 text-gray-400 hover:bg-gray-200">🗑</button>
                             </div>
                           </div>
                         )

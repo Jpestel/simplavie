@@ -32,7 +32,7 @@ export default function ContactsPage() {
         <div className="text-center mt-20 text-gray-400">
           <div className="text-5xl mb-4">📞</div>
           <p className="text-xl">Aucun contact enregistré</p>
-          <p className="mt-2 text-sm">Tu peux en ajouter depuis l&apos;espace famille ⚙️</p>
+          <p className="mt-2 text-sm">Tu peux en ajouter depuis l&apos;espace configuration ⚙️</p>
         </div>
       ) : (
         <div className="space-y-4">
