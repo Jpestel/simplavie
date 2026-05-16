@@ -46,6 +46,7 @@ export default function RoutinePage() {
   const [cancelledIds, setCancelledIds] = useState<string[]>([])
   const [postponedIds, setPostponedIds] = useState<string[]>([])
   const [actionStep, setActionStep] = useState<RoutineStep | null>(null)
+  const [postponeDate, setPostponeDate] = useState('')
   const [loading, setLoading] = useState(true)
   const today = localISO(new Date())
   const [date, setDate] = useState(today)
@@ -111,18 +112,18 @@ export default function RoutinePage() {
   }
 
   const handlePostpone = async () => {
-    if (!actionStep) return
+    if (!actionStep || !postponeDate) return
     const id = actionStep.id
     const uid = activeUserId ?? ''
     if (actionStep.done) {
       setSteps(prev => prev.map(s => s.id === id ? { ...s, done: false } : s))
       await toggleCompletion(date, id, false, uid)
     }
-    const toDate = offsetDate(date, 1)
     const newP = [...new Set([...postponedIds, id])]
     setPostponedIds(newP)
-    await postponeStep(actionStep, date, toDate, uid)
+    await postponeStep(actionStep, date, postponeDate, uid)
     setActionStep(null)
+    setPostponeDate('')
   }
 
   const findDate = (from: string, direction: 1 | -1, base: RoutineStep[]): string | null => {
@@ -267,7 +268,7 @@ export default function RoutinePage() {
       {/* Action bottom sheet */}
       {actionStep && (
         <div className="fixed inset-0 z-[60] flex flex-col justify-end">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setActionStep(null)} />
+          <div className="absolute inset-0 bg-black/30" onClick={() => { setActionStep(null); setPostponeDate('') }} />
           <div className="relative bg-white rounded-t-3xl p-6 shadow-2xl max-w-2xl w-full mx-auto">
             <div className="flex items-center gap-3 mb-6">
               <span className="text-3xl">{actionStep.icon}</span>
@@ -282,15 +283,42 @@ export default function RoutinePage() {
                   <div className="text-sm text-red-400 font-normal">Ne sera plus comptée aujourd&apos;hui</div>
                 </div>
               </button>
-              <button onClick={handlePostpone}
-                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-orange-50 border-2 border-orange-200 text-orange-700 font-semibold text-lg active:scale-95 transition-all">
-                <span className="text-2xl">→</span>
-                <div className="text-left">
-                  <div className="font-bold">Reporter à demain</div>
-                  <div className="text-sm text-orange-400 font-normal">Ajoutée automatiquement demain</div>
+
+              <div className="rounded-2xl bg-orange-50 border-2 border-orange-200 p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">→</span>
+                  <div className="font-bold text-orange-700 text-lg">Reporter à une date</div>
                 </div>
-              </button>
-              <button onClick={() => setActionStep(null)}
+                <div className="flex gap-2">
+                  {[1, 2, 3].map(days => {
+                    const d = offsetDate(date, days)
+                    const label = days === 1 ? 'Demain' : `+${days}j`
+                    return (
+                      <button key={days} onClick={() => setPostponeDate(d)}
+                        className={`flex-1 py-2 rounded-xl font-semibold text-sm transition-all active:scale-95 ${
+                          postponeDate === d ? 'bg-orange-500 text-white' : 'bg-white border-2 border-orange-200 text-orange-600'
+                        }`}>
+                        {label}
+                      </button>
+                    )
+                  })}
+                  <input
+                    type="date"
+                    min={offsetDate(date, 1)}
+                    value={postponeDate}
+                    onChange={e => setPostponeDate(e.target.value)}
+                    className="flex-1 py-2 px-2 rounded-xl border-2 border-orange-200 text-orange-600 text-sm font-semibold bg-white focus:outline-none focus:border-orange-400"
+                  />
+                </div>
+                <button
+                  onClick={handlePostpone}
+                  disabled={!postponeDate}
+                  className="w-full py-3 rounded-xl bg-orange-500 text-white font-bold text-base active:scale-95 transition-all disabled:opacity-40">
+                  Confirmer le report
+                </button>
+              </div>
+
+              <button onClick={() => { setActionStep(null); setPostponeDate('') }}
                 className="w-full p-4 rounded-2xl border-2 border-gray-200 text-gray-500 font-semibold text-lg active:scale-95 transition-all">
                 Annuler
               </button>
