@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/authContext'
+import { useProfile } from '@/lib/profileContext'
 
 const PUBLIC_ROUTES = ['/login']
 
@@ -10,7 +11,8 @@ function isPublic(pathname: string) {
 }
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth()
+  const { user, loading, isAdmin } = useAuth()
+  const { profile } = useProfile()
   const pathname = usePathname()
   const router = useRouter()
   const [showEscape, setShowEscape] = useState(false)
@@ -51,5 +53,16 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     return null
   }
 
-  return <>{children}</>
+  return (
+    <>
+      {isAdmin && profile.firstName && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-indigo-600 text-white text-center text-sm py-2 px-4 font-medium">
+          Vous consultez le compte de <strong>{profile.firstName} {profile.lastName}</strong>
+        </div>
+      )}
+      <div className={isAdmin && profile.firstName ? 'pt-9' : ''}>
+        {children}
+      </div>
+    </>
+  )
 }
