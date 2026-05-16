@@ -8,14 +8,20 @@ export type Module = {
   order: number
 }
 
+export type RecurrenceType = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'once'
+
 export type RoutineStep = {
   id: string
   label: string
   icon: string
-  time?: string // optional time like "08:00"
+  time?: string
   order: number
   done: boolean
-  created_at?: string
+  recurrence: RecurrenceType
+  weekDays?: number[]    // 0=Dim…6=Sam, pour 'weekly'
+  monthDay?: number      // 1-31, pour 'monthly'
+  yearDate?: string      // "MM-DD", pour 'yearly'
+  specificDate?: string  // "YYYY-MM-DD", pour 'once'
 }
 
 export type AppConfig = {

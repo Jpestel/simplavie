@@ -4,62 +4,35 @@ import { supabase, isSupabaseConfigured } from './supabase'
 const STEPS_KEY = 'simplavie_routine_steps'
 const DONE_PREFIX = 'simplavie_routine_done_'
 
-function stepsToRows(steps: RoutineStep[]) {
-  return steps.map(s => ({
-    id: s.id,
-    label: s.label,
-    icon: s.icon,
-    step_time: s.time ?? null,
-    step_order: s.order,
-  }))
-}
-
-function rowsToSteps(rows: Record<string, unknown>[]): RoutineStep[] {
-  return rows
-    .sort((a, b) => (a.step_order as number) - (b.step_order as number))
-    .map(r => ({
-      id: r.id as string,
-      label: r.label as string,
-      icon: r.icon as string,
-      time: (r.step_time as string) ?? undefined,
-      order: r.step_order as number,
-      done: false,
-    }))
-}
-
 export async function loadSteps(defaultSteps: RoutineStep[]): Promise<RoutineStep[]> {
-  // localStorage d'abord — instantané
   const stored = localStorage.getItem(STEPS_KEY)
-  const local = stored ? (() => { try { return JSON.parse(stored) } catch { return null } })() : null
+  const local: RoutineStep[] | null = stored ? (() => { try { return JSON.parse(stored) } catch { return null } })() : null
 
-  // Sync Supabase en arrière-plan
   if (isSupabaseConfigured) {
-    supabase.from('routine_steps').select('*').then(({ data }) => {
-      if (data && data.length > 0) {
-        const steps = rowsToSteps(data as Record<string, unknown>[])
-        localStorage.setItem(STEPS_KEY, JSON.stringify(steps))
-      }
+    supabase.from('routine_data').select('payload').eq('id', 'default').maybeSingle().then(({ data }) => {
+      if (data?.payload) localStorage.setItem(STEPS_KEY, JSON.stringify(data.payload))
     })
   }
 
-  return local ?? defaultSteps
+  // Backward compat: ensure recurrence field exists
+  const steps = (local ?? defaultSteps).map(s => ({
+    ...s,
+    recurrence: s.recurrence ?? 'daily',
+  }))
+
+  return steps.sort((a, b) => a.order - b.order)
 }
 
 export async function saveSteps(steps: RoutineStep[]) {
   localStorage.setItem(STEPS_KEY, JSON.stringify(steps))
   if (!isSupabaseConfigured) return
-  await supabase.from('routine_steps').delete().neq('id', '__none__')
-  if (steps.length > 0) {
-    await supabase.from('routine_steps').insert(stepsToRows(steps))
-  }
+  await supabase.from('routine_data').upsert({ id: 'default', payload: steps, updated_at: new Date().toISOString() })
 }
 
 export async function loadCompletions(date: string): Promise<string[]> {
-  // localStorage d'abord — instantané
   const stored = localStorage.getItem(DONE_PREFIX + date)
   const local: string[] = stored ? JSON.parse(stored) : []
 
-  // Sync Supabase en arrière-plan
   if (isSupabaseConfigured) {
     supabase.from('routine_completions').select('step_id').eq('date', date).then(({ data }) => {
       if (data) {
