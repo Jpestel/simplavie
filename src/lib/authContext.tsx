@@ -8,6 +8,7 @@ type Profile = {
   display_name: string | null
   role: 'owner' | 'admin'
   owner_id: string | null
+  permission: 'read' | 'write' | null
 }
 
 type AuthContextType = {
@@ -39,18 +40,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function loadProfile(uid: string): Promise<Profile> {
     const client = getSupabase()
-    if (!client) return { id: uid, display_name: null, role: 'owner', owner_id: null }
+    if (!client) return { id: uid, display_name: null, role: 'owner' as const, owner_id: null, permission: null }
     try {
       const { data } = await client
         .from('user_profiles')
-        .select('id, display_name, role, owner_id')
+        .select('id, display_name, role, owner_id, permission')
         .eq('id', uid)
         .maybeSingle()
       if (data) return data as Profile
       // Profil absent (trigger non exécuté) → on le crée
-      await client.from('user_profiles').upsert({ id: uid, display_name: '', role: 'owner', owner_id: null })
+      await client.from('user_profiles').upsert({ id: uid, display_name: '', role: 'owner', owner_id: null, permission: null })
     } catch { /* ignore */ }
-    return { id: uid, display_name: null, role: 'owner', owner_id: null }
+    return { id: uid, display_name: null, role: 'owner' as const, owner_id: null, permission: null }
   }
 
   useEffect(() => {

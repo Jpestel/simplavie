@@ -8,6 +8,7 @@ type Invite = {
   token: string
   owner_id: string
   used_by: string | null
+  permission: 'read' | 'write' | null
   owner_display_name?: string | null
 }
 
@@ -31,7 +32,7 @@ function JoinInner() {
 
       const { data: inv } = await client
         .from('admin_invites')
-        .select('token, owner_id, used_by')
+        .select('token, owner_id, used_by, permission')
         .eq('token', token)
         .maybeSingle()
 
@@ -61,7 +62,7 @@ function JoinInner() {
 
     const { error: profileError } = await client
       .from('user_profiles')
-      .update({ role: 'admin', owner_id: invite.owner_id })
+      .update({ role: 'admin', owner_id: invite.owner_id, permission: invite.permission ?? 'read' })
       .eq('id', session.user.id)
 
     if (profileError) { setStatus('error'); setBusy(false); return }

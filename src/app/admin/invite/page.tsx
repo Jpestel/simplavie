@@ -1,59 +1,99 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/authContext'
+import { useProfile } from '@/lib/profileContext'
 import { getSupabase, isSupabaseConfigured } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
-type Invite = { id: string; token: string; used_by: string | null }
+type AdminUser = {
+  id: string
+  display_name: string | null
+  permission: 'read' | 'write'
+}
+
+type Permission = 'read' | 'write'
 
 export default function AdminInvitePage() {
-  const { user, profile } = useAuth()
+  const { user, profile: authProfile } = useAuth()
+  const { profile } = useProfile()
   const router = useRouter()
-  const [invite, setInvite] = useState<Invite | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [copied, setCopied] = useState(false)
 
-  const inviteLink = invite
-    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/join?token=${invite.token}`
-    : ''
+  const [admins, setAdmins] = useState<AdminUser[]>([])
+  const [loadingAdmins, setLoadingAdmins] = useState(true)
+  const [contactPermissions, setContactPermissions] = useState<Record<string, Permission>>({})
+  const [sendingTo, setSendingTo] = useState<string | null>(null)
+  const [revoking, setRevoking] = useState<string | null>(null)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
 
-  const loadInvite = async () => {
-    if (!user || !isSupabaseConfigured) { setLoading(false); return }
+  const contactsWithEmail = profile.contacts.filter(c => c.email)
+
+  useEffect(() => {
+    if (!user || !isSupabaseConfigured) { setLoadingAdmins(false); return }
     const sb = getSupabase()!
-    const { data } = await sb
-      .from('admin_invites')
-      .select('id, token, used_by')
+    sb.from('user_profiles')
+      .select('id, display_name, permission')
       .eq('owner_id', user.id)
-      .is('used_by', null)
-      .maybeSingle()
-    setInvite(data as Invite | null)
-    setLoading(false)
+      .eq('role', 'admin')
+      .then(({ data }) => {
+        setAdmins((data ?? []).map(d => ({
+          id: d.id as string,
+          display_name: d.display_name as string | null,
+          permission: (d.permission as Permission) ?? 'read',
+        })))
+        setLoadingAdmins(false)
+      })
+  }, [user])
+
+  const handleTogglePermission = async (admin: AdminUser) => {
+    if (!isSupabaseConfigured) return
+    const next: Permission = admin.permission === 'read' ? 'write' : 'read'
+    setTogglingId(admin.id)
+    const sb = getSupabase()!
+    await sb.from('user_profiles').update({ permission: next }).eq('id', admin.id)
+    setAdmins(prev => prev.map(a => a.id === admin.id ? { ...a, permission: next } : a))
+    setTogglingId(null)
   }
 
-  useEffect(() => { loadInvite() }, [user])
-
-  const generateInvite = async () => {
-    if (!user || !isSupabaseConfigured) return
+  const handleRevoke = async (adminId: string) => {
+    if (!isSupabaseConfigured) return
+    if (!confirm('Retirer l\'accès à cette personne ?')) return
+    setRevoking(adminId)
     const sb = getSupabase()!
-    if (invite) {
-      await sb.from('admin_invites').delete().eq('id', invite.id)
-    }
+    await sb.from('user_profiles').update({ role: 'owner', owner_id: null, permission: null }).eq('id', adminId)
+    setAdmins(prev => prev.filter(a => a.id !== adminId))
+    setRevoking(null)
+  }
+
+  const handleInvite = async (contactId: string, contactEmail: string, contactName: string) => {
+    if (!user || !isSupabaseConfigured) return
+    setSendingTo(contactId)
+    const sb = getSupabase()!
+    const permission = contactPermissions[contactId] ?? 'read'
+
     const { data } = await sb
       .from('admin_invites')
-      .insert({ owner_id: user.id })
-      .select('id, token, used_by')
+      .insert({ owner_id: user.id, permission })
+      .select('token')
       .single()
-    setInvite(data as Invite)
-    setCopied(false)
+
+    if (data?.token) {
+      const link = `${window.location.origin}/join?token=${data.token}`
+      const ownerName = profile.firstName || authProfile?.display_name || 'votre proche'
+      const permLabel = permission === 'write' ? 'consulter et modifier' : 'consulter'
+      const subject = encodeURIComponent(`Accès à l'espace SimplaVie de ${ownerName}`)
+      const body = encodeURIComponent(
+        `Bonjour ${contactName},\n\n` +
+        `Vous avez été invité(e) à accéder à l'espace SimplaVie de ${ownerName} en mode « ${permLabel} ».\n\n` +
+        `Cliquez sur ce lien pour accepter l'invitation :\n${link}\n\n` +
+        `Ce lien est à usage unique.\n\nSimplaVie`
+      )
+      window.location.href = `mailto:${contactEmail}?subject=${subject}&body=${body}`
+    }
+
+    setSendingTo(null)
   }
 
-  const copyLink = () => {
-    navigator.clipboard.writeText(inviteLink)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  if (profile?.role === 'admin') {
+  if (authProfile?.role === 'admin') {
     return (
       <main className="min-h-screen flex items-center justify-center p-6">
         <div className="text-center text-gray-400">
@@ -66,57 +106,142 @@ export default function AdminInvitePage() {
   }
 
   return (
-    <main className="min-h-screen p-6 max-w-2xl mx-auto">
+    <main className="min-h-screen p-6 max-w-2xl mx-auto pb-24">
       <div className="flex items-center gap-4 mb-8">
         <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-600 text-xl">←</button>
-        <h1 className="text-2xl font-bold text-gray-800">Accès administrateurs</h1>
+        <h1 className="text-2xl font-bold text-gray-800">Accès et invitations</h1>
       </div>
 
-      <div className="bg-white rounded-2xl p-6 shadow-sm mb-5">
-        <p className="text-gray-600 mb-6 leading-relaxed">
-          Partagez ce lien avec une personne de confiance pour qu&apos;elle puisse accéder à la configuration de votre compte.
-          Le lien est à usage unique.
-        </p>
+      {/* Bloc 1 — Administrateurs actuels */}
+      <section className="mb-8">
+        <h2 className="text-lg font-bold text-gray-700 mb-3">Administrateurs actuels</h2>
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          {loadingAdmins ? (
+            <div className="p-6 text-center text-gray-400">Chargement...</div>
+          ) : admins.length === 0 ? (
+            <div className="p-6 text-center text-gray-400">
+              <p>Aucun administrateur pour l&apos;instant.</p>
+              <p className="text-sm mt-1">Invitez quelqu&apos;un via vos contacts ci-dessous.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {admins.map(admin => (
+                <div key={admin.id} className="flex items-center gap-4 p-4">
+                  <div className="w-11 h-11 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-500 shrink-0 text-lg">
+                    {(admin.display_name ?? '?').charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-gray-800 truncate">
+                      {admin.display_name ?? 'Administrateur'}
+                    </div>
+                    <button
+                      onClick={() => handleTogglePermission(admin)}
+                      disabled={togglingId === admin.id}
+                      className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium transition-all active:scale-95"
+                    >
+                      {admin.permission === 'write' ? (
+                        <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full">
+                          ✏️ Lecture + Édition
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 px-2.5 py-0.5 rounded-full">
+                          👁️ Lecture seule
+                        </span>
+                      )}
+                      <span className="text-gray-400 text-xs">Changer</span>
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => handleRevoke(admin.id)}
+                    disabled={revoking === admin.id}
+                    className="px-3 py-2 rounded-xl bg-red-50 text-red-500 font-semibold text-sm active:scale-95 transition-all disabled:opacity-40 shrink-0"
+                  >
+                    {revoking === admin.id ? '...' : 'Retirer'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
 
-        {loading ? (
-          <div className="text-center text-gray-400 py-8">Chargement...</div>
-        ) : invite ? (
-          <div className="space-y-3">
-            <div className="bg-gray-50 rounded-xl p-4 break-all text-sm text-gray-600 font-mono border border-gray-200">
-              {inviteLink}
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={copyLink}
-                className={`flex-1 py-4 rounded-2xl font-bold text-lg active:scale-95 transition-all ${
-                  copied ? 'bg-green-500 text-white' : 'bg-indigo-500 text-white'
-                }`}
-              >
-                {copied ? '✓ Copié !' : 'Copier le lien'}
-              </button>
-              <button
-                onClick={generateInvite}
-                className="px-5 py-4 rounded-2xl border-2 border-gray-200 text-gray-600 font-semibold active:scale-95 transition-all"
-                title="Révoquer et régénérer"
-              >
-                🔄
-              </button>
-            </div>
+      {/* Bloc 2 — Inviter via contacts */}
+      <section>
+        <h2 className="text-lg font-bold text-gray-700 mb-3">Inviter via vos contacts</h2>
+
+        {contactsWithEmail.length === 0 ? (
+          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-5 text-center">
+            <p className="text-orange-700 font-semibold">Aucun contact avec une adresse e-mail</p>
+            <p className="text-orange-600 text-sm mt-1">Ajoutez des e-mails à vos contacts dans le profil utilisateur.</p>
+            <button
+              onClick={() => router.push('/admin/profile')}
+              className="mt-3 text-indigo-500 font-semibold text-sm underline"
+            >
+              Aller au profil →
+            </button>
           </div>
         ) : (
-          <button
-            onClick={generateInvite}
-            className="w-full py-5 rounded-2xl bg-indigo-500 text-white font-bold text-xl active:scale-95 transition-all"
-          >
-            Générer un lien d&apos;invitation
-          </button>
+          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div className="divide-y divide-gray-100">
+              {contactsWithEmail.map(contact => {
+                const perm = contactPermissions[contact.id] ?? 'read'
+                const isSending = sendingTo === contact.id
+                return (
+                  <div key={contact.id} className="p-4">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-500 shrink-0">
+                        {contact.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-gray-800">{contact.name}</div>
+                        <div className="text-sm text-gray-400">{contact.relation} · {contact.email}</div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="flex gap-1 flex-1">
+                        <button
+                          onClick={() => setContactPermissions(prev => ({ ...prev, [contact.id]: 'read' }))}
+                          className={`flex-1 py-2 px-3 rounded-xl text-sm font-semibold transition-all active:scale-95 ${
+                            perm === 'read'
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-gray-100 text-gray-500'
+                          }`}
+                        >
+                          👁️ Lecture
+                        </button>
+                        <button
+                          onClick={() => setContactPermissions(prev => ({ ...prev, [contact.id]: 'write' }))}
+                          className={`flex-1 py-2 px-3 rounded-xl text-sm font-semibold transition-all active:scale-95 ${
+                            perm === 'write'
+                              ? 'bg-emerald-500 text-white'
+                              : 'bg-gray-100 text-gray-500'
+                          }`}
+                        >
+                          ✏️ Édition
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => handleInvite(contact.id, contact.email!, contact.name)}
+                        disabled={isSending}
+                        className="px-4 py-2 rounded-xl bg-indigo-500 text-white font-bold text-sm active:scale-95 transition-all disabled:opacity-50 shrink-0"
+                      >
+                        {isSending ? '...' : '✉️ Inviter'}
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         )}
-      </div>
 
-      <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4">
-        <p className="text-orange-700 text-sm font-semibold">⚠️ Une fois utilisé, le lien n&apos;est plus valable.</p>
-        <p className="text-orange-600 text-sm mt-1">Générez-en un nouveau si vous souhaitez inviter une autre personne.</p>
-      </div>
+        <div className="mt-4 bg-blue-50 border border-blue-100 rounded-2xl p-4">
+          <p className="text-blue-700 text-sm">
+            <strong>Lecture</strong> : la personne peut consulter les informations mais pas les modifier.<br />
+            <strong>Édition</strong> : la personne peut aussi modifier et supprimer des données.
+          </p>
+        </div>
+      </section>
     </main>
   )
 }
