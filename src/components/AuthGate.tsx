@@ -27,6 +27,10 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(t)
   }, [loading])
 
+  if (isPublic(pathname)) {
+    return <>{children}</>
+  }
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 gap-6">
@@ -43,7 +47,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     )
   }
 
-  if (!user && !isPublic(pathname)) {
+  if (!user) {
     return null
   }
 
