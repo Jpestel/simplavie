@@ -52,7 +52,11 @@ export default function RoutinePage() {
 
   useEffect(() => {
     if (authLoading) return
-    loadSteps(DEFAULT_STEPS, activeUserId ?? '').then(s => { setAllSteps(s); setLoading(false) })
+    const timeout = setTimeout(() => setLoading(false), 8000)
+    loadSteps(DEFAULT_STEPS, activeUserId ?? '')
+      .then(s => { setAllSteps(s) })
+      .catch(() => { setAllSteps(DEFAULT_STEPS) })
+      .finally(() => { clearTimeout(timeout); setLoading(false) })
   }, [activeUserId, authLoading])
 
   const loadForDate = useCallback(async (d: string, base: RoutineStep[]) => {
