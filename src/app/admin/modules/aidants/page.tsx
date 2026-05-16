@@ -146,6 +146,11 @@ export default function AidantsAdminPage() {
         <h1 className="text-2xl font-bold text-gray-800">Mes aidants</h1>
       </div>
 
+      {/* DEBUG temporaire */}
+      <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-3 mb-4 text-xs text-yellow-800 font-mono break-all">
+        activeUserId: {activeUserId ?? 'null'}
+      </div>
+
       {/* Tabs */}
       <div className="grid grid-cols-4 gap-1 mb-6 bg-gray-100 rounded-2xl p-1">
         {([['planning', '📅 Planning'], ['company', '🏢 Société'], ['caregivers', '👩‍⚕️ Intervenants'], ['messages', '💬 Messages']] as const).map(([tab, label]) => (
