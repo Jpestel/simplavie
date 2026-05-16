@@ -65,7 +65,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
+    const timeout = setTimeout(() => setLoading(false), 5000)
+
     client.auth.getSession().then(async ({ data: { session } }) => {
+      clearTimeout(timeout)
       setUser(session?.user ?? null)
       if (session?.user) {
         try {
@@ -74,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch { /* ignore */ }
       }
       setLoading(false)
-    }).catch(() => setLoading(false))
+    }).catch(() => { clearTimeout(timeout); setLoading(false) })
 
     const { data: { subscription } } = client.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null)
@@ -95,9 +98,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function signIn(email: string, password: string): Promise<{ error: string | null }> {
     const client = getSupabase()
     if (!client) return { error: 'Supabase non configuré' }
-    const { error } = await client.auth.signInWithPassword({ email, password })
-    if (error) return { error: error.message }
-    return { error: null }
+    try {
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Délai dépassé. Vérifiez votre connexion et réessayez.')), 15000)
+      )
+      const { error } = await Promise.race([
+        client.auth.signInWithPassword({ email, password }),
+        timeout,
+      ])
+      if (error) return { error: error.message }
+      return { error: null }
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : 'Erreur de connexion' }
+    }
   }
 
   async function signUp(email: string, password: string, name: string): Promise<{ error: string | null }> {
