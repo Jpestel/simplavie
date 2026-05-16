@@ -33,7 +33,7 @@ export async function loadCompletions(date: string, userId: string): Promise<str
   if (isSupabaseConfigured && userId) {
     const { data, error } = await supabase
       .from('routine_completions').select('step_id').eq('user_id', userId).eq('date', date)
-    if (!error && data) {
+    if (!error && data && data.length > 0) {
       const ids = data.map((r: Record<string, unknown>) => r.step_id as string)
       localStorage.setItem(DONE_PREFIX + date, JSON.stringify(ids))
       return ids
