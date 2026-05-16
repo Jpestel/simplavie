@@ -136,6 +136,13 @@ export default function AdminDashboard() {
             <span className="text-gray-400">→</span>
           </Link>
           <Link
+            href="/admin/modules/services"
+            className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
+          >
+            <span>🔗 Services utiles</span>
+            <span className="text-gray-400">→</span>
+          </Link>
+          <Link
             href="/admin/invite"
             className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
           >
