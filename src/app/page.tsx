@@ -33,8 +33,8 @@ export default function HomePage() {
   }, [profileLoading, profile.profileCompleted, router])
 
   useEffect(() => {
-    if (!profileLoading && profile.profileCompleted) {
-      loadCareData().then(care => {
+    if (!profileLoading && profile.profileCompleted && activeUserId) {
+      loadCareData(activeUserId).then(care => {
         const today = new Date().toISOString().slice(0, 10)
         const alerts = (care.appointments || []).filter(a => a.date === today && a.status !== 'planned')
         if (alerts.length > 0) {
@@ -42,7 +42,7 @@ export default function HomePage() {
         }
       })
     }
-  }, [profileLoading, profile.profileCompleted])
+  }, [profileLoading, profile.profileCompleted, activeUserId])
 
   if (configLoading || profileLoading) {
     return (

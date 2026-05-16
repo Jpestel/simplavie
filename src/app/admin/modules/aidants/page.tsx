@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { CareData, Caregiver, CareAppointment } from '@/types'
 import { loadCareData, saveCareData, EMPTY_CARE_DATA } from '@/lib/careService'
 import { loadAlertMessages, saveAlertMessages } from '@/lib/alertMessagesService'
+import { useAuth } from '@/lib/authContext'
 
 const DAYS_SHORT = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
 
@@ -21,6 +22,7 @@ function getWeekDates(offset: number = 0): string[] {
 
 export default function AidantsAdminPage() {
   const router = useRouter()
+  const { activeUserId } = useAuth()
   const [care, setCare] = useState<CareData>(EMPTY_CARE_DATA)
   const [loading, setLoading] = useState(true)
   const [weekOffset, setWeekOffset] = useState(0)
@@ -36,13 +38,14 @@ export default function AidantsAdminPage() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    loadCareData().then(d => { setCare(d); setLoading(false) })
+    if (!activeUserId) return
+    loadCareData(activeUserId).then(d => { setCare(d); setLoading(false) })
     loadAlertMessages().then(setAlertMessages)
-  }, [])
+  }, [activeUserId])
 
   const save = async (updated: CareData) => {
     setCare(updated)
-    await saveCareData(updated)
+    if (activeUserId) await saveCareData(updated, activeUserId)
   }
 
   const weekDates = getWeekDates(weekOffset)

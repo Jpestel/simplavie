@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { CareData, CareAppointment } from '@/types'
 import { loadCareData, EMPTY_CARE_DATA } from '@/lib/careService'
 import { loadAlertMessages } from '@/lib/alertMessagesService'
+import { useAuth } from '@/lib/authContext'
 import BackBar from '@/components/BackBar'
 
 const DAYS_FULL = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
@@ -81,6 +82,7 @@ const VIEWS: { key: View; label: string }[] = [
 
 export default function AidantsPage() {
   const router = useRouter()
+  const { activeUserId } = useAuth()
   const [care, setCare] = useState<CareData>(EMPTY_CARE_DATA)
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<View>('semaine')
@@ -92,9 +94,10 @@ export default function AidantsPage() {
   const today = new Date().toISOString().slice(0, 10)
 
   useEffect(() => {
-    loadCareData().then(d => { setCare(d); setLoading(false) })
+    if (!activeUserId) return
+    loadCareData(activeUserId).then(d => { setCare(d); setLoading(false) })
     loadAlertMessages().then(setAlertMessages)
-  }, [])
+  }, [activeUserId])
 
   function switchView(v: View) { setView(v); setOffset(0) }
 

@@ -1,7 +1,7 @@
 import { CareData } from '@/types'
 import { supabase, isSupabaseConfigured } from './supabase'
 
-const STORAGE_KEY = 'simplavie_care_data'
+const storageKey = (userId: string) => `simplavie_care_data_${userId}`
 
 export const EMPTY_CARE_DATA: CareData = {
   company: { name: '' },
@@ -9,16 +9,15 @@ export const EMPTY_CARE_DATA: CareData = {
   appointments: [],
 }
 
-export async function loadCareData(): Promise<CareData> {
-  // localStorage d'abord — instantané
-  const stored = localStorage.getItem(STORAGE_KEY)
+export async function loadCareData(userId: string): Promise<CareData> {
+  const key = storageKey(userId)
+  const stored = localStorage.getItem(key)
   const local = stored ? (() => { try { return JSON.parse(stored) } catch { return null } })() : null
 
-  // Sync Supabase en arrière-plan
-  if (isSupabaseConfigured) {
-    supabase.from('care_data').select('payload').eq('id', 'default').maybeSingle().then(({ data }) => {
+  if (isSupabaseConfigured && userId) {
+    supabase.from('care_data').select('payload').eq('user_id', userId).maybeSingle().then(({ data }) => {
       if (data?.payload) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data.payload))
+        localStorage.setItem(key, JSON.stringify(data.payload))
       }
     })
   }
@@ -26,8 +25,9 @@ export async function loadCareData(): Promise<CareData> {
   return local ?? EMPTY_CARE_DATA
 }
 
-export async function saveCareData(care: CareData) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(care))
-  if (!isSupabaseConfigured) return
-  await supabase.from('care_data').upsert({ id: 'default', payload: care, updated_at: new Date().toISOString() })
+export async function saveCareData(care: CareData, userId: string) {
+  const key = storageKey(userId)
+  localStorage.setItem(key, JSON.stringify(care))
+  if (!isSupabaseConfigured || !userId) return
+  await supabase.from('care_data').upsert({ id: userId, user_id: userId, payload: care, updated_at: new Date().toISOString() })
 }
