@@ -1,10 +1,12 @@
 'use client'
 import { useConfig } from '@/lib/configContext'
+import { useAuth } from '@/lib/authContext'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 export default function AdminDashboard() {
   const { config, updateConfig } = useConfig()
+  const { signOut } = useAuth()
   const router = useRouter()
 
   const toggleModule = (id: string) => {
@@ -14,12 +16,17 @@ export default function AdminDashboard() {
     updateConfig({ modules: updated })
   }
 
+  const handleSignOut = async () => {
+    await signOut()
+    router.push('/login')
+  }
+
   return (
     <main className="min-h-screen p-6 max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold text-gray-800">Configuration</h1>
         <button
-          onClick={() => router.push('/')}
+          onClick={handleSignOut}
           className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all text-gray-600 font-semibold text-sm"
         >
           <span>🔒</span>
@@ -51,16 +58,6 @@ export default function AdminDashboard() {
               />
               <span className="text-gray-400 text-sm">{config.primaryColor}</span>
             </div>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-500 mb-1">Code PIN (4 chiffres)</label>
-            <input
-              type="password"
-              maxLength={4}
-              value={config.adminPassword}
-              onChange={e => updateConfig({ adminPassword: e.target.value.replace(/\D/g, '').slice(0, 4) })}
-              className="w-full border border-gray-200 rounded-xl p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-            />
           </div>
         </div>
       </section>
@@ -94,38 +91,38 @@ export default function AdminDashboard() {
       </section>
 
       {/* Quick links to module config */}
-      <section className="bg-white rounded-2xl p-6 shadow-sm">
+      <section className="bg-white rounded-2xl p-6 shadow-sm mb-6">
         <h2 className="text-lg font-semibold text-gray-700 mb-4">Configurer les modules</h2>
         <div className="space-y-2">
-          <Link
-            href="/admin/modules/routine"
-            className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
-          >
+          <Link href="/admin/modules/routine" className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700">
             <span>📋 Routine du jour</span>
             <span className="text-gray-400">→</span>
           </Link>
-          <Link
-            href="/admin/profile"
-            className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
-          >
+          <Link href="/admin/profile" className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700">
             <span>👤 Profil utilisateur</span>
             <span className="text-gray-400">→</span>
           </Link>
-          <Link
-            href="/admin/modules/contacts"
-            className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
-          >
+          <Link href="/admin/modules/contacts" className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700">
             <span>📞 Contacts d&apos;urgence</span>
             <span className="text-gray-400">→</span>
           </Link>
-          <Link
-            href="/admin/modules/aidants"
-            className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
-          >
+          <Link href="/admin/modules/aidants" className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700">
             <span>🤝 Mes aidants</span>
             <span className="text-gray-400">→</span>
           </Link>
         </div>
+      </section>
+
+      {/* Admin access */}
+      <section className="bg-white rounded-2xl p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-700 mb-4">Accès administrateurs</h2>
+        <Link
+          href="/admin/invite"
+          className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
+        >
+          <span>👥 Gérer les administrateurs</span>
+          <span className="text-gray-400">→</span>
+        </Link>
       </section>
     </main>
   )
