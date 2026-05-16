@@ -160,6 +160,11 @@ export default function AidantsAdminPage() {
       {activeTab === 'planning' && (
         <div className="space-y-5">
 
+          {/* DEBUG temporaire */}
+          <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-3 text-xs text-yellow-800 font-mono break-all">
+            activeUserId: {activeUserId ?? 'null'}
+          </div>
+
           {/* PDF import */}
           <section className="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-5">
             <h2 className="text-base font-bold text-indigo-700 mb-1">📄 Importer un planning PDF</h2>
