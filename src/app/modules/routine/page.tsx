@@ -120,6 +120,10 @@ export default function RoutinePage() {
     for (let i = 0; i < 365; i++) {
       cursor = offsetDate(cursor, direction)
       if (base.some(s => stepAppliesOn(s, cursor))) return cursor
+      try {
+        const extras = localStorage.getItem('simplavie_routine_extra_' + cursor)
+        if (extras && (JSON.parse(extras) as RoutineStep[]).length > 0) return cursor
+      } catch { /* ignore */ }
     }
     return null
   }
