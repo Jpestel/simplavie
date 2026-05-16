@@ -5,6 +5,7 @@ import { CareData, Caregiver, CareAppointment } from '@/types'
 import { loadCareData, saveCareData, EMPTY_CARE_DATA } from '@/lib/careService'
 import { loadAlertMessages, saveAlertMessages } from '@/lib/alertMessagesService'
 import { useAuth } from '@/lib/authContext'
+import { getSupabase, isSupabaseConfigured } from '@/lib/supabase'
 
 const DAYS_SHORT = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
 
@@ -35,13 +36,32 @@ export default function AidantsAdminPage() {
   const [activeTab, setActiveTab] = useState<'planning' | 'company' | 'caregivers' | 'messages'>('planning')
   const [alertMessages, setAlertMessages] = useState<string[]>([])
   const [newMessage, setNewMessage] = useState('')
+  const [calendarToken, setCalendarToken] = useState<string | null>(null)
+  const [calendarCopied, setCalendarCopied] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!activeUserId) return
     loadCareData(activeUserId).then(d => { setCare(d); setLoading(false) })
     loadAlertMessages().then(setAlertMessages)
+    if (isSupabaseConfigured) {
+      getSupabase()!.from('user_profile').select('calendar_token').eq('id', activeUserId).maybeSingle()
+        .then(({ data }) => { if (data?.calendar_token) setCalendarToken(data.calendar_token as string) })
+    }
   }, [activeUserId])
+
+  const generateCalendarToken = async () => {
+    if (!activeUserId || !isSupabaseConfigured) return
+    const token = crypto.randomUUID()
+    await getSupabase()!.from('user_profile').update({ calendar_token: token }).eq('id', activeUserId)
+    setCalendarToken(token)
+    setCalendarCopied(false)
+  }
+
+  const calendarURL = calendarToken
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/api/calendar/${calendarToken}`
+    : ''
+  const webcalURL = calendarURL.replace(/^https?/, 'webcal')
 
   const save = async (updated: CareData) => {
     setCare(updated)
@@ -173,6 +193,40 @@ export default function AidantsAdminPage() {
               <div className={`mt-3 p-3 rounded-xl text-sm font-medium ${pdfResult.error ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>
                 {pdfResult.error ? `❌ ${pdfResult.error}` : `✅ ${pdfResult.count} passage(s) importé(s)`}
               </div>
+            )}
+          </section>
+
+          {/* iCal export */}
+          <section className="bg-gray-50 border-2 border-gray-200 rounded-2xl p-5">
+            <h2 className="text-base font-bold text-gray-700 mb-1">📲 Abonnement calendrier iCal</h2>
+            <p className="text-sm text-gray-500 mb-4">Abonnez-vous depuis votre iPhone pour que le planning se synchronise automatiquement.</p>
+            {calendarToken ? (
+              <div className="space-y-3">
+                <div className="bg-white rounded-xl p-3 text-xs text-gray-500 font-mono break-all border border-gray-200">
+                  {calendarURL}
+                </div>
+                <div className="flex gap-2">
+                  <a href={webcalURL}
+                    className="flex-1 py-3 rounded-xl bg-gray-800 text-white font-bold text-center text-sm active:scale-95 transition-all">
+                    📲 Ouvrir sur iPhone
+                  </a>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(calendarURL); setCalendarCopied(true); setTimeout(() => setCalendarCopied(false), 2000) }}
+                    className={`flex-1 py-3 rounded-xl font-bold text-sm active:scale-95 transition-all ${calendarCopied ? 'bg-green-500 text-white' : 'bg-white border-2 border-gray-200 text-gray-600'}`}>
+                    {calendarCopied ? '✓ Copié !' : 'Copier le lien'}
+                  </button>
+                  <button onClick={generateCalendarToken}
+                    className="px-4 py-3 rounded-xl border-2 border-gray-200 text-gray-500 text-sm active:scale-95 transition-all"
+                    title="Révoquer et régénérer">
+                    🔄
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={generateCalendarToken}
+                className="w-full py-3 rounded-xl bg-gray-800 text-white font-bold active:scale-95 transition-all">
+                Générer le lien d&apos;abonnement
+              </button>
             )}
           </section>
 
