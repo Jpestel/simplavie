@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 function todayMatches(reminder: {
   recurrence: string
   week_days: number[] | null
@@ -58,6 +56,7 @@ export async function GET(req: NextRequest) {
     byUser[r.user_id].push(r)
   }
 
+  const resend = new Resend(process.env.RESEND_API_KEY)
   let sent = 0
 
   for (const [, userReminders] of Object.entries(byUser)) {
