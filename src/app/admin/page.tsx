@@ -70,9 +70,10 @@ export default function AdminLoginPage() {
 
       <button
         onClick={() => router.push('/')}
-        className="mt-10 text-gray-400 hover:text-gray-600 text-sm"
+        className="mt-10 w-full max-w-xs flex items-center justify-center gap-3 bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all rounded-2xl py-5 text-gray-600 font-semibold text-lg"
       >
-        ← Retour
+        <span className="text-2xl">🏠</span>
+        <span>Retour à l&apos;accueil</span>
       </button>
     </main>
   )
