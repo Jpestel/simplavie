@@ -25,13 +25,22 @@ export default function AdminDashboard() {
     <main className="min-h-screen p-6 max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold text-gray-800">Configuration</h1>
-        <button
-          onClick={handleSignOut}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all text-gray-600 font-semibold text-sm"
-        >
-          <span>🔒</span>
-          <span>Me déconnecter</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-indigo-50 hover:bg-indigo-100 active:scale-95 transition-all text-indigo-600 font-semibold text-sm"
+          >
+            <span>🏠</span>
+            <span>Accueil</span>
+          </Link>
+          <button
+            onClick={handleSignOut}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all text-gray-600 font-semibold text-sm"
+          >
+            <span>🔒</span>
+            <span>Déconnexion</span>
+          </button>
+        </div>
       </div>
 
       <section className="bg-white rounded-2xl p-6 shadow-sm mb-6">
