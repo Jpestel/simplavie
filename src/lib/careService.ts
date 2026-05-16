@@ -11,23 +11,29 @@ export const EMPTY_CARE_DATA: CareData = {
 
 export async function loadCareData(userId: string): Promise<CareData> {
   const key = storageKey(userId)
-  const stored = localStorage.getItem(key)
-  const local = stored ? (() => { try { return JSON.parse(stored) } catch { return null } })() : null
 
   if (isSupabaseConfigured && userId) {
-    supabase.from('care_data').select('payload').eq('user_id', userId).maybeSingle().then(({ data }) => {
-      if (data?.payload) {
-        localStorage.setItem(key, JSON.stringify(data.payload))
+    try {
+      const { data, error } = await supabase
+        .from('care_data')
+        .select('payload')
+        .eq('id', userId)
+        .maybeSingle()
+      if (!error && data?.payload) {
+        const parsed = data.payload as CareData
+        localStorage.setItem(key, JSON.stringify(parsed))
+        return parsed
       }
-    })
+    } catch { /* ignore */ }
   }
 
-  return local ?? EMPTY_CARE_DATA
+  const stored = localStorage.getItem(key)
+  return stored ? (() => { try { return JSON.parse(stored) } catch { return EMPTY_CARE_DATA } })() : EMPTY_CARE_DATA
 }
 
 export async function saveCareData(care: CareData, userId: string) {
   const key = storageKey(userId)
   localStorage.setItem(key, JSON.stringify(care))
   if (!isSupabaseConfigured || !userId) return
-  await supabase.from('care_data').upsert({ id: userId, user_id: userId, payload: care, updated_at: new Date().toISOString() })
+  await supabase.from('care_data').upsert({ id: userId, payload: care, updated_at: new Date().toISOString() })
 }
