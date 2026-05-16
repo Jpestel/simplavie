@@ -8,21 +8,18 @@ const POSTPONED_PREFIX = 'simplavie_routine_postponed_'
 const EXTRA_PREFIX = 'simplavie_routine_extra_'
 
 export async function loadSteps(defaultSteps: RoutineStep[]): Promise<RoutineStep[]> {
+  if (isSupabaseConfigured) {
+    const { data, error } = await supabase
+      .from('routine_data').select('payload').eq('id', 'default').maybeSingle()
+    if (!error && data?.payload) {
+      const steps = (data.payload as RoutineStep[]).map(s => ({ ...s, recurrence: s.recurrence ?? 'daily' }))
+      localStorage.setItem(STEPS_KEY, JSON.stringify(steps))
+      return steps.sort((a, b) => a.order - b.order)
+    }
+  }
   const stored = localStorage.getItem(STEPS_KEY)
   const local: RoutineStep[] | null = stored ? (() => { try { return JSON.parse(stored) } catch { return null } })() : null
-
-  if (isSupabaseConfigured) {
-    supabase.from('routine_data').select('payload').eq('id', 'default').maybeSingle().then(({ data }) => {
-      if (data?.payload) localStorage.setItem(STEPS_KEY, JSON.stringify(data.payload))
-    })
-  }
-
-  // Backward compat: ensure recurrence field exists
-  const steps = (local ?? defaultSteps).map(s => ({
-    ...s,
-    recurrence: s.recurrence ?? 'daily',
-  }))
-
+  const steps = (local ?? defaultSteps).map(s => ({ ...s, recurrence: s.recurrence ?? 'daily' }))
   return steps.sort((a, b) => a.order - b.order)
 }
 
@@ -33,22 +30,21 @@ export async function saveSteps(steps: RoutineStep[]) {
 }
 
 export async function loadCompletions(date: string): Promise<string[]> {
-  const stored = localStorage.getItem(DONE_PREFIX + date)
-  const local: string[] = stored ? JSON.parse(stored) : []
-
   if (isSupabaseConfigured) {
-    supabase.from('routine_completions').select('step_id').eq('date', date).then(({ data }) => {
-      if (data) {
-        const ids = data.map((r: Record<string, unknown>) => r.step_id as string)
-        localStorage.setItem(DONE_PREFIX + date, JSON.stringify(ids))
-      }
-    })
+    const { data, error } = await supabase
+      .from('routine_completions').select('step_id').eq('date', date)
+    if (!error && data) {
+      const ids = data.map((r: Record<string, unknown>) => r.step_id as string)
+      localStorage.setItem(DONE_PREFIX + date, JSON.stringify(ids))
+      return ids
+    }
   }
-
-  return local
+  const stored = localStorage.getItem(DONE_PREFIX + date)
+  return stored ? JSON.parse(stored) : []
 }
 
 export async function toggleCompletion(date: string, stepId: string, done: boolean) {
+  // Mise à jour optimiste du cache local
   const stored = localStorage.getItem(DONE_PREFIX + date)
   const current: string[] = stored ? JSON.parse(stored) : []
   const next = done ? [...new Set([...current, stepId])] : current.filter(id => id !== stepId)
