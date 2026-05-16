@@ -23,7 +23,7 @@ export default function AdminDashboard() {
           className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all text-gray-600 font-semibold text-sm"
         >
           <span>🔒</span>
-          <span>Déconnecter</span>
+          <span>Me déconnecter</span>
         </button>
       </div>
 
