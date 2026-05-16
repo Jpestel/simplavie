@@ -3,22 +3,24 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
 
-export const isSupabaseConfigured =
-  url.startsWith('http') && key.length > 20
+export const isSupabaseConfigured = url.startsWith('http') && key.length > 20
 
 let _client: SupabaseClient | null = null
 
-export function getSupabase(): SupabaseClient {
+export function getSupabase(): SupabaseClient | null {
+  if (!isSupabaseConfigured) return null
   if (!_client) _client = createClient(url, key)
   return _client
 }
 
-export const supabase = {
-  from: (table: string) => {
-    if (!isSupabaseConfigured) {
-      const noop = () => noop as unknown
-      return { select: noop, insert: noop, upsert: noop, delete: noop, eq: noop, neq: noop, maybeSingle: noop, then: noop }
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_, prop: string | symbol) {
+    const client = getSupabase()
+    if (!client) {
+      const noop = (): unknown => noop
+      return noop
     }
-    return getSupabase().from(table)
+    const val = (client as unknown as Record<string | symbol, unknown>)[prop]
+    return typeof val === 'function' ? (val as (...a: unknown[]) => unknown).bind(client) : val
   },
-} as unknown as SupabaseClient
+})

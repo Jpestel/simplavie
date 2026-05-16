@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { AppConfig } from '@/types'
 import { DEFAULT_CONFIG } from './defaultConfig'
 import { supabase, isSupabaseConfigured } from './supabase'
+import { useAuth } from '@/lib/authContext'
 
 const STORAGE_KEY = 'simplavie_config'
 
@@ -14,9 +15,10 @@ type ConfigContextType = {
 
 const ConfigContext = createContext<ConfigContextType | null>(null)
 
-function toRow(c: AppConfig) {
+function toRow(c: AppConfig, userId: string) {
   return {
-    id: 'default',
+    id: userId,
+    user_id: userId,
     user_name: c.userName,
     primary_color: c.primaryColor,
     admin_password: c.adminPassword,
@@ -35,20 +37,21 @@ function fromRow(row: Record<string, unknown>): AppConfig {
 }
 
 export function ConfigProvider({ children }: { children: ReactNode }) {
+  const { activeUserId, loading: authLoading } = useAuth()
   const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Affichage immédiat depuis localStorage
+    if (authLoading || !activeUserId) return
+
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) {
       try { setConfig(JSON.parse(stored)) } catch { /* keep default */ }
     }
     setIsLoading(false)
 
-    // Sync Supabase en arrière-plan
     if (isSupabaseConfigured) {
-      supabase.from('app_config').select('*').eq('id', 'default').maybeSingle().then(({ data }) => {
+      supabase.from('app_config').select('*').eq('user_id', activeUserId).maybeSingle().then(({ data }) => {
         if (data) {
           const c = fromRow(data)
           setConfig(c)
@@ -56,14 +59,14 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         }
       })
     }
-  }, [])
+  }, [activeUserId, authLoading])
 
   const updateConfig = (updates: Partial<AppConfig>) => {
     const next = { ...config, ...updates }
     setConfig(next)
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-    if (isSupabaseConfigured) {
-      supabase.from('app_config').upsert(toRow(next)).then()
+    if (isSupabaseConfigured && activeUserId) {
+      supabase.from('app_config').upsert(toRow(next, activeUserId)).then()
     }
   }
 

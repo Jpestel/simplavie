@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { UserProfile } from '@/types'
 import { supabase, isSupabaseConfigured } from './supabase'
+import { useAuth } from '@/lib/authContext'
 
 const STORAGE_KEY = 'simplavie_profile'
 
@@ -21,9 +22,10 @@ type ProfileContextType = {
 
 const ProfileContext = createContext<ProfileContextType | null>(null)
 
-function toRow(p: UserProfile) {
+function toRow(p: UserProfile, userId: string) {
   return {
-    id: 'default',
+    id: userId,
+    user_id: userId,
     first_name: p.firstName,
     last_name: p.lastName,
     birth_date: p.birthDate ?? null,
@@ -83,20 +85,21 @@ function fromRow(row: Record<string, unknown>): UserProfile {
 }
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
+  const { activeUserId, loading: authLoading } = useAuth()
   const [profile, setProfile] = useState<UserProfile>(EMPTY_PROFILE)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Affichage immédiat depuis localStorage
+    if (authLoading || !activeUserId) return
+
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) {
       try { setProfile(JSON.parse(stored)) } catch { /* keep default */ }
     }
     setIsLoading(false)
 
-    // Sync Supabase en arrière-plan
     if (isSupabaseConfigured) {
-      supabase.from('user_profile').select('*').eq('id', 'default').maybeSingle().then(({ data }) => {
+      supabase.from('user_profile').select('*').eq('user_id', activeUserId).maybeSingle().then(({ data }) => {
         if (data) {
           const p = fromRow(data)
           setProfile(p)
@@ -104,14 +107,14 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         }
       })
     }
-  }, [])
+  }, [activeUserId, authLoading])
 
   const updateProfile = (updates: Partial<UserProfile>) => {
     const next = { ...profile, ...updates }
     setProfile(next)
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-    if (isSupabaseConfigured) {
-      supabase.from('user_profile').upsert(toRow(next)).then()
+    if (isSupabaseConfigured && activeUserId) {
+      supabase.from('user_profile').upsert(toRow(next, activeUserId)).then()
     }
   }
 

@@ -4,6 +4,7 @@ import { RoutineStep, RecurrenceType } from '@/types'
 import { useRouter } from 'next/navigation'
 import { loadSteps, saveSteps } from '@/lib/routineService'
 import { recurrenceLabel } from '@/lib/routineUtils'
+import { useAuth } from '@/lib/authContext'
 
 const DEFAULT_STEPS: RoutineStep[] = [
   { id: '1', label: 'Se lever', icon: '🌅', order: 0, done: false, recurrence: 'daily' },
@@ -105,16 +106,17 @@ const EMPTY_FORM = {
 
 export default function RoutineAdminPage() {
   const router = useRouter()
+  const { activeUserId } = useAuth()
   const [steps, setSteps] = useState<RoutineStep[]>([])
   const [showForm, setShowForm] = useState(false)
   const [showIconPicker, setShowIconPicker] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
-  useEffect(() => { loadSteps(DEFAULT_STEPS).then(setSteps) }, [])
+  useEffect(() => { loadSteps(DEFAULT_STEPS, activeUserId ?? '').then(setSteps) }, [activeUserId])
 
   const save = async (updated: RoutineStep[]) => {
     setSteps(updated)
-    await saveSteps(updated)
+    await saveSteps(updated, activeUserId ?? '')
   }
 
   const addStep = () => {

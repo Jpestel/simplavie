@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { RoutineStep } from '@/types'
 import { useConfig } from '@/lib/configContext'
+import { useAuth } from '@/lib/authContext'
 import BackBar from '@/components/BackBar'
 import {
   loadSteps, loadCompletions, toggleCompletion,
@@ -39,6 +40,7 @@ function sortSteps(list: RoutineStep[]): RoutineStep[] {
 
 export default function RoutinePage() {
   const { config } = useConfig()
+  const { activeUserId, loading: authLoading } = useAuth()
   const [allSteps, setAllSteps] = useState<RoutineStep[]>([])
   const [steps, setSteps] = useState<RoutineStep[]>([])
   const [cancelledIds, setCancelledIds] = useState<string[]>([])
@@ -49,22 +51,24 @@ export default function RoutinePage() {
   const [date, setDate] = useState(today)
 
   useEffect(() => {
-    loadSteps(DEFAULT_STEPS).then(s => { setAllSteps(s); setLoading(false) })
-  }, [])
+    if (authLoading) return
+    loadSteps(DEFAULT_STEPS, activeUserId ?? '').then(s => { setAllSteps(s); setLoading(false) })
+  }, [activeUserId, authLoading])
 
   const loadForDate = useCallback(async (d: string, base: RoutineStep[]) => {
+    const uid = activeUserId ?? ''
     const [doneIds, cancelled, postponed, extras] = await Promise.all([
-      loadCompletions(d),
-      loadCancellations(d),
-      loadPostponements(d),
-      loadExtras(d),
+      loadCompletions(d, uid),
+      loadCancellations(d, uid),
+      loadPostponements(d, uid),
+      loadExtras(d, uid),
     ])
     const all = [...base.filter(s => stepAppliesOn(s, d)), ...extras.filter(e => !base.find(s => s.id === e.id))]
     const sorted = sortSteps(all.map(s => ({ ...s, done: doneIds.includes(s.id) })))
     setSteps(sorted)
     setCancelledIds(cancelled)
     setPostponedIds(postponed)
-  }, [])
+  }, [activeUserId])
 
   useEffect(() => {
     if (!loading) loadForDate(date, allSteps)
@@ -73,45 +77,47 @@ export default function RoutinePage() {
   const handleToggle = async (id: string) => {
     const step = steps.find(s => s.id === id)
     if (!step) return
+    const uid = activeUserId ?? ''
     if (cancelledIds.includes(id) || postponedIds.includes(id)) {
-      // restore to pending
       const newC = cancelledIds.filter(x => x !== id)
       const newP = postponedIds.filter(x => x !== id)
       setCancelledIds(newC)
       setPostponedIds(newP)
-      await toggleCancellation(date, id, false)
-      await togglePostponement(date, id, false)
+      await toggleCancellation(date, id, false, uid)
+      await togglePostponement(date, id, false, uid)
       return
     }
     const next = !step.done
     setSteps(prev => prev.map(s => s.id === id ? { ...s, done: next } : s))
-    await toggleCompletion(date, id, next)
+    await toggleCompletion(date, id, next, uid)
   }
 
   const handleCancel = async () => {
     if (!actionStep) return
     const id = actionStep.id
+    const uid = activeUserId ?? ''
     if (actionStep.done) {
       setSteps(prev => prev.map(s => s.id === id ? { ...s, done: false } : s))
-      await toggleCompletion(date, id, false)
+      await toggleCompletion(date, id, false, uid)
     }
     const newC = [...new Set([...cancelledIds, id])]
     setCancelledIds(newC)
-    await toggleCancellation(date, id, true)
+    await toggleCancellation(date, id, true, uid)
     setActionStep(null)
   }
 
   const handlePostpone = async () => {
     if (!actionStep) return
     const id = actionStep.id
+    const uid = activeUserId ?? ''
     if (actionStep.done) {
       setSteps(prev => prev.map(s => s.id === id ? { ...s, done: false } : s))
-      await toggleCompletion(date, id, false)
+      await toggleCompletion(date, id, false, uid)
     }
     const toDate = offsetDate(date, 1)
     const newP = [...new Set([...postponedIds, id])]
     setPostponedIds(newP)
-    await postponeStep(actionStep, date, toDate)
+    await postponeStep(actionStep, date, toDate, uid)
     setActionStep(null)
   }
 
@@ -140,7 +146,13 @@ export default function RoutinePage() {
   const d = new Date(date + 'T00:00:00')
   const dateLabel = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
 
-  if (loading) return (
+  if (authLoading || loading) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-2xl text-gray-400">Chargement...</div>
+    </div>
+  )
+
+  if (!activeUserId) return (
     <div className="flex items-center justify-center min-h-screen">
       <div className="text-2xl text-gray-400">Chargement...</div>
     </div>
