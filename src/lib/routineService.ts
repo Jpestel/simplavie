@@ -85,29 +85,39 @@ export async function toggleCancellation(date: string, stepId: string, cancelled
   }
 }
 
-export async function loadPostponements(date: string, userId: string): Promise<string[]> {
+export async function loadPostponements(date: string, userId: string): Promise<Record<string, string>> {
   if (isSupabaseConfigured && userId) {
     const { data, error } = await supabase
-      .from('routine_postponements').select('step_id').eq('user_id', userId).eq('date', date)
+      .from('routine_postponements').select('step_id, to_date').eq('user_id', userId).eq('date', date)
     if (!error && data && data.length > 0) {
-      const ids = data.map((r: Record<string, unknown>) => r.step_id as string)
-      localStorage.setItem(POSTPONED_PREFIX + date, JSON.stringify(ids))
-      return ids
+      const map: Record<string, string> = {}
+      data.forEach((r: Record<string, unknown>) => { map[r.step_id as string] = (r.to_date as string) ?? '' })
+      localStorage.setItem(POSTPONED_PREFIX + date, JSON.stringify(map))
+      return map
     }
   }
   const stored = localStorage.getItem(POSTPONED_PREFIX + date)
-  return stored ? JSON.parse(stored) : []
+  if (!stored) return {}
+  const parsed = JSON.parse(stored)
+  // backward compat: old format was string[]
+  if (Array.isArray(parsed)) {
+    const map: Record<string, string> = {}
+    parsed.forEach((id: string) => { map[id] = '' })
+    return map
+  }
+  return parsed
 }
 
-export async function togglePostponement(date: string, stepId: string, postponed: boolean, userId: string) {
+export async function togglePostponement(date: string, stepId: string, postponed: boolean, userId: string, toDate = '') {
   const stored = localStorage.getItem(POSTPONED_PREFIX + date)
-  const current: string[] = stored ? JSON.parse(stored) : []
-  const next = postponed ? [...new Set([...current, stepId])] : current.filter(id => id !== stepId)
-  localStorage.setItem(POSTPONED_PREFIX + date, JSON.stringify(next))
+  const current: Record<string, string> = stored ? (() => { try { const p = JSON.parse(stored); return Array.isArray(p) ? {} : p } catch { return {} } })() : {}
+  if (postponed) current[stepId] = toDate
+  else delete current[stepId]
+  localStorage.setItem(POSTPONED_PREFIX + date, JSON.stringify(current))
 
   if (!isSupabaseConfigured || !userId) return
   if (postponed) {
-    await supabase.from('routine_postponements').upsert({ date, step_id: stepId, user_id: userId })
+    await supabase.from('routine_postponements').upsert({ date, step_id: stepId, user_id: userId, to_date: toDate || null })
   } else {
     await supabase.from('routine_postponements').delete().eq('user_id', userId).eq('date', date).eq('step_id', stepId)
   }
@@ -128,7 +138,7 @@ export async function loadExtras(date: string, userId: string): Promise<RoutineS
 }
 
 export async function postponeStep(step: RoutineStep, fromDate: string, toDate: string, userId: string) {
-  await togglePostponement(fromDate, step.id, true, userId)
+  await togglePostponement(fromDate, step.id, true, userId, toDate)
 
   const stored = localStorage.getItem(EXTRA_PREFIX + toDate)
   const extras: RoutineStep[] = stored ? JSON.parse(stored) : []

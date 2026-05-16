@@ -44,7 +44,7 @@ export default function RoutinePage() {
   const [allSteps, setAllSteps] = useState<RoutineStep[]>([])
   const [steps, setSteps] = useState<RoutineStep[]>([])
   const [cancelledIds, setCancelledIds] = useState<string[]>([])
-  const [postponedIds, setPostponedIds] = useState<string[]>([])
+  const [postponedMap, setPostponedMap] = useState<Record<string, string>>({})
   const [actionStep, setActionStep] = useState<RoutineStep | null>(null)
   const [postponeDate, setPostponeDate] = useState('')
   const [loading, setLoading] = useState(true)
@@ -75,7 +75,7 @@ export default function RoutinePage() {
     const sorted = sortSteps(all.map(s => ({ ...s, done: doneIds.includes(s.id) })))
     setSteps(sorted)
     setCancelledIds(cancelled)
-    setPostponedIds(postponed)
+    setPostponedMap(postponed)
   }, [activeUserId])
 
   useEffect(() => {
@@ -86,11 +86,12 @@ export default function RoutinePage() {
     const step = steps.find(s => s.id === id)
     if (!step) return
     const uid = activeUserId ?? ''
-    if (cancelledIds.includes(id) || postponedIds.includes(id)) {
+    if (cancelledIds.includes(id) || id in postponedMap) {
       const newC = cancelledIds.filter(x => x !== id)
-      const newP = postponedIds.filter(x => x !== id)
+      const newP = { ...postponedMap }
+      delete newP[id]
       setCancelledIds(newC)
-      setPostponedIds(newP)
+      setPostponedMap(newP)
       await toggleCancellation(date, id, false, uid)
       await togglePostponement(date, id, false, uid)
       return
@@ -122,8 +123,8 @@ export default function RoutinePage() {
       setSteps(prev => prev.map(s => s.id === id ? { ...s, done: false } : s))
       await toggleCompletion(date, id, false, uid)
     }
-    const newP = [...new Set([...postponedIds, id])]
-    setPostponedIds(newP)
+    const newP = { ...postponedMap, [id]: postponeDate }
+    setPostponedMap(newP)
     await postponeStep(actionStep, date, postponeDate, uid)
     setActionStep(null)
     setPostponeDate('')
@@ -145,7 +146,7 @@ export default function RoutinePage() {
   const prevDate = allSteps.length ? findDate(date, -1, allSteps) : null
   const nextDate = allSteps.length ? findDate(date, 1, allSteps) : null
 
-  const activeSteps = steps.filter(s => !cancelledIds.includes(s.id) && !postponedIds.includes(s.id))
+  const activeSteps = steps.filter(s => !cancelledIds.includes(s.id) && !(s.id in postponedMap))
   const doneCount = activeSteps.filter(s => s.done).length
   const totalCount = activeSteps.length
   const allDone = doneCount === totalCount && totalCount > 0
@@ -227,7 +228,14 @@ export default function RoutinePage() {
         <div className="space-y-3">
           {steps.map(step => {
             const isCancelled = cancelledIds.includes(step.id)
-            const isPostponed = postponedIds.includes(step.id)
+            const isPostponed = step.id in postponedMap
+            const postponeTarget = postponedMap[step.id] ?? ''
+            const tomorrow = offsetDate(date, 1)
+            const postponeLabel = postponeTarget === tomorrow
+              ? 'Reportée à demain'
+              : postponeTarget
+                ? `Reportée au ${new Date(postponeTarget + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
+                : 'Reportée'
             const isResolved = isCancelled || isPostponed
 
             return (
@@ -248,7 +256,7 @@ export default function RoutinePage() {
                     </div>
                     {step.time && !isResolved && <div className="text-gray-400 mt-1">{step.time}</div>}
                     {isCancelled && <div className="text-red-400 text-sm font-semibold mt-1">Annulée</div>}
-                    {isPostponed && <div className="text-orange-400 text-sm font-semibold mt-1">Reportée à demain</div>}
+                    {isPostponed && <div className="text-orange-400 text-sm font-semibold mt-1">{postponeLabel}</div>}
                   </div>
                   <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-lg transition-all shrink-0 ${
                     step.done ? 'bg-green-400' : isCancelled ? 'bg-red-300' : isPostponed ? 'bg-orange-300' : 'bg-gray-200'
