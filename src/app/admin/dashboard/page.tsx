@@ -120,6 +120,13 @@ export default function AdminDashboard() {
             <span className="text-gray-400">→</span>
           </Link>
           <Link
+            href="/admin/modules/reminders"
+            className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
+          >
+            <span>🔔 Rappels</span>
+            <span className="text-gray-400">→</span>
+          </Link>
+          <Link
             href="/admin/invite"
             className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
           >
