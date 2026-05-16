@@ -1,5 +1,5 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/authContext'
 
@@ -13,6 +13,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
+  const [showEscape, setShowEscape] = useState(false)
 
   useEffect(() => {
     if (!loading && !user && !isPublic(pathname)) {
@@ -20,10 +21,24 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     }
   }, [loading, user, pathname, router])
 
+  useEffect(() => {
+    if (!loading) return
+    const t = setTimeout(() => setShowEscape(true), 4000)
+    return () => clearTimeout(t)
+  }, [loading])
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 gap-6">
         <p className="text-2xl text-gray-400">Chargement...</p>
+        {showEscape && (
+          <button
+            onClick={() => router.replace('/login')}
+            className="text-indigo-500 font-semibold text-lg underline"
+          >
+            Aller à la page de connexion
+          </button>
+        )}
       </div>
     )
   }
