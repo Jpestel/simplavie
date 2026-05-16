@@ -40,7 +40,7 @@ function JoinInner() {
       if (inv.used_by) { setStatus('invalid'); return }
 
       const { data: ownerProfile } = await client
-        .from('user_profiles')
+        .from('user_profile')
         .select('display_name')
         .eq('id', inv.owner_id)
         .maybeSingle()
@@ -61,7 +61,7 @@ function JoinInner() {
     if (!session) { setStatus('no-auth'); setBusy(false); return }
 
     const { error: profileError } = await client
-      .from('user_profiles')
+      .from('user_profile')
       .update({ role: 'admin', owner_id: invite.owner_id, permission: invite.permission ?? 'read' })
       .eq('id', session.user.id)
 

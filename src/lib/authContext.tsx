@@ -43,13 +43,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!client) return { id: uid, display_name: null, role: 'owner' as const, owner_id: null, permission: null }
     try {
       const { data } = await client
-        .from('user_profiles')
+        .from('user_profile')
         .select('id, display_name, role, owner_id, permission')
         .eq('id', uid)
         .maybeSingle()
       if (data) return data as Profile
       // Profil absent (trigger non exécuté) → on le crée
-      await client.from('user_profiles').upsert({ id: uid, display_name: '', role: 'owner', owner_id: null, permission: null })
+      await client.from('user_profile').upsert({ id: uid, display_name: '', role: 'owner', owner_id: null, permission: null })
     } catch { /* ignore */ }
     return { id: uid, display_name: null, role: 'owner' as const, owner_id: null, permission: null }
   }
@@ -114,7 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data, error } = await client.auth.signUp({ email, password })
     if (error) return { error: error.message }
     if (data.user) {
-      await client.from('user_profiles').upsert({
+      await client.from('user_profile').upsert({
         id: data.user.id,
         display_name: name,
         role: 'owner',

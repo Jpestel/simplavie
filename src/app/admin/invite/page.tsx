@@ -30,7 +30,7 @@ export default function AdminInvitePage() {
   useEffect(() => {
     if (!user || !isSupabaseConfigured) { setLoadingAdmins(false); return }
     const sb = getSupabase()!
-    sb.from('user_profiles')
+    sb.from('user_profile')
       .select('id, display_name, permission')
       .eq('owner_id', user.id)
       .eq('role', 'admin')
@@ -49,7 +49,7 @@ export default function AdminInvitePage() {
     const next: Permission = admin.permission === 'read' ? 'write' : 'read'
     setTogglingId(admin.id)
     const sb = getSupabase()!
-    await sb.from('user_profiles').update({ permission: next }).eq('id', admin.id)
+    await sb.from('user_profile').update({ permission: next }).eq('id', admin.id)
     setAdmins(prev => prev.map(a => a.id === admin.id ? { ...a, permission: next } : a))
     setTogglingId(null)
   }
@@ -59,7 +59,7 @@ export default function AdminInvitePage() {
     if (!confirm('Retirer l\'accès à cette personne ?')) return
     setRevoking(adminId)
     const sb = getSupabase()!
-    await sb.from('user_profiles').update({ role: 'owner', owner_id: null, permission: null }).eq('id', adminId)
+    await sb.from('user_profile').update({ role: 'owner', owner_id: null, permission: null }).eq('id', adminId)
     setAdmins(prev => prev.filter(a => a.id !== adminId))
     setRevoking(null)
   }
