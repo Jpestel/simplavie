@@ -86,27 +86,24 @@ function fromRow(row: Record<string, unknown>): UserProfile {
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
   const { activeUserId, loading: authLoading } = useAuth()
-  const [profile, setProfile] = useState<UserProfile>(EMPTY_PROFILE)
-  const [isLoading, setIsLoading] = useState(true)
+  const [profile, setProfile] = useState<UserProfile>(() => {
+    if (typeof window === 'undefined') return EMPTY_PROFILE
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY)
+      return stored ? JSON.parse(stored) : EMPTY_PROFILE
+    } catch { return EMPTY_PROFILE }
+  })
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    if (authLoading || !activeUserId) return
-
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) {
-      try { setProfile(JSON.parse(stored)) } catch { /* keep default */ }
-    }
-    setIsLoading(false)
-
-    if (isSupabaseConfigured) {
-      supabase.from('user_profile').select('*').eq('user_id', activeUserId).maybeSingle().then(({ data }) => {
-        if (data) {
-          const p = fromRow(data)
-          setProfile(p)
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(p))
-        }
-      })
-    }
+    if (authLoading || !activeUserId || !isSupabaseConfigured) return
+    supabase.from('user_profile').select('*').eq('user_id', activeUserId).maybeSingle().then(({ data }) => {
+      if (data) {
+        const p = fromRow(data)
+        setProfile(p)
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(p))
+      }
+    })
   }, [activeUserId, authLoading])
 
   const updateProfile = (updates: Partial<UserProfile>) => {

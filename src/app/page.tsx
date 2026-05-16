@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useConfig } from '@/lib/configContext'
 import { useProfile } from '@/lib/profileContext'
+import { useAuth } from '@/lib/authContext'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { loadCareData } from '@/lib/careService'
@@ -9,8 +10,15 @@ import { loadCareData } from '@/lib/careService'
 export default function HomePage() {
   const { config, isLoading: configLoading } = useConfig()
   const { profile, isLoading: profileLoading } = useProfile()
+  const { signOut } = useAuth()
   const router = useRouter()
   const [careAlert, setCareAlert] = useState<string | null>(null)
+
+  const handleSignOut = async () => {
+    localStorage.clear()
+    await signOut()
+    router.push('/login')
+  }
 
   useEffect(() => {
     if (!profileLoading && profile.profileCompleted) {
@@ -100,6 +108,14 @@ export default function HomePage() {
         <span className="text-2xl">⚙️</span>
         <span>Espace configuration</span>
       </Link>
+
+      <button
+        onClick={handleSignOut}
+        className="mt-3 flex items-center justify-center gap-3 w-full bg-gray-50 hover:bg-gray-100 active:scale-95 transition-all rounded-2xl py-4 text-gray-400 font-medium text-base border border-gray-200"
+      >
+        <span>🔒</span>
+        <span>Se déconnecter</span>
+      </button>
     </main>
   )
 }

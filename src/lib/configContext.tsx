@@ -38,27 +38,24 @@ function fromRow(row: Record<string, unknown>): AppConfig {
 
 export function ConfigProvider({ children }: { children: ReactNode }) {
   const { activeUserId, loading: authLoading } = useAuth()
-  const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG)
-  const [isLoading, setIsLoading] = useState(true)
+  const [config, setConfig] = useState<AppConfig>(() => {
+    if (typeof window === 'undefined') return DEFAULT_CONFIG
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY)
+      return stored ? JSON.parse(stored) : DEFAULT_CONFIG
+    } catch { return DEFAULT_CONFIG }
+  })
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    if (authLoading || !activeUserId) return
-
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) {
-      try { setConfig(JSON.parse(stored)) } catch { /* keep default */ }
-    }
-    setIsLoading(false)
-
-    if (isSupabaseConfigured) {
-      supabase.from('app_config').select('*').eq('user_id', activeUserId).maybeSingle().then(({ data }) => {
-        if (data) {
-          const c = fromRow(data)
-          setConfig(c)
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(c))
-        }
-      })
-    }
+    if (authLoading || !activeUserId || !isSupabaseConfigured) return
+    supabase.from('app_config').select('*').eq('user_id', activeUserId).maybeSingle().then(({ data }) => {
+      if (data) {
+        const c = fromRow(data)
+        setConfig(c)
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(c))
+      }
+    })
   }, [activeUserId, authLoading])
 
   const updateConfig = (updates: Partial<AppConfig>) => {
