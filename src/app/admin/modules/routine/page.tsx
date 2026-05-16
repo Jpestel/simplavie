@@ -35,7 +35,16 @@ const ICONS = [
   { icon: '💆', label: 'Détente' },
 ]
 
-const DAYS_LABELS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
+// Ordre d'affichage lun→dim, avec la valeur JS correspondante (0=Dim)
+const DAYS_ORDERED = [
+  { label: 'Lun', value: 1 },
+  { label: 'Mar', value: 2 },
+  { label: 'Mer', value: 3 },
+  { label: 'Jeu', value: 4 },
+  { label: 'Ven', value: 5 },
+  { label: 'Sam', value: 6 },
+  { label: 'Dim', value: 0 },
+]
 
 const RECURRENCE_OPTIONS: { key: RecurrenceType; label: string; icon: string }[] = [
   { key: 'daily',   label: 'Tous les jours', icon: '📆' },
@@ -103,9 +112,9 @@ export default function RoutineAdminPage() {
     save(next.map((s, j) => ({ ...s, order: j })))
   }
 
-  const toggleWeekDay = (d: number) => {
+  const toggleWeekDay = (value: number) => {
     const cur = form.weekDays
-    setForm(f => ({ ...f, weekDays: cur.includes(d) ? cur.filter(x => x !== d) : [...cur, d] }))
+    setForm(f => ({ ...f, weekDays: cur.includes(value) ? cur.filter(x => x !== value) : [...cur, value] }))
   }
 
   const input = "w-full border border-gray-200 rounded-xl p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
@@ -218,14 +227,14 @@ export default function RoutineAdminPage() {
               <div className="mb-4">
                 <label className="block text-sm text-gray-500 mb-2">Quels jours ?</label>
                 <div className="flex gap-2 flex-wrap">
-                  {DAYS_LABELS.map((d, i) => (
-                    <button key={i} onClick={() => toggleWeekDay(i)}
+                  {DAYS_ORDERED.map(({ label, value }) => (
+                    <button key={value} onClick={() => toggleWeekDay(value)}
                       className={`w-11 h-11 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 ${
-                        form.weekDays.includes(i)
+                        form.weekDays.includes(value)
                           ? 'bg-indigo-500 text-white border-indigo-500'
                           : 'bg-white text-gray-500 border-gray-200'
                       }`}>
-                      {d}
+                      {label}
                     </button>
                   ))}
                 </div>
