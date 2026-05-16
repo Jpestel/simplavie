@@ -93,9 +93,13 @@ export default function HomePage() {
         </div>
       )}
 
-      <div className="text-center mt-16">
-        <Link href="/admin" className="text-gray-300 text-sm hover:text-gray-400">⚙️</Link>
-      </div>
+      <Link
+        href="/admin"
+        className="mt-10 flex items-center justify-center gap-3 w-full bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all rounded-2xl py-5 text-gray-500 font-semibold text-lg"
+      >
+        <span className="text-2xl">⚙️</span>
+        <span>Espace configuration</span>
+      </Link>
     </main>
   )
 }
