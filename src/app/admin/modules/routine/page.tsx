@@ -3,8 +3,8 @@ import { useState, useEffect } from 'react'
 import { RoutineStep, RecurrenceType } from '@/types'
 import { useRouter } from 'next/navigation'
 import { loadSteps, saveSteps } from '@/lib/routineService'
-import { recurrenceLabel } from '@/lib/routineUtils'
 import { useAuth } from '@/lib/authContext'
+import { recurrenceLabel } from '@/lib/routineUtils'
 
 const DEFAULT_STEPS: RoutineStep[] = [
   { id: '1', label: 'Se lever', icon: '🌅', order: 0, done: false, recurrence: 'daily' },
@@ -79,7 +79,6 @@ const ICONS_EXTENDED = [
   { icon: '🚶', label: 'Promenade' },
 ]
 
-// Ordre d'affichage lun→dim, avec la valeur JS correspondante (0=Dim)
 const DAYS_ORDERED = [
   { label: 'Lun', value: 1 },
   { label: 'Mar', value: 2 },
@@ -106,13 +105,16 @@ const EMPTY_FORM = {
 
 export default function RoutineAdminPage() {
   const router = useRouter()
-  const { activeUserId } = useAuth()
+  const { activeUserId, loading: authLoading } = useAuth()
   const [steps, setSteps] = useState<RoutineStep[]>([])
   const [showForm, setShowForm] = useState(false)
   const [showIconPicker, setShowIconPicker] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
-  useEffect(() => { loadSteps(DEFAULT_STEPS, activeUserId ?? '').then(setSteps) }, [activeUserId])
+  useEffect(() => {
+    if (authLoading) return
+    loadSteps(DEFAULT_STEPS, activeUserId ?? '').then(setSteps)
+  }, [activeUserId, authLoading])
 
   const save = async (updated: RoutineStep[]) => {
     setSteps(updated)
@@ -172,7 +174,6 @@ export default function RoutineAdminPage() {
         <h1 className="text-2xl font-bold text-gray-800">Routine du jour</h1>
       </div>
 
-      {/* Step list */}
       <section className="bg-white rounded-2xl p-6 shadow-sm mb-5">
         <h2 className="text-base font-semibold text-gray-700 mb-4">Tâches ({steps.length})</h2>
         {steps.length === 0 ? (
@@ -204,7 +205,6 @@ export default function RoutineAdminPage() {
         + Ajouter une tâche
       </button>
 
-      {/* Full-screen extended icon picker */}
       {showIconPicker && (
         <div className="fixed inset-0 z-[70] bg-white flex flex-col">
           <div className="flex items-center gap-4 p-5 border-b border-gray-100">
@@ -227,14 +227,12 @@ export default function RoutineAdminPage() {
         </div>
       )}
 
-      {/* Bottom sheet */}
       {showForm && (
         <div className="fixed inset-0 z-[60] flex flex-col justify-end">
           <div className="absolute inset-0 bg-black/30" onClick={() => setShowForm(false)} />
           <div className="relative bg-white rounded-t-3xl p-6 shadow-2xl max-w-2xl w-full mx-auto max-h-[92vh] overflow-y-auto">
             <h2 className="text-xl font-bold text-gray-800 mb-5">Nouvelle tâche</h2>
 
-            {/* Icon picker */}
             <div className="mb-4">
               <label className="block text-sm text-gray-500 mb-2">Icône</label>
               <div className="grid grid-cols-5 gap-2">
@@ -255,14 +253,12 @@ export default function RoutineAdminPage() {
               </button>
             </div>
 
-            {/* Label */}
             <div className="mb-4">
               <label className="block text-sm text-gray-500 mb-1">Nom de la tâche *</label>
               <input value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
                 placeholder="Ex : Prendre mon traitement" className={input} />
             </div>
 
-            {/* Time toggle */}
             <div className="mb-4">
               <label className="flex items-center gap-3 cursor-pointer mb-2">
                 <button onClick={() => setForm(f => ({ ...f, withTime: !f.withTime, time: '' }))}
@@ -278,7 +274,6 @@ export default function RoutineAdminPage() {
               )}
             </div>
 
-            {/* Recurrence */}
             <div className="mb-4">
               <label className="block text-sm text-gray-500 mb-2">Répétition</label>
               <div className="grid grid-cols-2 gap-2">
@@ -295,7 +290,6 @@ export default function RoutineAdminPage() {
               </div>
             </div>
 
-            {/* Conditional recurrence config */}
             {form.recurrence === 'weekly' && (
               <div className="mb-4">
                 <label className="block text-sm text-gray-500 mb-2">Quels jours ?</label>

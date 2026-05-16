@@ -34,7 +34,6 @@ export default function AdminDashboard() {
         </button>
       </div>
 
-      {/* General settings */}
       <section className="bg-white rounded-2xl p-6 shadow-sm mb-6">
         <h2 className="text-lg font-semibold text-gray-700 mb-4">Général</h2>
         <div className="space-y-4">
@@ -62,7 +61,6 @@ export default function AdminDashboard() {
         </div>
       </section>
 
-      {/* Modules */}
       <section className="bg-white rounded-2xl p-6 shadow-sm mb-6">
         <h2 className="text-lg font-semibold text-gray-700 mb-4">Modules</h2>
         <div className="space-y-3">
@@ -90,39 +88,45 @@ export default function AdminDashboard() {
         </div>
       </section>
 
-      {/* Quick links to module config */}
-      <section className="bg-white rounded-2xl p-6 shadow-sm mb-6">
+      <section className="bg-white rounded-2xl p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-gray-700 mb-4">Configurer les modules</h2>
         <div className="space-y-2">
-          <Link href="/admin/modules/routine" className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700">
+          <Link
+            href="/admin/modules/routine"
+            className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
+          >
             <span>📋 Routine du jour</span>
             <span className="text-gray-400">→</span>
           </Link>
-          <Link href="/admin/profile" className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700">
+          <Link
+            href="/admin/profile"
+            className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
+          >
             <span>👤 Profil utilisateur</span>
             <span className="text-gray-400">→</span>
           </Link>
-          <Link href="/admin/modules/contacts" className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700">
+          <Link
+            href="/admin/modules/contacts"
+            className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
+          >
             <span>📞 Contacts d&apos;urgence</span>
             <span className="text-gray-400">→</span>
           </Link>
-          <Link href="/admin/modules/aidants" className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700">
+          <Link
+            href="/admin/modules/aidants"
+            className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
+          >
             <span>🤝 Mes aidants</span>
             <span className="text-gray-400">→</span>
           </Link>
+          <Link
+            href="/admin/invite"
+            className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
+          >
+            <span>👥 Gérer les administrateurs</span>
+            <span className="text-gray-400">→</span>
+          </Link>
         </div>
-      </section>
-
-      {/* Admin access */}
-      <section className="bg-white rounded-2xl p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-700 mb-4">Accès administrateurs</h2>
-        <Link
-          href="/admin/invite"
-          className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
-        >
-          <span>👥 Gérer les administrateurs</span>
-          <span className="text-gray-400">→</span>
-        </Link>
       </section>
     </main>
   )

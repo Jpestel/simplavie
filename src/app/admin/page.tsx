@@ -14,7 +14,7 @@ export default function AdminPage() {
     } else {
       router.replace('/login')
     }
-  }, [user, loading, router])
+  }, [loading, user, router])
 
   return (
     <div className="flex items-center justify-center min-h-screen">
