@@ -5,6 +5,7 @@ import { AuthProvider } from '@/lib/authContext'
 import { ConfigProvider } from '@/lib/configContext'
 import { ProfileProvider } from '@/lib/profileContext'
 import AuthGate from '@/components/AuthGate'
+import TopBar from '@/components/TopBar'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -20,9 +21,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <ConfigProvider>
             <ProfileProvider>
-              <AuthGate>
-                {children}
-              </AuthGate>
+              <TopBar />
+              <div className="pt-12">
+                <AuthGate>
+                  {children}
+                </AuthGate>
+              </div>
             </ProfileProvider>
           </ConfigProvider>
         </AuthProvider>
