@@ -225,7 +225,6 @@ export default function AidantsPage() {
                             className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-orange-50 border border-orange-200 text-orange-500 font-semibold text-sm hover:bg-orange-100 active:scale-95 transition-all"
                           >
                             <span>🔔</span>
-                            <span>Absent</span>
                           </button>
                         </div>
                       ))}
