@@ -37,15 +37,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
 
-  async function loadProfile(uid: string) {
+  async function loadProfile(uid: string): Promise<Profile> {
     const client = getSupabase()
-    if (!client) return null
-    const { data } = await client
-      .from('user_profiles')
-      .select('id, display_name, role, owner_id')
-      .eq('id', uid)
-      .maybeSingle()
-    return data as Profile | null
+    if (!client) return { id: uid, display_name: null, role: 'owner', owner_id: null }
+    try {
+      const { data } = await client
+        .from('user_profiles')
+        .select('id, display_name, role, owner_id')
+        .eq('id', uid)
+        .maybeSingle()
+      if (data) return data as Profile
+      // Profil absent (trigger non exécuté) → on le crée
+      await client.from('user_profiles').upsert({ id: uid, display_name: '', role: 'owner', owner_id: null })
+    } catch { /* ignore */ }
+    return { id: uid, display_name: null, role: 'owner', owner_id: null }
   }
 
   useEffect(() => {
@@ -63,17 +68,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     client.auth.getSession().then(async ({ data: { session } }) => {
       setUser(session?.user ?? null)
       if (session?.user) {
-        const p = await loadProfile(session.user.id)
-        setProfile(p)
+        try {
+          const p = await loadProfile(session.user.id)
+          setProfile(p)
+        } catch { /* ignore */ }
       }
       setLoading(false)
-    })
+    }).catch(() => setLoading(false))
 
     const { data: { subscription } } = client.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null)
       if (session?.user) {
-        const p = await loadProfile(session.user.id)
-        setProfile(p)
+        try {
+          const p = await loadProfile(session.user.id)
+          setProfile(p)
+        } catch { /* ignore */ }
       } else {
         setProfile(null)
       }
@@ -114,11 +123,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const isAdmin = profile?.role === 'admin'
-  const activeUserId = profile
-    ? isAdmin
-      ? (profile.owner_id ?? null)
-      : (user?.id ?? null)
-    : null
+  // Si pas de profil chargé mais user connecté → on utilise user.id directement
+  const activeUserId = isAdmin && profile?.owner_id
+    ? profile.owner_id
+    : (user?.id ?? null)
 
   return (
     <AuthContext.Provider value={{ user, profile, activeUserId, isAdmin, loading, signIn, signUp, signOut }}>
