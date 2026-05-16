@@ -2,7 +2,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/authContext'
-import { isSupabaseConfigured } from '@/lib/supabase'
 
 export default function LoginPage() {
   const { signIn, signUp } = useAuth()
@@ -67,10 +66,6 @@ export default function LoginPage() {
         {error && (
           <p className="mt-5 text-red-500 text-center font-medium">{error}</p>
         )}
-
-        <p className="mt-3 text-center text-xs text-gray-300">
-          Supabase : {isSupabaseConfigured ? '✓ configuré' : '✗ NON configuré'}
-        </p>
 
         <button
           onClick={handleSubmit}
