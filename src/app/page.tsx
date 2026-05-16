@@ -6,6 +6,19 @@ import { useAuth } from '@/lib/authContext'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { loadCareData } from '@/lib/careService'
+import { getSupabase, isSupabaseConfigured } from '@/lib/supabase'
+
+function isTodayReminder(r: { recurrence: string; week_days: number[] | null; month_day: number | null; specific_date: string | null }): boolean {
+  const now = new Date()
+  const today = now.toISOString().slice(0, 10)
+  switch (r.recurrence) {
+    case 'daily': return true
+    case 'weekly': return (r.week_days ?? []).includes(now.getDay())
+    case 'monthly': return r.month_day === now.getDate()
+    case 'once': return r.specific_date === today
+    default: return false
+  }
+}
 
 export default function HomePage() {
   const { config, isLoading: configLoading } = useConfig()
@@ -13,6 +26,7 @@ export default function HomePage() {
   const { signOut, activeUserId } = useAuth()
   const router = useRouter()
   const [careAlert, setCareAlert] = useState<string | null>(null)
+  const [reminderAlert, setReminderAlert] = useState<{ count: number; first: string } | null>(null)
 
   const handleSignOut = async () => {
     localStorage.clear()
@@ -41,6 +55,18 @@ export default function HomePage() {
           setCareAlert(`⚠️ ${alerts.length} changement(s) dans ton planning aujourd'hui`)
         }
       })
+    }
+  }, [profileLoading, profile.profileCompleted, activeUserId])
+
+  useEffect(() => {
+    if (!profileLoading && profile.profileCompleted && activeUserId && isSupabaseConfigured) {
+      getSupabase()!.from('reminders').select('*').eq('user_id', activeUserId).eq('active', true).order('time_of_day')
+        .then(({ data }) => {
+          const todayOnes = (data ?? []).filter(isTodayReminder)
+          if (todayOnes.length > 0) {
+            setReminderAlert({ count: todayOnes.length, first: todayOnes[0].label })
+          }
+        })
     }
   }, [profileLoading, profile.profileCompleted, activeUserId])
 
@@ -74,6 +100,16 @@ export default function HomePage() {
         >
           <p className="text-orange-700 font-semibold text-center">{careAlert}</p>
           <p className="text-orange-500 text-sm text-center mt-1">Appuie pour voir les détails →</p>
+        </div>
+      )}
+
+      {reminderAlert && (
+        <div
+          onClick={() => router.push('/modules/reminders')}
+          className="bg-purple-50 border-2 border-purple-300 rounded-2xl p-4 mb-6 cursor-pointer active:scale-95 transition-all"
+        >
+          <p className="text-purple-700 font-semibold text-center">🔔 {reminderAlert.count} rappel(s) aujourd&apos;hui</p>
+          <p className="text-purple-500 text-sm text-center mt-1">{reminderAlert.first}{reminderAlert.count > 1 ? ` et ${reminderAlert.count - 1} autre(s)` : ''} → Voir</p>
         </div>
       )}
 
