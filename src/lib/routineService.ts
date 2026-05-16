@@ -61,7 +61,7 @@ export async function loadCancellations(date: string, userId: string): Promise<s
   if (isSupabaseConfigured && userId) {
     const { data, error } = await supabase
       .from('routine_cancellations').select('step_id').eq('user_id', userId).eq('date', date)
-    if (!error && data) {
+    if (!error && data && data.length > 0) {
       const ids = data.map((r: Record<string, unknown>) => r.step_id as string)
       localStorage.setItem(CANCELLED_PREFIX + date, JSON.stringify(ids))
       return ids
@@ -89,7 +89,7 @@ export async function loadPostponements(date: string, userId: string): Promise<s
   if (isSupabaseConfigured && userId) {
     const { data, error } = await supabase
       .from('routine_postponements').select('step_id').eq('user_id', userId).eq('date', date)
-    if (!error && data) {
+    if (!error && data && data.length > 0) {
       const ids = data.map((r: Record<string, unknown>) => r.step_id as string)
       localStorage.setItem(POSTPONED_PREFIX + date, JSON.stringify(ids))
       return ids
@@ -117,7 +117,7 @@ export async function loadExtras(date: string, userId: string): Promise<RoutineS
   if (isSupabaseConfigured && userId) {
     const { data, error } = await supabase
       .from('routine_extras').select('step_payload').eq('user_id', userId).eq('date', date)
-    if (!error && data) {
+    if (!error && data && data.length > 0) {
       const steps = data.map((r: Record<string, unknown>) => r.step_payload as RoutineStep)
       localStorage.setItem(EXTRA_PREFIX + date, JSON.stringify(steps))
       return steps

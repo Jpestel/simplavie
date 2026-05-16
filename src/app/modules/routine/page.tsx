@@ -68,7 +68,10 @@ export default function RoutinePage() {
       loadPostponements(d, uid),
       loadExtras(d, uid),
     ])
-    const all = [...base.filter(s => stepAppliesOn(s, d)), ...extras.filter(e => !base.find(s => s.id === e.id))]
+    const baseForDay = base.filter(s => stepAppliesOn(s, d))
+    const extraIds = new Set(extras.map(e => e.id))
+    const baseWithoutExtras = baseForDay.filter(s => !extraIds.has(s.id))
+    const all = [...baseWithoutExtras, ...extras]
     const sorted = sortSteps(all.map(s => ({ ...s, done: doneIds.includes(s.id) })))
     setSteps(sorted)
     setCancelledIds(cancelled)
