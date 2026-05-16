@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { RoutineStep } from '@/types'
 import { useConfig } from '@/lib/configContext'
 import BackBar from '@/components/BackBar'
@@ -17,36 +17,65 @@ function localISO(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 }
 
+function offsetDate(base: string, days: number): string {
+  const d = new Date(base + 'T00:00:00')
+  d.setDate(d.getDate() + days)
+  return localISO(d)
+}
+
 export default function RoutinePage() {
   const { config } = useConfig()
+  const [allSteps, setAllSteps] = useState<RoutineStep[]>([])
   const [steps, setSteps] = useState<RoutineStep[]>([])
   const [loading, setLoading] = useState(true)
   const today = localISO(new Date())
+  const [date, setDate] = useState(today)
+
+  // Load base steps once
+  useEffect(() => {
+    loadSteps(DEFAULT_STEPS).then(s => { setAllSteps(s); setLoading(false) })
+  }, [])
+
+  // Reload completions whenever date changes
+  const loadForDate = useCallback(async (d: string, base: RoutineStep[]) => {
+    const doneIds = await loadCompletions(d)
+    const todaySteps = base
+      .filter(s => stepAppliesOn(s, d))
+      .map(s => ({ ...s, done: doneIds.includes(s.id) }))
+    setSteps(todaySteps)
+  }, [])
 
   useEffect(() => {
-    async function init() {
-      const base = await loadSteps(DEFAULT_STEPS)
-      const doneIds = await loadCompletions(today)
-      // Filter to only steps that apply today
-      const todaySteps = base
-        .filter(s => stepAppliesOn(s, today))
-        .map(s => ({ ...s, done: doneIds.includes(s.id) }))
-      setSteps(todaySteps)
-      setLoading(false)
-    }
-    init()
-  }, [today])
+    if (!loading) loadForDate(date, allSteps)
+  }, [date, allSteps, loading, loadForDate])
 
   const handleToggle = async (id: string) => {
     const step = steps.find(s => s.id === id)
     if (!step) return
     const next = !step.done
     setSteps(prev => prev.map(s => s.id === id ? { ...s, done: next } : s))
-    await toggleCompletion(today, id, next)
+    await toggleCompletion(date, id, next)
   }
+
+  // Find prev/next date that has tasks
+  const findDate = (from: string, direction: 1 | -1, base: RoutineStep[]): string | null => {
+    let cursor = from
+    for (let i = 0; i < 365; i++) {
+      cursor = offsetDate(cursor, direction)
+      if (base.some(s => stepAppliesOn(s, cursor))) return cursor
+    }
+    return null
+  }
+
+  const prevDate = allSteps.length ? findDate(date, -1, allSteps) : null
+  const nextDate = allSteps.length ? findDate(date, 1, allSteps) : null
 
   const doneCount = steps.filter(s => s.done).length
   const allDone = doneCount === steps.length && steps.length > 0
+  const isToday = date === today
+
+  const d = new Date(date + 'T00:00:00')
+  const dateLabel = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen">
@@ -56,13 +85,37 @@ export default function RoutinePage() {
 
   return (
     <main className="min-h-screen p-6 pb-28 max-w-2xl mx-auto">
-      <div className="mb-6">
+      <div className="mb-5">
         <h1 className="text-2xl font-bold text-gray-800">Ma journée</h1>
-        <p className="text-gray-400">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
       </div>
 
+      {/* Date navigation */}
+      <div className="flex items-center gap-2 mb-5">
+        <button
+          onClick={() => prevDate && setDate(prevDate)}
+          disabled={!prevDate}
+          className="w-14 h-14 flex items-center justify-center bg-white border-2 border-gray-200 rounded-2xl text-2xl text-gray-600 active:scale-95 hover:bg-gray-50 transition-all shrink-0 disabled:opacity-30">
+          ‹
+        </button>
+        <div className="flex-1 text-center">
+          <div className="font-bold text-gray-800 capitalize">{dateLabel}</div>
+          {!isToday && (
+            <button onClick={() => setDate(today)} className="text-xs text-indigo-500 font-semibold mt-0.5 underline">
+              Aujourd&apos;hui
+            </button>
+          )}
+        </div>
+        <button
+          onClick={() => nextDate && setDate(nextDate)}
+          disabled={!nextDate}
+          className="w-14 h-14 flex items-center justify-center bg-white border-2 border-gray-200 rounded-2xl text-2xl text-gray-600 active:scale-95 hover:bg-gray-50 transition-all shrink-0 disabled:opacity-30">
+          ›
+        </button>
+      </div>
+
+      {/* Progress bar */}
       {steps.length > 0 && (
-        <div className="bg-white rounded-2xl p-4 shadow-sm mb-6">
+        <div className="bg-white rounded-2xl p-4 shadow-sm mb-5">
           <div className="flex justify-between text-sm text-gray-500 mb-2">
             <span>{doneCount} / {steps.length} tâches</span>
             <span>{Math.round((doneCount / steps.length) * 100)}%</span>
@@ -75,18 +128,17 @@ export default function RoutinePage() {
       )}
 
       {allDone && (
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-6 mb-6 text-center">
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-6 mb-5 text-center">
           <div className="text-4xl mb-2">🎉</div>
           <p className="text-green-700 font-semibold text-lg">Bravo !</p>
-          <p className="text-green-600">Tu as terminé toutes tes tâches du jour !</p>
+          <p className="text-green-600">Toutes les tâches sont faites !</p>
         </div>
       )}
 
       {steps.length === 0 ? (
-        <div className="text-center mt-20 text-gray-400">
+        <div className="text-center mt-16 text-gray-400">
           <div className="text-5xl mb-4">✅</div>
-          <p className="text-xl">Aucune tâche aujourd&apos;hui</p>
-          <p className="mt-2 text-sm">Tu peux en ajouter depuis l&apos;espace configuration ⚙️</p>
+          <p className="text-xl">Aucune tâche ce jour</p>
         </div>
       ) : (
         <div className="space-y-3">

@@ -12,18 +12,50 @@ const DEFAULT_STEPS: RoutineStep[] = [
   { id: '4', label: 'Prendre le petit-déjeuner', icon: '🍳', order: 3, done: false, recurrence: 'daily' },
 ]
 
+const ICONS = [
+  { icon: '🌅', label: 'Se lever' },
+  { icon: '🚿', label: 'Douche' },
+  { icon: '🛁', label: 'Bain' },
+  { icon: '🦷', label: 'Dents' },
+  { icon: '💊', label: 'Médicaments' },
+  { icon: '🍳', label: 'Petit-déj' },
+  { icon: '🥗', label: 'Repas' },
+  { icon: '😴', label: 'Repos' },
+  { icon: '🛒', label: 'Courses' },
+  { icon: '🏥', label: 'Médecin' },
+  { icon: '💇', label: 'Coiffeur' },
+  { icon: '🏦', label: 'Banque' },
+  { icon: '🏋️', label: 'Sport/Kiné' },
+  { icon: '📞', label: 'Téléphone' },
+  { icon: '🚗', label: 'Transport' },
+  { icon: '💼', label: 'Travail' },
+  { icon: '🧹', label: 'Ménage' },
+  { icon: '👕', label: 'Linge' },
+  { icon: '📝', label: 'Administratif' },
+  { icon: '💆', label: 'Détente' },
+]
+
 const DAYS_LABELS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
 
-const EMPTY_STEP: Partial<RoutineStep> = {
-  icon: '✅', label: '', time: '', recurrence: 'daily',
-  weekDays: [], monthDay: 1, yearDate: '', specificDate: '',
+const RECURRENCE_OPTIONS: { key: RecurrenceType; label: string; icon: string }[] = [
+  { key: 'daily',   label: 'Tous les jours', icon: '📆' },
+  { key: 'weekly',  label: 'Certains jours',  icon: '🗓️' },
+  { key: 'monthly', label: 'Chaque mois',     icon: '📅' },
+  { key: 'yearly',  label: 'Chaque année',    icon: '🎂' },
+  { key: 'once',    label: 'Date précise',    icon: '📌' },
+]
+
+const EMPTY_FORM = {
+  icon: '✅', label: '', withTime: false, time: '',
+  recurrence: 'daily' as RecurrenceType,
+  weekDays: [] as number[], monthDay: 1, yearDate: '', specificDate: '',
 }
 
 export default function RoutineAdminPage() {
   const router = useRouter()
   const [steps, setSteps] = useState<RoutineStep[]>([])
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState<Partial<RoutineStep>>(EMPTY_STEP)
+  const [form, setForm] = useState(EMPTY_FORM)
 
   useEffect(() => { loadSteps(DEFAULT_STEPS).then(setSteps) }, [])
 
@@ -33,22 +65,22 @@ export default function RoutineAdminPage() {
   }
 
   const addStep = () => {
-    if (!form.label?.trim()) return
+    if (!form.label.trim()) return
     const step: RoutineStep = {
       id: Date.now().toString(),
       label: form.label.trim(),
-      icon: form.icon || '✅',
-      time: form.time || undefined,
+      icon: form.icon,
+      time: form.withTime && form.time ? form.time : undefined,
       order: steps.length,
       done: false,
-      recurrence: form.recurrence ?? 'daily',
-      weekDays: form.recurrence === 'weekly' ? (form.weekDays ?? []) : undefined,
+      recurrence: form.recurrence,
+      weekDays: form.recurrence === 'weekly' ? form.weekDays : undefined,
       monthDay: form.recurrence === 'monthly' ? form.monthDay : undefined,
       yearDate: form.recurrence === 'yearly' ? form.yearDate : undefined,
       specificDate: form.recurrence === 'once' ? form.specificDate : undefined,
     }
     save([...steps, step])
-    setForm(EMPTY_STEP)
+    setForm(EMPTY_FORM)
     setShowForm(false)
   }
 
@@ -57,35 +89,26 @@ export default function RoutineAdminPage() {
     save(steps.filter(s => s.id !== id).map((s, i) => ({ ...s, order: i })))
   }
 
-  const moveUp = (index: number) => {
-    if (index === 0) return
+  const moveUp = (i: number) => {
+    if (i === 0) return
     const next = [...steps]
-    ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
-    save(next.map((s, i) => ({ ...s, order: i })))
+    ;[next[i - 1], next[i]] = [next[i], next[i - 1]]
+    save(next.map((s, j) => ({ ...s, order: j })))
   }
 
-  const moveDown = (index: number) => {
-    if (index === steps.length - 1) return
+  const moveDown = (i: number) => {
+    if (i === steps.length - 1) return
     const next = [...steps]
-    ;[next[index], next[index + 1]] = [next[index + 1], next[index]]
-    save(next.map((s, i) => ({ ...s, order: i })))
+    ;[next[i], next[i + 1]] = [next[i + 1], next[i]]
+    save(next.map((s, j) => ({ ...s, order: j })))
   }
 
   const toggleWeekDay = (d: number) => {
-    const current = form.weekDays ?? []
-    const next = current.includes(d) ? current.filter(x => x !== d) : [...current, d]
-    setForm(f => ({ ...f, weekDays: next }))
+    const cur = form.weekDays
+    setForm(f => ({ ...f, weekDays: cur.includes(d) ? cur.filter(x => x !== d) : [...cur, d] }))
   }
 
   const input = "w-full border border-gray-200 rounded-xl p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
-
-  const RECURRENCE_OPTIONS: { key: RecurrenceType; label: string; icon: string }[] = [
-    { key: 'daily',   label: 'Tous les jours',   icon: '📆' },
-    { key: 'weekly',  label: 'Certains jours',    icon: '🗓️' },
-    { key: 'monthly', label: 'Chaque mois',       icon: '📅' },
-    { key: 'yearly',  label: 'Chaque année',      icon: '🎂' },
-    { key: 'once',    label: 'Date précise',       icon: '📌' },
-  ]
 
   return (
     <main className="min-h-screen p-6 max-w-2xl mx-auto pb-10">
@@ -106,11 +129,13 @@ export default function RoutineAdminPage() {
                 <span className="text-2xl w-8 text-center">{step.icon}</span>
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-gray-700">{step.label}</div>
-                  <div className="text-xs text-indigo-500 mt-0.5">{recurrenceLabel(step)}{step.time ? ` · ${step.time}` : ''}</div>
+                  <div className="text-xs text-indigo-500 mt-0.5">
+                    {recurrenceLabel(step)}{step.time ? ` · ${step.time}` : ''}
+                  </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={() => moveUp(i)} disabled={i === 0} className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-20">↑</button>
-                  <button onClick={() => moveDown(i)} disabled={i === steps.length - 1} className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-20">↓</button>
+                  <button onClick={() => moveUp(i)} disabled={i === 0} className="p-1 text-gray-400 disabled:opacity-20">↑</button>
+                  <button onClick={() => moveDown(i)} disabled={i === steps.length - 1} className="p-1 text-gray-400 disabled:opacity-20">↓</button>
                   <button onClick={() => removeStep(step.id)} className="p-1 text-red-400 hover:text-red-600 ml-1">✕</button>
                 </div>
               </div>
@@ -119,35 +144,59 @@ export default function RoutineAdminPage() {
         )}
       </section>
 
-      <button
-        onClick={() => setShowForm(true)}
-        className="w-full py-4 rounded-2xl border-2 border-dashed border-indigo-300 text-indigo-500 font-semibold hover:bg-indigo-50 active:scale-95 transition-all text-lg"
-      >
+      <button onClick={() => setShowForm(true)}
+        className="w-full py-4 rounded-2xl border-2 border-dashed border-indigo-300 text-indigo-500 font-semibold hover:bg-indigo-50 active:scale-95 transition-all text-lg">
         + Ajouter une tâche
       </button>
 
-      {/* Add form — bottom sheet */}
+      {/* Bottom sheet */}
       {showForm && (
         <div className="fixed inset-0 z-[60] flex flex-col justify-end">
           <div className="absolute inset-0 bg-black/30" onClick={() => setShowForm(false)} />
-          <div className="relative bg-white rounded-t-3xl p-6 shadow-2xl max-w-2xl w-full mx-auto max-h-[90vh] overflow-y-auto">
+          <div className="relative bg-white rounded-t-3xl p-6 shadow-2xl max-w-2xl w-full mx-auto max-h-[92vh] overflow-y-auto">
             <h2 className="text-xl font-bold text-gray-800 mb-5">Nouvelle tâche</h2>
 
-            {/* Icon + label */}
-            <div className="flex gap-3 mb-4">
-              <input value={form.icon ?? ''} onChange={e => setForm(f => ({ ...f, icon: e.target.value }))}
-                className="w-16 border border-gray-200 rounded-xl p-3 text-center text-2xl focus:outline-none focus:ring-2 focus:ring-indigo-300" />
-              <input value={form.label ?? ''} onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
-                placeholder="Nom de la tâche *" className={`flex-1 ${input}`} />
-            </div>
-
-            {/* Time */}
+            {/* Icon picker */}
             <div className="mb-4">
-              <label className="block text-sm text-gray-500 mb-1">Heure (optionnel)</label>
-              <input type="time" value={form.time ?? ''} onChange={e => setForm(f => ({ ...f, time: e.target.value }))} className={input} />
+              <label className="block text-sm text-gray-500 mb-2">Icône</label>
+              <div className="grid grid-cols-5 gap-2">
+                {ICONS.map(({ icon, label }) => (
+                  <button key={icon} onClick={() => setForm(f => ({ ...f, icon }))}
+                    title={label}
+                    className={`flex flex-col items-center gap-1 p-2 rounded-xl border-2 transition-all active:scale-95 ${
+                      form.icon === icon ? 'border-indigo-400 bg-indigo-50' : 'border-gray-100 hover:border-gray-300'
+                    }`}>
+                    <span className="text-2xl">{icon}</span>
+                    <span className="text-[10px] text-gray-400 leading-tight text-center">{label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Recurrence type */}
+            {/* Label */}
+            <div className="mb-4">
+              <label className="block text-sm text-gray-500 mb-1">Nom de la tâche *</label>
+              <input value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
+                placeholder="Ex : Prendre mon traitement" className={input} />
+            </div>
+
+            {/* Time toggle */}
+            <div className="mb-4">
+              <label className="flex items-center gap-3 cursor-pointer mb-2">
+                <button onClick={() => setForm(f => ({ ...f, withTime: !f.withTime, time: '' }))}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${form.withTime ? 'bg-indigo-500' : 'bg-gray-200'}`}>
+                  <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${form.withTime ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+                <span className="text-sm text-gray-600 font-medium">Définir une heure</span>
+              </label>
+              {form.withTime && (
+                <input type="time" value={form.time}
+                  onChange={e => setForm(f => ({ ...f, time: e.target.value }))}
+                  className={input} />
+              )}
+            </div>
+
+            {/* Recurrence */}
             <div className="mb-4">
               <label className="block text-sm text-gray-500 mb-2">Répétition</label>
               <div className="grid grid-cols-2 gap-2">
@@ -172,7 +221,7 @@ export default function RoutineAdminPage() {
                   {DAYS_LABELS.map((d, i) => (
                     <button key={i} onClick={() => toggleWeekDay(i)}
                       className={`w-11 h-11 rounded-xl text-sm font-bold border-2 transition-all active:scale-95 ${
-                        (form.weekDays ?? []).includes(i)
+                        form.weekDays.includes(i)
                           ? 'bg-indigo-500 text-white border-indigo-500'
                           : 'bg-white text-gray-500 border-gray-200'
                       }`}>
@@ -186,7 +235,7 @@ export default function RoutineAdminPage() {
             {form.recurrence === 'monthly' && (
               <div className="mb-4">
                 <label className="block text-sm text-gray-500 mb-1">Quel jour du mois ?</label>
-                <input type="number" min={1} max={31} value={form.monthDay ?? 1}
+                <input type="number" min={1} max={31} value={form.monthDay}
                   onChange={e => setForm(f => ({ ...f, monthDay: parseInt(e.target.value) }))}
                   className={input} />
               </div>
@@ -197,10 +246,7 @@ export default function RoutineAdminPage() {
                 <label className="block text-sm text-gray-500 mb-1">Quelle date chaque année ?</label>
                 <input type="date"
                   value={form.yearDate ? `2000-${form.yearDate}` : ''}
-                  onChange={e => {
-                    const val = e.target.value // "2000-MM-DD"
-                    setForm(f => ({ ...f, yearDate: val.slice(5) })) // keep "MM-DD"
-                  }}
+                  onChange={e => setForm(f => ({ ...f, yearDate: e.target.value.slice(5) }))}
                   className={input} />
                 <p className="text-xs text-gray-400 mt-1">L&apos;année est ignorée — seuls le jour et le mois comptent.</p>
               </div>
@@ -209,7 +255,7 @@ export default function RoutineAdminPage() {
             {form.recurrence === 'once' && (
               <div className="mb-4">
                 <label className="block text-sm text-gray-500 mb-1">Date précise</label>
-                <input type="date" value={form.specificDate ?? ''}
+                <input type="date" value={form.specificDate}
                   onChange={e => setForm(f => ({ ...f, specificDate: e.target.value }))}
                   min={new Date().toISOString().slice(0, 10)}
                   className={input} />
@@ -221,7 +267,7 @@ export default function RoutineAdminPage() {
                 className="flex-1 py-4 rounded-2xl border-2 border-gray-200 text-gray-600 font-semibold text-lg active:scale-95 transition-all">
                 Annuler
               </button>
-              <button onClick={addStep} disabled={!form.label?.trim()}
+              <button onClick={addStep} disabled={!form.label.trim()}
                 className="flex-1 py-4 rounded-2xl bg-indigo-500 disabled:bg-gray-200 text-white font-bold text-lg active:scale-95 transition-all">
                 Ajouter
               </button>
