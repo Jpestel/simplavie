@@ -10,7 +10,7 @@ import { loadCareData } from '@/lib/careService'
 export default function HomePage() {
   const { config, isLoading: configLoading } = useConfig()
   const { profile, isLoading: profileLoading } = useProfile()
-  const { signOut } = useAuth()
+  const { signOut, activeUserId } = useAuth()
   const router = useRouter()
   const [careAlert, setCareAlert] = useState<string | null>(null)
 
