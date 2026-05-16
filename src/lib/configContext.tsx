@@ -1,7 +1,7 @@
 'use client'
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { AppConfig } from '@/types'
-import { DEFAULT_CONFIG } from './defaultConfig'
+import { DEFAULT_CONFIG, DEFAULT_MODULES } from './defaultConfig'
 import { supabase, isSupabaseConfigured } from './supabase'
 import { useAuth } from '@/lib/authContext'
 
@@ -27,12 +27,20 @@ function toRow(c: AppConfig, userId: string) {
   }
 }
 
+function mergeModules(saved: AppConfig['modules']): AppConfig['modules'] {
+  // Ajoute les nouveaux modules par défaut manquants dans la config sauvegardée
+  const savedIds = new Set(saved.map(m => m.id))
+  const missing = DEFAULT_MODULES.filter(m => !savedIds.has(m.id))
+  return [...saved, ...missing]
+}
+
 function fromRow(row: Record<string, unknown>): AppConfig {
+  const savedModules = (row.modules as AppConfig['modules']) ?? DEFAULT_CONFIG.modules
   return {
     userName: (row.user_name as string) ?? DEFAULT_CONFIG.userName,
     primaryColor: (row.primary_color as string) ?? DEFAULT_CONFIG.primaryColor,
     adminPassword: (row.admin_password as string) ?? DEFAULT_CONFIG.adminPassword,
-    modules: (row.modules as AppConfig['modules']) ?? DEFAULT_CONFIG.modules,
+    modules: mergeModules(savedModules),
   }
 }
 
