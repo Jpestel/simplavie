@@ -39,6 +39,7 @@ function JoinInner() {
 
       if (!inv) { setStatus('invalid'); return }
       if (inv.used_by) { setStatus('invalid'); return }
+      if (inv.owner_id === session.user.id) { setStatus('invalid'); return }
 
       const { data: ownerProfile } = await client
         .from('user_profile')
