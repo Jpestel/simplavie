@@ -12,7 +12,7 @@ const DEFAULT_STEPS: RoutineStep[] = [
   { id: '4', label: 'Prendre le petit-déjeuner', icon: '🍳', order: 3, done: false, recurrence: 'daily' },
 ]
 
-const ICONS = [
+const ICONS_DEFAULT = [
   { icon: '🌅', label: 'Se lever' },
   { icon: '🚿', label: 'Douche' },
   { icon: '🛁', label: 'Bain' },
@@ -33,6 +33,49 @@ const ICONS = [
   { icon: '👕', label: 'Linge' },
   { icon: '📝', label: 'Administratif' },
   { icon: '💆', label: 'Détente' },
+]
+
+const ICONS_EXTENDED = [
+  { icon: '🎵', label: 'Musique' },
+  { icon: '📚', label: 'Lecture' },
+  { icon: '🌿', label: 'Jardin' },
+  { icon: '🧘', label: 'Méditation' },
+  { icon: '🐕', label: 'Animal' },
+  { icon: '💻', label: 'Ordinateur' },
+  { icon: '✉️', label: 'Courrier' },
+  { icon: '🏪', label: 'Pharmacie' },
+  { icon: '🚌', label: 'Bus' },
+  { icon: '🏊', label: 'Piscine' },
+  { icon: '🍵', label: 'Café/Thé' },
+  { icon: '🛏️', label: 'Sommeil' },
+  { icon: '🧴', label: 'Soins' },
+  { icon: '👓', label: 'Lunettes' },
+  { icon: '🩺', label: 'Consultation' },
+  { icon: '🎁', label: 'Cadeau' },
+  { icon: '🏡', label: 'Maison' },
+  { icon: '🌞', label: 'Sortie' },
+  { icon: '⭐', label: 'Important' },
+  { icon: '🏃', label: 'Marche' },
+  { icon: '🚴', label: 'Vélo' },
+  { icon: '📺', label: 'TV' },
+  { icon: '🔑', label: 'Clés' },
+  { icon: '💳', label: 'CB/Banque' },
+  { icon: '🌙', label: 'Soir' },
+  { icon: '🎨', label: 'Créativité' },
+  { icon: '🧩', label: 'Puzzle' },
+  { icon: '📸', label: 'Photo' },
+  { icon: '🎂', label: 'Anniversaire' },
+  { icon: '🌺', label: 'Fleurs' },
+  { icon: '🪴', label: 'Plante' },
+  { icon: '🔔', label: 'Rappel' },
+  { icon: '🍕', label: 'Pizza' },
+  { icon: '🥤', label: 'Boisson' },
+  { icon: '🎮', label: 'Jeux' },
+  { icon: '🖨️', label: 'Imprimante' },
+  { icon: '🧃', label: 'Jus' },
+  { icon: '🎯', label: 'Objectif' },
+  { icon: '🧺', label: 'Lessive' },
+  { icon: '🚶', label: 'Promenade' },
 ]
 
 // Ordre d'affichage lun→dim, avec la valeur JS correspondante (0=Dim)
@@ -64,6 +107,7 @@ export default function RoutineAdminPage() {
   const router = useRouter()
   const [steps, setSteps] = useState<RoutineStep[]>([])
   const [showForm, setShowForm] = useState(false)
+  const [showIconPicker, setShowIconPicker] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
   useEffect(() => { loadSteps(DEFAULT_STEPS).then(setSteps) }, [])
@@ -158,6 +202,29 @@ export default function RoutineAdminPage() {
         + Ajouter une tâche
       </button>
 
+      {/* Full-screen extended icon picker */}
+      {showIconPicker && (
+        <div className="fixed inset-0 z-[70] bg-white flex flex-col">
+          <div className="flex items-center gap-4 p-5 border-b border-gray-100">
+            <button onClick={() => setShowIconPicker(false)} className="text-gray-400 hover:text-gray-600 text-2xl">←</button>
+            <h2 className="text-xl font-bold text-gray-800">Choisir une icône</h2>
+          </div>
+          <div className="flex-1 overflow-y-auto p-5">
+            <div className="grid grid-cols-4 gap-3">
+              {ICONS_EXTENDED.map(({ icon, label }) => (
+                <button key={icon} onClick={() => { setForm(f => ({ ...f, icon })); setShowIconPicker(false) }}
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 transition-all active:scale-95 ${
+                    form.icon === icon ? 'border-indigo-400 bg-indigo-50' : 'border-gray-100 hover:border-gray-200'
+                  }`}>
+                  <span className="text-3xl">{icon}</span>
+                  <span className="text-xs text-gray-500 leading-tight text-center">{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Bottom sheet */}
       {showForm && (
         <div className="fixed inset-0 z-[60] flex flex-col justify-end">
@@ -169,7 +236,7 @@ export default function RoutineAdminPage() {
             <div className="mb-4">
               <label className="block text-sm text-gray-500 mb-2">Icône</label>
               <div className="grid grid-cols-5 gap-2">
-                {ICONS.map(({ icon, label }) => (
+                {ICONS_DEFAULT.map(({ icon, label }) => (
                   <button key={icon} onClick={() => setForm(f => ({ ...f, icon }))}
                     title={label}
                     className={`flex flex-col items-center gap-1 p-2 rounded-xl border-2 transition-all active:scale-95 ${
@@ -180,6 +247,10 @@ export default function RoutineAdminPage() {
                   </button>
                 ))}
               </div>
+              <button onClick={() => setShowIconPicker(true)}
+                className="mt-3 w-full py-2.5 rounded-xl border-2 border-dashed border-indigo-300 text-indigo-500 font-semibold text-sm hover:bg-indigo-50 active:scale-95 transition-all">
+                ➕ PLUS d&apos;Icônes
+              </button>
             </div>
 
             {/* Label */}
