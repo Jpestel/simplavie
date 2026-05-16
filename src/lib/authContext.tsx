@@ -70,26 +70,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     client.auth.getSession().then(async ({ data: { session } }) => {
       clearTimeout(timeout)
       setUser(session?.user ?? null)
-      if (session?.user) {
-        try {
-          const p = await loadProfile(session.user.id)
-          setProfile(p)
-        } catch { /* ignore */ }
-      }
       setLoading(false)
+      if (session?.user) {
+        loadProfile(session.user.id).then(setProfile).catch(() => {})
+      }
     }).catch(() => { clearTimeout(timeout); setLoading(false) })
 
     const { data: { subscription } } = client.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null)
+      setLoading(false)
       if (session?.user) {
-        try {
-          const p = await loadProfile(session.user.id)
-          setProfile(p)
-        } catch { /* ignore */ }
+        loadProfile(session.user.id).then(setProfile).catch(() => {})
       } else {
         setProfile(null)
       }
-      setLoading(false)
     })
 
     return () => subscription.unsubscribe()
