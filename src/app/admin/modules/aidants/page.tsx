@@ -231,18 +231,40 @@ export default function AidantsAdminPage() {
           </section>
 
           {/* Clear planning */}
-          {care.appointments.length > 0 && (
-            <div className="flex justify-end">
-              <button
-                onClick={async () => {
-                  if (!confirm(`Supprimer les ${care.appointments.length} rendez-vous du planning ?`)) return
-                  await save({ ...care, appointments: [] })
-                }}
-                className="px-4 py-2 rounded-xl bg-red-50 border border-red-200 text-red-500 text-sm font-semibold active:scale-95 transition-all">
-                🗑️ Vider le planning ({care.appointments.length})
-              </button>
-            </div>
-          )}
+          {care.appointments.length > 0 && (() => {
+            const months = [...new Set(care.appointments.map(a => a.date.slice(0, 7)))].sort()
+            const monthLabel = (m: string) => new Date(m + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+            return (
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-3">
+                <p className="text-sm font-semibold text-red-600">🗑️ Supprimer des rendez-vous</p>
+                <div className="flex gap-2">
+                  <select
+                    id="clear-month"
+                    defaultValue=""
+                    className="flex-1 py-2 px-3 rounded-xl border border-red-200 bg-white text-sm text-gray-700 focus:outline-none">
+                    <option value="" disabled>Choisir un mois…</option>
+                    <option value="all">Tous les mois ({care.appointments.length})</option>
+                    {months.map(m => {
+                      const count = care.appointments.filter(a => a.date.startsWith(m)).length
+                      return <option key={m} value={m}>{monthLabel(m)} ({count})</option>
+                    })}
+                  </select>
+                  <button
+                    onClick={async () => {
+                      const sel = (document.getElementById('clear-month') as HTMLSelectElement).value
+                      if (!sel) return
+                      const label = sel === 'all' ? 'tout le planning' : monthLabel(sel)
+                      if (!confirm(`Supprimer ${label} ?`)) return
+                      const kept = sel === 'all' ? [] : care.appointments.filter(a => !a.date.startsWith(sel))
+                      await save({ ...care, appointments: kept })
+                    }}
+                    className="px-4 py-2 rounded-xl bg-red-500 text-white font-semibold text-sm active:scale-95 transition-all">
+                    Supprimer
+                  </button>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Week navigation */}
           <div className="flex items-center justify-between">
