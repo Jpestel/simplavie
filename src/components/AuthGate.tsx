@@ -17,9 +17,24 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const [showEscape, setShowEscape] = useState(false)
 
+  // Redirection si non connecté
   useEffect(() => {
     if (!loading && !user && !isPublic(pathname)) router.replace('/login')
   }, [loading, user, pathname, router])
+
+  // Superadmin → /superadmin (sauf s'il y est déjà)
+  useEffect(() => {
+    if (!loading && user && isSuperAdmin && !impersonatedUserId && !pathname.startsWith('/superadmin')) {
+      router.replace('/superadmin')
+    }
+  }, [loading, user, isSuperAdmin, impersonatedUserId, pathname, router])
+
+  // Admin → /admin (sauf s'il navigue dans /admin ou /modules)
+  useEffect(() => {
+    if (!loading && user && isAdmin && pathname === '/') {
+      router.replace('/admin')
+    }
+  }, [loading, user, isAdmin, pathname, router])
 
   useEffect(() => {
     if (!loading) return
@@ -44,9 +59,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
 
   if (!user) return null
 
-  // Bannière superadmin en impersonation
   const showSuperBanner = isSuperAdmin && !!impersonatedUserId
-  // Bannière admin classique
   const showAdminBanner = !showSuperBanner && isAdmin && !!profile.firstName
 
   return (
@@ -64,7 +77,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       )}
       {showAdminBanner && (
         <div className="fixed top-12 left-0 right-0 z-50 bg-indigo-600 text-white text-center text-sm py-2 px-4 font-medium">
-          Vous consultez le compte de <strong>{profile.firstName} {profile.lastName}</strong>
+          Vous gérez le compte de <strong>{profile.firstName} {profile.lastName}</strong>
         </div>
       )}
       <div className={(showSuperBanner || showAdminBanner) ? 'pt-9' : ''}>
