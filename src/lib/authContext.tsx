@@ -204,12 +204,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (isFirst) {
         await client.from('user_profile').upsert({
           id: data.user.id,
+          user_id: data.user.id,
           display_name: name ?? email,
           global_role: 'superadmin',
         })
       } else if (asUser) {
         await client.from('user_profile').upsert({
           id: data.user.id,
+          user_id: data.user.id,
           display_name: name ?? '',
           global_role: 'user',
         })

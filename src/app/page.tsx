@@ -23,7 +23,7 @@ function isTodayReminder(r: { recurrence: string; week_days: number[] | null; mo
 export default function HomePage() {
   const { config, isLoading: configLoading } = useConfig()
   const { profile, isLoading: profileLoading } = useProfile()
-  const { signOut, activeUserId, loading: authLoading, user } = useAuth()
+  const { signOut, activeUserId, loading: authLoading, user, isSuperAdmin, isAdmin, hasOwnAccount } = useAuth()
   const router = useRouter()
   const [careAlert, setCareAlert] = useState<string | null>(null)
   const [reminderAlert, setReminderAlert] = useState<{ count: number; first: string } | null>(null)
@@ -41,8 +41,9 @@ export default function HomePage() {
 
   useEffect(() => {
     if (authLoading || profileLoading || !user) return
+    if (isSuperAdmin || (isAdmin && !hasOwnAccount)) return
     if (!profile.profileCompleted) router.push('/onboarding')
-  }, [authLoading, profileLoading, user, profile.profileCompleted, router])
+  }, [authLoading, profileLoading, user, isSuperAdmin, isAdmin, hasOwnAccount, profile.profileCompleted, router])
 
   useEffect(() => {
     if (!profileLoading && profile.profileCompleted && activeUserId) {
@@ -76,7 +77,7 @@ export default function HomePage() {
     )
   }
 
-  if (!user || !profile.profileCompleted) return null
+  if (!user || isSuperAdmin || (isAdmin && !hasOwnAccount) || !profile.profileCompleted) return null
 
   const activeModules = config.modules.filter(m => m.enabled).sort((a, b) => a.order - b.order)
 
