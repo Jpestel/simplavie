@@ -12,12 +12,7 @@ import {
 } from '@/lib/routineService'
 import { stepAppliesOn } from '@/lib/routineUtils'
 
-const DEFAULT_STEPS: RoutineStep[] = [
-  { id: '1', label: 'Se lever', icon: '🌅', order: 0, done: false, recurrence: 'daily' },
-  { id: '2', label: 'Se laver', icon: '🚿', order: 1, done: false, recurrence: 'daily' },
-  { id: '3', label: 'Prendre son traitement', icon: '💊', order: 2, done: false, recurrence: 'daily' },
-  { id: '4', label: 'Prendre le petit-déjeuner', icon: '🍳', order: 3, done: false, recurrence: 'daily' },
-]
+const DEFAULT_STEPS: RoutineStep[] = []
 
 function localISO(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
