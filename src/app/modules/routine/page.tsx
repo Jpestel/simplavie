@@ -391,7 +391,7 @@ export default function RoutinePage() {
             {/* Grille d'icônes */}
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-500 mb-2">Icône</label>
-              <div className="grid grid-cols-8 gap-1.5">
+              <div className="grid grid-cols-4 gap-2">
                 {QUICK_ICONS.map(({ icon, label }) => (
                   <button
                     key={icon}
@@ -399,10 +399,13 @@ export default function RoutinePage() {
                       setAddIcon(icon)
                       if (!addLabel || QUICK_ICON_LABELS.has(addLabel)) setAddLabel(label)
                     }}
-                    className={`aspect-square flex items-center justify-center text-2xl rounded-xl transition-all active:scale-95 ${
-                      addIcon === icon ? 'bg-indigo-100 ring-2 ring-indigo-400' : 'hover:bg-gray-100'
+                    className={`flex flex-col items-center justify-center gap-1 py-3 rounded-2xl transition-all active:scale-95 ${
+                      addIcon === icon ? 'bg-indigo-100 ring-2 ring-indigo-400' : 'bg-gray-50 hover:bg-gray-100'
                     }`}
-                  >{icon}</button>
+                  >
+                    <span className="text-3xl">{icon}</span>
+                    <span className={`text-xs font-semibold ${addIcon === icon ? 'text-indigo-700' : 'text-gray-500'}`}>{label}</span>
+                  </button>
                 ))}
               </div>
             </div>
