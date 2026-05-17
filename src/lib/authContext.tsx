@@ -222,6 +222,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           global_role: 'user',
         })
       }
+      await loadAll(data.user.id).catch(() => {})
     }
     return { error: null }
   }
