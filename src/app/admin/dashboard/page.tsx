@@ -98,11 +98,19 @@ export default function AdminDashboard() {
           {sorted.map((module, i) => (
             <div key={module.id} className="flex items-center gap-2 p-3 rounded-xl hover:bg-gray-50">
               {/* Boutons ordre */}
-              <div className="flex flex-col gap-0.5 shrink-0">
-                <button onClick={() => moveModule(i, -1)} disabled={i === 0}
-                  className="w-6 h-6 flex items-center justify-center text-gray-400 disabled:opacity-20 hover:text-gray-600 text-sm">↑</button>
-                <button onClick={() => moveModule(i, 1)} disabled={i === sorted.length - 1}
-                  className="w-6 h-6 flex items-center justify-center text-gray-400 disabled:opacity-20 hover:text-gray-600 text-sm">↓</button>
+              <div className="flex flex-col gap-1 shrink-0">
+                <button
+                  onClick={() => moveModule(i, -1)}
+                  disabled={i === 0}
+                  aria-label="Monter"
+                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-indigo-100 hover:text-indigo-600 active:scale-95 transition-all disabled:opacity-20 disabled:pointer-events-none text-gray-500 text-lg font-bold"
+                >▲</button>
+                <button
+                  onClick={() => moveModule(i, 1)}
+                  disabled={i === sorted.length - 1}
+                  aria-label="Descendre"
+                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-indigo-100 hover:text-indigo-600 active:scale-95 transition-all disabled:opacity-20 disabled:pointer-events-none text-gray-500 text-lg font-bold"
+                >▼</button>
               </div>
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 <span className="text-2xl">{module.icon}</span>
