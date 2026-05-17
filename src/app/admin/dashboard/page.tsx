@@ -151,6 +151,7 @@ export default function AdminDashboard() {
             { id: 'aidants',   href: '/admin/modules/aidants',   label: '🤝 Mes aidants' },
             { id: 'reminders', href: '/admin/modules/reminders', label: '🔔 Rappels' },
             { id: 'services',  href: '/admin/modules/services',  label: '🔗 Services utiles' },
+            { id: 'agenda',    href: '/admin/modules/agenda',    label: '📅 Agenda' },
           ].filter(item => {
             const m = config.modules.find(m => m.id === item.id)
             return m && m.enabled && !m.locked

@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/authContext'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { loadCareData } from '@/lib/careService'
+import { loadEvents } from '@/lib/agendaService'
 import { getSupabase, isSupabaseConfigured } from '@/lib/supabase'
 
 function isTodayReminder(r: { recurrence: string; week_days: number[] | null; month_day: number | null; specific_date: string | null }): boolean {
@@ -27,6 +28,7 @@ export default function HomePage() {
   const router = useRouter()
   const [careAlert, setCareAlert] = useState<string | null>(null)
   const [reminderAlert, setReminderAlert] = useState<{ count: number; first: string } | null>(null)
+  const [agendaAlert, setAgendaAlert] = useState<{ count: number; first: string; tomorrow: boolean } | null>(null)
 
   const handleSignOut = async () => {
     await signOut()
@@ -52,6 +54,22 @@ export default function HomePage() {
         const alerts = (care.appointments || []).filter(a => a.date === today && a.status !== 'planned')
         if (alerts.length > 0) {
           setCareAlert(`⚠️ ${alerts.length} changement(s) dans ton planning aujourd'hui`)
+        }
+      })
+    }
+  }, [profileLoading, profile.profileCompleted, activeUserId])
+
+  useEffect(() => {
+    if (!profileLoading && profile.profileCompleted && activeUserId) {
+      const today    = new Date().toISOString().slice(0, 10)
+      const tomorrow = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10) })()
+      loadEvents(activeUserId).then(events => {
+        const todayEvs    = events.filter(e => e.date === today)
+        const tomorrowEvs = events.filter(e => e.date === tomorrow)
+        if (todayEvs.length > 0) {
+          setAgendaAlert({ count: todayEvs.length, first: todayEvs[0].title, tomorrow: false })
+        } else if (tomorrowEvs.length > 0) {
+          setAgendaAlert({ count: tomorrowEvs.length, first: tomorrowEvs[0].title, tomorrow: true })
         }
       })
     }
@@ -109,6 +127,24 @@ export default function HomePage() {
         >
           <p className="text-purple-700 font-semibold text-center">🔔 {reminderAlert.count} rappel(s) aujourd&apos;hui</p>
           <p className="text-purple-500 text-sm text-center mt-1">{reminderAlert.first}{reminderAlert.count > 1 ? ` et ${reminderAlert.count - 1} autre(s)` : ''} → Voir</p>
+        </div>
+      )}
+
+      {agendaAlert && (
+        <div
+          onClick={() => router.push('/modules/agenda')}
+          className={`border-2 rounded-2xl p-4 mb-6 cursor-pointer active:scale-95 transition-all ${
+            agendaAlert.tomorrow
+              ? 'bg-indigo-50 border-indigo-200'
+              : 'bg-red-50 border-red-300'
+          }`}
+        >
+          <p className={`font-semibold text-center ${agendaAlert.tomorrow ? 'text-indigo-700' : 'text-red-700'}`}>
+            📅 {agendaAlert.tomorrow ? 'Demain' : "Aujourd'hui"} : {agendaAlert.count} rendez-vous
+          </p>
+          <p className={`text-sm text-center mt-1 ${agendaAlert.tomorrow ? 'text-indigo-500' : 'text-red-500'}`}>
+            {agendaAlert.first}{agendaAlert.count > 1 ? ` et ${agendaAlert.count - 1} autre(s)` : ''} → Voir
+          </p>
         </div>
       )}
 

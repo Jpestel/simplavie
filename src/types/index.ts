@@ -103,12 +103,15 @@ export type CareAppointment = {
   modifiedNote?: string   // e.g. "Sophie malade, remplacée par Marc"
 }
 
+export type AgendaCategory = 'medical' | 'admin' | 'family' | 'other'
+
 export type AgendaEvent = {
   id: string
   date: string    // YYYY-MM-DD
   time?: string   // HH:MM
   title: string
   notes?: string
+  category?: AgendaCategory
 }
 
 export type CareData = {
