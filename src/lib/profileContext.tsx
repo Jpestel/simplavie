@@ -107,6 +107,9 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     setProfile(next)
     if (isSupabaseConfigured && activeUserId) {
       supabase.from('user_profile').upsert(toRow(next, activeUserId)).then()
+      if (updates.firstName !== undefined) {
+        supabase.from('app_config').update({ user_name: updates.firstName }).eq('user_id', activeUserId).then()
+      }
     }
   }
 

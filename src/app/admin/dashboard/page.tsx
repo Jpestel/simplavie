@@ -69,15 +69,6 @@ export default function AdminDashboard() {
         <h2 className="text-lg font-semibold text-gray-700 mb-4">Général</h2>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm text-gray-500 mb-1">Prénom affiché</label>
-            <input
-              type="text"
-              value={config.userName}
-              onChange={e => updateConfig({ userName: e.target.value })}
-              className="w-full border border-gray-200 rounded-xl p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-            />
-          </div>
-          <div>
             <label className="block text-sm text-gray-500 mb-1">Couleur principale</label>
             <div className="flex items-center gap-3">
               <input
