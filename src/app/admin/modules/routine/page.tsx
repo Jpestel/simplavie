@@ -210,7 +210,7 @@ export default function RoutineAdminPage() {
           <div className="flex-1 overflow-y-auto p-5">
             <div className="grid grid-cols-4 gap-3">
               {ICONS_EXTENDED.map(({ icon, label }) => (
-                <button key={icon} onClick={() => { setForm(f => ({ ...f, icon })); setShowIconPicker(false) }}
+                <button key={icon} onClick={() => { setForm(f => ({ ...f, icon, label: f.label || label })); setShowIconPicker(false) }}
                   className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 transition-all active:scale-95 ${
                     form.icon === icon ? 'border-indigo-400 bg-indigo-50' : 'border-gray-100 hover:border-gray-200'
                   }`}>
@@ -233,7 +233,7 @@ export default function RoutineAdminPage() {
               <label className="block text-sm text-gray-500 mb-2">Icône</label>
               <div className="grid grid-cols-5 gap-2">
                 {ICONS_DEFAULT.map(({ icon, label }) => (
-                  <button key={icon} onClick={() => setForm(f => ({ ...f, icon }))}
+                  <button key={icon} onClick={() => setForm(f => ({ ...f, icon, label: f.label || label }))}
                     title={label}
                     className={`flex flex-col items-center gap-1 p-2 rounded-xl border-2 transition-all active:scale-95 ${
                       form.icon === icon ? 'border-indigo-400 bg-indigo-50' : 'border-gray-100 hover:border-gray-300'
