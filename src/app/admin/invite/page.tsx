@@ -31,14 +31,22 @@ export default function AdminInvitePage() {
     if (!user || !isSupabaseConfigured) { setLoadingAdmins(false); return }
     const sb = getSupabase()!
     sb.from('admin_assignments')
-      .select('id, permission, user_profile:admin_user_id(display_name)')
+      .select('id, admin_user_id, permission')
       .eq('owner_user_id', user.id)
-      .then(({ data }) => {
-        setAdmins((data ?? []).map((d: any) => ({
-          id: d.id as string,
-          display_name: d.user_profile?.display_name as string | null,
-          permission: (d.permission as Permission) ?? 'read',
-        })))
+      .then(async ({ data }) => {
+        const rows = await Promise.all((data ?? []).map(async (a) => {
+          const { data: profile } = await sb
+            .from('user_profile')
+            .select('display_name')
+            .eq('id', a.admin_user_id)
+            .maybeSingle()
+          return {
+            id: a.id as string,
+            display_name: (profile?.display_name as string | null) ?? null,
+            permission: (a.permission as Permission) ?? 'read',
+          }
+        }))
+        setAdmins(rows)
         setLoadingAdmins(false)
       })
   }, [user])
