@@ -146,7 +146,7 @@ export default function HomePage() {
 
       <button
         onClick={handleSignOut}
-        className="mt-3 flex items-center justify-center gap-3 w-full bg-gray-50 hover:bg-gray-100 active:scale-95 transition-all rounded-2xl py-4 text-gray-400 font-medium text-base border border-gray-200"
+        className="mt-3 flex items-center justify-center gap-3 w-full bg-red-50 hover:bg-red-100 active:scale-95 transition-all rounded-2xl py-4 text-red-500 font-semibold text-base border border-red-200"
       >
         <span>🔒</span>
         <span>Se déconnecter</span>
