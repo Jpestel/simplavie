@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/authContext'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { saFetch } from '@/lib/superadminFetch'
+import BackBar from '@/components/BackBar'
 
 type UserRow = {
   id: string
@@ -46,7 +47,7 @@ export default function SuperAdminPage() {
   if (loading || !isSuperAdmin) return null
 
   return (
-    <main className="min-h-screen p-6 max-w-3xl mx-auto">
+    <main className="min-h-screen p-6 max-w-3xl mx-auto pb-28">
       <div className="flex items-center gap-4 mb-8">
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-800">🛡️ Super Admin</h1>
@@ -101,6 +102,7 @@ export default function SuperAdminPage() {
           ))}
         </div>
       )}
+      <BackBar label="Super Admin" href="/superadmin" />
     </main>
   )
 }

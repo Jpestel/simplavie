@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/authContext'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { saFetch } from '@/lib/superadminFetch'
+import BackBar from '@/components/BackBar'
 
 type Module = { id: string; label: string; icon: string; enabled: boolean; order: number; name: string; description: string; locked?: boolean }
 type Admin = { id: string; display_name: string | null; email: string; permission: 'read' | 'write' }
@@ -164,6 +165,7 @@ export default function SuperAdminUserPage() {
           </section>
         </>
       )}
+      <BackBar label="Super Admin" href="/superadmin" />
     </main>
   )
 }
