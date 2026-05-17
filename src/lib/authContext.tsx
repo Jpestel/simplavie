@@ -189,15 +189,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function signUp(email: string, password: string, name?: string, asUser = true): Promise<{ error: string | null }> {
     const client = getSupabase()
     if (!client) return { error: 'Supabase non configuré' }
+
+    let isFirst = false
+    try {
+      const res = await fetch('/api/auth/is-first-setup')
+      const json = await res.json()
+      isFirst = json.isFirst === true
+    } catch { /* ignore, default false */ }
+
     const { data, error } = await client.auth.signUp({ email, password })
     if (error) return { error: error.message }
-    // Créer un profil utilisateur uniquement si asUser = true (pas pour les admins)
-    if (data.user && asUser) {
-      await client.from('user_profile').upsert({
-        id: data.user.id,
-        display_name: name ?? '',
-        global_role: 'user',
-      })
+
+    if (data.user) {
+      if (isFirst) {
+        await client.from('user_profile').upsert({
+          id: data.user.id,
+          display_name: name ?? email,
+          global_role: 'superadmin',
+        })
+      } else if (asUser) {
+        await client.from('user_profile').upsert({
+          id: data.user.id,
+          display_name: name ?? '',
+          global_role: 'user',
+        })
+      }
     }
     return { error: null }
   }
