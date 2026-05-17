@@ -5,8 +5,6 @@ import { DEFAULT_CONFIG, DEFAULT_MODULES } from './defaultConfig'
 import { supabase, isSupabaseConfigured } from './supabase'
 import { useAuth } from '@/lib/authContext'
 
-const STORAGE_KEY = 'simplavie_config'
-
 type ConfigContextType = {
   config: AppConfig
   updateConfig: (updates: Partial<AppConfig>) => void
@@ -46,22 +44,18 @@ function fromRow(row: Record<string, unknown>): AppConfig {
 
 export function ConfigProvider({ children }: { children: ReactNode }) {
   const { activeUserId, loading: authLoading } = useAuth()
-  const [config, setConfig] = useState<AppConfig>(() => {
-    if (typeof window === 'undefined') return DEFAULT_CONFIG
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY)
-      return stored ? JSON.parse(stored) : DEFAULT_CONFIG
-    } catch { return DEFAULT_CONFIG }
-  })
+  const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG)
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    if (authLoading || !activeUserId || !isSupabaseConfigured) return
+    if (authLoading) return
+    if (!activeUserId) { setConfig(DEFAULT_CONFIG); return }
+    if (!isSupabaseConfigured) return
     supabase.from('app_config').select('*').eq('user_id', activeUserId).maybeSingle().then(({ data }) => {
       if (data) {
-        const c = fromRow(data)
-        setConfig(c)
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(c))
+        setConfig(fromRow(data))
+      } else {
+        setConfig(DEFAULT_CONFIG)
       }
     })
   }, [activeUserId, authLoading])
@@ -69,7 +63,6 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   const updateConfig = (updates: Partial<AppConfig>) => {
     const next = { ...config, ...updates }
     setConfig(next)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
     if (isSupabaseConfigured && activeUserId) {
       supabase.from('app_config').upsert(toRow(next, activeUserId)).then()
     }

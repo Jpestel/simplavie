@@ -7,17 +7,7 @@ export default function ContactsPage() {
   const { profile } = useProfile()
   const router = useRouter()
 
-  // Get emergency-ordered contacts from localStorage override, fallback to profile order
-  const orderedIds: string[] = JSON.parse(
-    typeof window !== 'undefined' ? localStorage.getItem('simplavie_contacts_order') || '[]' : '[]'
-  )
-
-  const contacts = orderedIds.length > 0
-    ? orderedIds
-        .map(id => profile.contacts.find(c => c.id === id))
-        .filter(Boolean)
-        .concat(profile.contacts.filter(c => !orderedIds.includes(c.id)))
-    : profile.contacts
+  const contacts = profile.contacts
 
   const getPhone = (c: typeof profile.contacts[0]) => c.mobile || c.phone || ''
 

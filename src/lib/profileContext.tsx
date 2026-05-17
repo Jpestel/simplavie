@@ -4,8 +4,6 @@ import { UserProfile } from '@/types'
 import { supabase, isSupabaseConfigured } from './supabase'
 import { useAuth } from '@/lib/authContext'
 
-const STORAGE_KEY = 'simplavie_profile'
-
 const EMPTY_PROFILE: UserProfile = {
   firstName: '',
   lastName: '',
@@ -93,12 +91,9 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     if (authLoading || !isSupabaseConfigured) return
     if (!activeUserId) { setProfile(EMPTY_PROFILE); return }
     setProfile(EMPTY_PROFILE)
-    localStorage.removeItem(STORAGE_KEY)
     supabase.from('user_profile').select('*').eq('user_id', activeUserId).maybeSingle().then(({ data }) => {
       if (data) {
-        const p = fromRow(data)
-        setProfile(p)
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(p))
+        setProfile(fromRow(data))
       }
     })
   }, [activeUserId, authLoading])
@@ -106,7 +101,6 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const updateProfile = (updates: Partial<UserProfile>) => {
     const next = { ...profile, ...updates }
     setProfile(next)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
     if (isSupabaseConfigured && activeUserId) {
       supabase.from('user_profile').upsert(toRow(next, activeUserId)).then()
     }

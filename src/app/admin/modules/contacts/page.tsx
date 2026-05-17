@@ -4,20 +4,13 @@ import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
-const ORDER_KEY = 'simplavie_contacts_order'
-
 export default function ContactsAdminPage() {
   const { profile } = useProfile()
   const router = useRouter()
   const [orderedIds, setOrderedIds] = useState<string[]>([])
 
   useEffect(() => {
-    const stored = localStorage.getItem(ORDER_KEY)
-    if (stored) {
-      setOrderedIds(JSON.parse(stored))
-    } else {
-      setOrderedIds(profile.contacts.map(c => c.id))
-    }
+    setOrderedIds(profile.contacts.map(c => c.id))
   }, [profile.contacts])
 
   const orderedContacts = orderedIds
@@ -27,7 +20,6 @@ export default function ContactsAdminPage() {
 
   const save = (ids: string[]) => {
     setOrderedIds(ids)
-    localStorage.setItem(ORDER_KEY, JSON.stringify(ids))
   }
 
   const moveUp = (index: number) => {
