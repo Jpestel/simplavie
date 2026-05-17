@@ -452,6 +452,7 @@ export default function AidantsAdminPage() {
           )}
         </section>
       )}
+      <BackBar />
     </main>
   )
 }

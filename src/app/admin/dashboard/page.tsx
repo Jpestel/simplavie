@@ -175,6 +175,7 @@ export default function AdminDashboard() {
           </button>
         </section>
       )}
+      <BackBar />
     </main>
   )
 }

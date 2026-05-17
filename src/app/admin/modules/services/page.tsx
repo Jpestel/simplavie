@@ -282,6 +282,7 @@ export default function AdminServicesPage() {
           </div>
         </section>
       ))}
+      <BackBar />
     </main>
   )
 }

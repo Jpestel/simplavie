@@ -142,6 +142,7 @@ export default function AdminProfilePage() {
           Relancer l&apos;assistant d&apos;inscription
         </button>
       </section>
+      <BackBar />
     </main>
   )
 }

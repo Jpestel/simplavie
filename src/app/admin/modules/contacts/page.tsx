@@ -87,6 +87,7 @@ export default function ContactsAdminPage() {
           </Link>.
         </p>
       </section>
+      <BackBar />
     </main>
   )
 }

@@ -347,6 +347,7 @@ export default function RoutineAdminPage() {
           </div>
         </div>
       )}
+      <BackBar />
     </main>
   )
 }
