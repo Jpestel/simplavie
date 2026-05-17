@@ -34,6 +34,9 @@ export default function LoginPage() {
     if (msg.includes('User already registered') || msg.includes('already_registered')) {
       return 'Un compte existe déjà avec cet email.'
     }
+    if (msg.includes('Anonymous sign-ins are disabled') || msg.includes('anonymous_provider_disabled')) {
+      return 'Veuillez renseigner votre email et votre mot de passe.'
+    }
     return msg
   }
 
