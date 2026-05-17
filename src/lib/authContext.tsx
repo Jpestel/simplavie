@@ -127,24 +127,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const timeout = setTimeout(() => setLoading(false), 5000)
 
-    client.auth.getSession().then(async ({ data: { session } }) => {
+    client.auth.getSession().then(({ data: { session } }) => {
       clearTimeout(timeout)
       setUser(session?.user ?? null)
-      if (session?.user) await loadAll(session.user.id).catch(() => {})
       setLoading(false)
+      if (session?.user) loadAll(session.user.id).catch(() => {})
     }).catch(() => { clearTimeout(timeout); setLoading(false) })
 
-    const { data: { subscription } } = client.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = client.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
+      setLoading(false)
       if (session?.user) {
-        await loadAll(session.user.id).catch(() => {})
+        loadAll(session.user.id).catch(() => {})
       } else {
         setProfile(null)
         setAdminAssignments([])
         impersonate(null)
         setAdminTarget(null)
       }
-      setLoading(false)
     })
 
     return () => subscription.unsubscribe()
