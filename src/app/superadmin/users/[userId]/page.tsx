@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '@/lib/authContext'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
+import { saFetch } from '@/lib/superadminFetch'
 
 type Module = { id: string; label: string; icon: string; enabled: boolean; order: number; name: string; description: string }
 type Admin = { id: string; display_name: string | null; email: string; permission: 'read' | 'write' }
@@ -26,7 +27,7 @@ export default function SuperAdminUserPage() {
   }, [loading, isSuperAdmin, router])
 
   const load = () => {
-    fetch(`/api/superadmin/users/${userId}`)
+    saFetch(`/api/superadmin/users/${userId}`)
       .then(r => r.json())
       .then(d => { setData(d); setFetching(false) })
   }
@@ -37,9 +38,8 @@ export default function SuperAdminUserPage() {
     if (!data?.config) return
     setSaving(module.id)
     const updated = data.config.modules.map(m => m.id === module.id ? { ...m, enabled: !m.enabled } : m)
-    await fetch(`/api/superadmin/users/${userId}/modules`, {
+    await saFetch(`/api/superadmin/users/${userId}/modules`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ modules: updated }),
     })
     setData(d => d && d.config ? { ...d, config: { ...d.config, modules: updated } } : d)
@@ -48,9 +48,8 @@ export default function SuperAdminUserPage() {
 
   const changePermission = async (adminId: string, permission: 'read' | 'write') => {
     setSaving(adminId)
-    await fetch(`/api/superadmin/users/${userId}/admins/${adminId}`, {
+    await saFetch(`/api/superadmin/users/${userId}/admins/${adminId}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ permission }),
     })
     setData(d => d ? { ...d, admins: d.admins.map(a => a.id === adminId ? { ...a, permission } : a) } : d)
@@ -60,7 +59,7 @@ export default function SuperAdminUserPage() {
   const revokeAdmin = async (adminId: string) => {
     if (!confirm('Révoquer cet administrateur ?')) return
     setSaving(adminId)
-    await fetch(`/api/superadmin/users/${userId}/admins/${adminId}`, { method: 'DELETE' })
+    await saFetch(`/api/superadmin/users/${userId}/admins/${adminId}`, { method: 'DELETE' })
     setData(d => d ? { ...d, admins: d.admins.filter(a => a.id !== adminId) } : d)
     setSaving(null)
   }
@@ -77,19 +76,14 @@ export default function SuperAdminUserPage() {
 
   return (
     <main className="min-h-screen p-6 max-w-2xl mx-auto pb-28">
-      {/* Header */}
       <div className="flex items-center gap-4 mb-8">
         <Link href="/superadmin" className="flex items-center justify-center w-10 h-10 rounded-2xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all text-gray-600 font-bold text-lg">←</Link>
         <div className="flex-1">
           <h1 className="text-xl font-bold text-gray-800">{fetching ? '...' : userName}</h1>
           <p className="text-sm text-gray-400">{data?.email}</p>
         </div>
-        <button
-          onClick={handleImpersonate}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-indigo-500 hover:bg-indigo-600 active:scale-95 transition-all text-white font-semibold text-sm"
-        >
-          <span>👁️</span>
-          <span>Voir le compte</span>
+        <button onClick={handleImpersonate} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-indigo-500 hover:bg-indigo-600 active:scale-95 transition-all text-white font-semibold text-sm">
+          <span>👁️</span><span>Voir le compte</span>
         </button>
       </div>
 
@@ -97,7 +91,6 @@ export default function SuperAdminUserPage() {
         <div className="text-center text-gray-400 mt-20">Chargement...</div>
       ) : (
         <>
-          {/* Modules */}
           <section className="bg-white rounded-2xl p-6 shadow-sm mb-6">
             <h2 className="text-lg font-semibold text-gray-700 mb-4">Modules</h2>
             <div className="space-y-3">
@@ -122,7 +115,6 @@ export default function SuperAdminUserPage() {
             </div>
           </section>
 
-          {/* Admins */}
           <section className="bg-white rounded-2xl p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-700 mb-4">
               Administrateurs <span className="text-gray-300 text-base font-normal">({data?.admins.length ?? 0})</span>
@@ -134,9 +126,7 @@ export default function SuperAdminUserPage() {
                 {data?.admins.map(a => (
                   <div key={a.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50">
                     <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
-                      <span className="text-indigo-500 font-bold text-sm">
-                        {(a.display_name || a.email || '?')[0].toUpperCase()}
-                      </span>
+                      <span className="text-indigo-500 font-bold text-sm">{(a.display_name || a.email || '?')[0].toUpperCase()}</span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-gray-700 truncate">{a.display_name || a.email}</div>
@@ -155,9 +145,7 @@ export default function SuperAdminUserPage() {
                       onClick={() => revokeAdmin(a.id)}
                       disabled={saving === a.id}
                       className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-red-100 text-gray-400 hover:text-red-500 active:scale-95 transition-all disabled:opacity-50"
-                    >
-                      🗑️
-                    </button>
+                    >🗑️</button>
                   </div>
                 ))}
               </div>

@@ -4,9 +4,8 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
 
 type Params = { userId: string; adminId: string }
 
-// PATCH — modifier la permission d'un admin
 export async function PATCH(req: NextRequest, { params }: { params: Promise<Params> }) {
-  const check = await verifySuperAdmin()
+  const check = await verifySuperAdmin(req)
   if ('error' in check) return NextResponse.json({ error: check.error }, { status: 401 })
 
   const { adminId } = await params
@@ -23,15 +22,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
   return NextResponse.json({ ok: true })
 }
 
-// DELETE — révoquer un admin
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<Params> }) {
-  const check = await verifySuperAdmin()
+export async function DELETE(req: NextRequest, { params }: { params: Promise<Params> }) {
+  const check = await verifySuperAdmin(req)
   if ('error' in check) return NextResponse.json({ error: check.error }, { status: 401 })
 
   const { adminId } = await params
   const admin = getSupabaseAdmin()
-
-  // Repasse le compte en owner sans owner_id
   const { error } = await admin
     .from('user_profile')
     .update({ role: 'owner', owner_id: null, permission: null })

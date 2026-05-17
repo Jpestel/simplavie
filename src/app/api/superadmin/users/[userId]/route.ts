@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifySuperAdmin } from '@/lib/superadminAuth'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
-  const check = await verifySuperAdmin()
+export async function GET(req: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
+  const check = await verifySuperAdmin(req)
   if ('error' in check) return NextResponse.json({ error: check.error }, { status: 401 })
 
   const { userId } = await params
@@ -16,7 +16,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
     admin.auth.admin.getUserById(userId),
   ])
 
-  // Enrichir les admins avec leurs emails
   const adminsWithEmail = await Promise.all((adminsRes.data ?? []).map(async (a) => {
     const { data: au } = await admin.auth.admin.getUserById(a.id)
     return { ...a, email: au?.user?.email ?? '' }
