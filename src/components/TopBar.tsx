@@ -2,16 +2,29 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/authContext'
+import { useEffect, useState } from 'react'
 
 export default function TopBar() {
   const { isSuperAdmin, isAdmin, hasOwnAccount, adminAssignments, adminTarget, setAdminTarget, user } = useAuth()
   const router = useRouter()
+  const [visible, setVisible] = useState(true)
+  const [lastY, setLastY] = useState(0)
+
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY
+      setVisible(y < lastY || y < 10)
+      setLastY(y)
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [lastY])
 
   const isDualRole = isAdmin && hasOwnAccount
   const isViewingOwnAccount = !adminTarget || adminTarget === user?.id
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100">
+    <div className={`fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100 transition-transform duration-300 ${visible ? 'translate-y-0' : '-translate-y-full'}`}>
       <div className="max-w-2xl mx-auto px-4 h-12 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2 group">
           <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
