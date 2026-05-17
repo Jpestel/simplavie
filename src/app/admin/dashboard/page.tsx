@@ -79,6 +79,7 @@ export default function AdminDashboard() {
               />
               <span className="text-gray-400 text-sm">{config.primaryColor}</span>
             </div>
+            <p className="text-xs text-gray-400 mt-2">Utilisée pour la barre de progression de la routine et les bordures des modules sur la page d&apos;accueil.</p>
           </div>
         </div>
       </section>
