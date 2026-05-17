@@ -60,6 +60,7 @@ export const DEFAULT_MODULES: Module[] = [
 export const DEFAULT_CONFIG: AppConfig = {
   userName: 'Mon proche',
   primaryColor: '#6366f1',
+  backgroundColor: '#f9fafb',
   adminPassword: '1234',
   modules: DEFAULT_MODULES,
 }

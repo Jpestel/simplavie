@@ -19,6 +19,7 @@ function toRow(c: AppConfig, userId: string) {
     user_id: userId,
     user_name: c.userName,
     primary_color: c.primaryColor,
+    background_color: c.backgroundColor,
     admin_password: c.adminPassword,
     modules: c.modules,
     updated_at: new Date().toISOString(),
@@ -37,6 +38,7 @@ function fromRow(row: Record<string, unknown>): AppConfig {
   return {
     userName: (row.user_name as string) ?? DEFAULT_CONFIG.userName,
     primaryColor: (row.primary_color as string) ?? DEFAULT_CONFIG.primaryColor,
+    backgroundColor: (row.background_color as string) ?? DEFAULT_CONFIG.backgroundColor,
     adminPassword: (row.admin_password as string) ?? DEFAULT_CONFIG.adminPassword,
     modules: mergeModules(savedModules),
   }

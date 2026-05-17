@@ -28,6 +28,7 @@ export type RoutineStep = {
 export type AppConfig = {
   userName: string        // prénom de l'utilisateur (ex: "Lucas")
   primaryColor: string   // hex color for theme
+  backgroundColor: string // hex color for page background
   adminPassword: string  // simple 4-digit PIN
   modules: Module[]
 }

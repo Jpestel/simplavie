@@ -67,20 +67,37 @@ export default function AdminDashboard() {
 
       {/* Ligne du haut : Général + Configurer les modules */}
       <div className="grid grid-cols-2 gap-4 mb-6 items-start">
-        <section className="bg-white rounded-2xl p-5 shadow-sm">
-          <h2 className="text-base font-semibold text-gray-700 mb-4">Général</h2>
-          <label className="block text-sm text-gray-500 mb-1">Couleur</label>
-          <div className="flex items-center gap-2">
-            <input
-              type="color"
-              value={config.primaryColor}
-              onChange={e => updateConfig({ primaryColor: e.target.value })}
-              className="w-12 h-12 rounded-xl border-0 cursor-pointer"
-            />
-            <span className="text-gray-400 text-xs">{config.primaryColor}</span>
-          </div>
-          <p className="text-xs text-gray-400 mt-2">Barre de progression &amp; bordures des modules.</p>
-        </section>
+        <div className="flex flex-col gap-4">
+          <section className="bg-white rounded-2xl p-5 shadow-sm">
+            <h2 className="text-base font-semibold text-gray-700 mb-4">Général</h2>
+            <label className="block text-sm text-gray-500 mb-1">Couleur principale</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={config.primaryColor}
+                onChange={e => updateConfig({ primaryColor: e.target.value })}
+                className="w-12 h-12 rounded-xl border-0 cursor-pointer"
+              />
+              <span className="text-gray-400 text-xs">{config.primaryColor}</span>
+            </div>
+            <p className="text-xs text-gray-400 mt-2">Barre de progression &amp; bordures des modules.</p>
+          </section>
+
+          <section className="bg-white rounded-2xl p-5 shadow-sm">
+            <h2 className="text-base font-semibold text-gray-700 mb-4">Fond du site</h2>
+            <label className="block text-sm text-gray-500 mb-1">Couleur de fond</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={config.backgroundColor}
+                onChange={e => updateConfig({ backgroundColor: e.target.value })}
+                className="w-12 h-12 rounded-xl border-0 cursor-pointer"
+              />
+              <span className="text-gray-400 text-xs">{config.backgroundColor}</span>
+            </div>
+            <p className="text-xs text-gray-400 mt-2">Couleur d&apos;arrière-plan de toutes les pages.</p>
+          </section>
+        </div>
 
         <section className="bg-white rounded-2xl p-5 shadow-sm">
           <h2 className="text-base font-semibold text-gray-700 mb-3">Configurer</h2>
