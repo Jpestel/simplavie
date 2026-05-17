@@ -86,50 +86,45 @@ export default function AdminDashboard() {
 
       <section className="bg-white rounded-2xl p-6 shadow-sm mb-6">
         <h2 className="text-lg font-semibold text-gray-700 mb-4">Modules</h2>
-        <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
           {sorted.map((module, i) => (
-            <div key={module.id} className="flex items-center gap-2 p-3 rounded-xl hover:bg-gray-50">
+            <div key={module.id} className={`rounded-2xl border-2 p-4 flex flex-col gap-3 ${module.locked ? 'border-orange-100 bg-orange-50' : 'border-gray-100 bg-gray-50'}`}>
+              {/* Ligne icône + toggle */}
+              <div className="flex items-center justify-between">
+                <span className="text-3xl">{module.icon}</span>
+                {module.locked ? (
+                  <span className="text-lg">🔒</span>
+                ) : (
+                  <button
+                    onClick={() => toggleModule(module.id)}
+                    className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${module.enabled ? 'bg-indigo-500' : 'bg-gray-200'}`}
+                  >
+                    <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${module.enabled ? 'translate-x-7' : 'translate-x-1'}`} />
+                  </button>
+                )}
+              </div>
+
+              {/* Nom */}
+              <div>
+                <div className="font-semibold text-gray-700 text-sm leading-tight">{module.label}</div>
+                {module.locked && <div className="text-xs text-orange-400 mt-0.5">Désactivé</div>}
+              </div>
+
               {/* Boutons ordre */}
-              <div className="flex flex-col gap-1 shrink-0">
+              <div className="flex gap-1">
                 <button
                   onClick={() => moveModule(i, -1)}
                   disabled={i === 0}
                   aria-label="Monter"
-                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-indigo-100 hover:text-indigo-600 active:scale-95 transition-all disabled:opacity-20 disabled:pointer-events-none text-gray-500 text-lg font-bold"
+                  className="flex-1 h-8 flex items-center justify-center rounded-lg bg-white border border-gray-200 hover:bg-indigo-50 hover:text-indigo-600 active:scale-95 transition-all disabled:opacity-20 disabled:pointer-events-none text-gray-500 text-sm font-bold"
                 >▲</button>
                 <button
                   onClick={() => moveModule(i, 1)}
                   disabled={i === sorted.length - 1}
                   aria-label="Descendre"
-                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-indigo-100 hover:text-indigo-600 active:scale-95 transition-all disabled:opacity-20 disabled:pointer-events-none text-gray-500 text-lg font-bold"
+                  className="flex-1 h-8 flex items-center justify-center rounded-lg bg-white border border-gray-200 hover:bg-indigo-50 hover:text-indigo-600 active:scale-95 transition-all disabled:opacity-20 disabled:pointer-events-none text-gray-500 text-sm font-bold"
                 >▼</button>
               </div>
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <span className="text-2xl">{module.icon}</span>
-                <div className="min-w-0">
-                  <div className="font-medium text-gray-700">{module.label}</div>
-                  <div className="text-sm text-gray-400">{module.description}</div>
-                  {module.locked && (
-                    <div className="text-xs text-orange-400 mt-0.5">🔒 Désactivé par l&apos;administrateur</div>
-                  )}
-                </div>
-              </div>
-              {module.locked ? (
-                <div className="w-12 h-6 rounded-full bg-gray-100 flex items-center justify-center cursor-not-allowed shrink-0">
-                  <span className="text-xs text-gray-300">🔒</span>
-                </div>
-              ) : (
-                <button
-                  onClick={() => toggleModule(module.id)}
-                  className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${
-                    module.enabled ? 'bg-indigo-500' : 'bg-gray-200'
-                  }`}
-                >
-                  <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                    module.enabled ? 'translate-x-7' : 'translate-x-1'
-                  }`} />
-                </button>
-              )}
             </div>
           ))}
         </div>
