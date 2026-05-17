@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { saFetch } from '@/lib/superadminFetch'
 
-type Module = { id: string; label: string; icon: string; enabled: boolean; order: number; name: string; description: string }
+type Module = { id: string; label: string; icon: string; enabled: boolean; order: number; name: string; description: string; locked?: boolean }
 type Admin = { id: string; display_name: string | null; email: string; permission: 'read' | 'write' }
 type UserDetail = {
   profile: { display_name: string | null; global_role: string | null } | null
@@ -42,7 +42,10 @@ export default function SuperAdminUserPage() {
   const toggleModule = async (module: Module) => {
     if (!data?.config) return
     setSaving(module.id)
-    const updated = data.config.modules.map(m => m.id === module.id ? { ...m, enabled: !m.enabled } : m)
+    const nowEnabled = !module.enabled
+    const updated = data.config.modules.map(m =>
+      m.id === module.id ? { ...m, enabled: nowEnabled, locked: !nowEnabled } : m
+    )
     await saFetch(`/api/superadmin/users/${userId}/modules`, {
       method: 'PATCH',
       body: JSON.stringify({ modules: updated }),

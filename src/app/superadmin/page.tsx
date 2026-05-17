@@ -65,7 +65,6 @@ export default function SuperAdminPage() {
       ) : users.length === 0 ? (
         <div className="text-center text-gray-400 mt-20">
           <p className="text-xl">Aucun compte trouvé</p>
-          <p className="text-sm mt-2">Vérifiez que SUPABASE_SERVICE_ROLE_KEY est bien configurée</p>
         </div>
       ) : (
         <div className="space-y-3">

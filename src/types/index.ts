@@ -6,6 +6,7 @@ export type Module = {
   icon: string
   enabled: boolean
   order: number
+  locked?: boolean
 }
 
 export type RecurrenceType = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'once'

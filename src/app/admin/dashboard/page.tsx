@@ -91,18 +91,27 @@ export default function AdminDashboard() {
                 <div>
                   <div className="font-medium text-gray-700">{module.label}</div>
                   <div className="text-sm text-gray-400">{module.description}</div>
+                  {module.locked && (
+                    <div className="text-xs text-orange-400 mt-0.5">🔒 Désactivé par l&apos;administrateur</div>
+                  )}
                 </div>
               </div>
-              <button
-                onClick={() => toggleModule(module.id)}
-                className={`relative w-12 h-6 rounded-full transition-colors ${
-                  module.enabled ? 'bg-indigo-500' : 'bg-gray-200'
-                }`}
-              >
-                <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                  module.enabled ? 'translate-x-7' : 'translate-x-1'
-                }`} />
-              </button>
+              {module.locked ? (
+                <div className="w-12 h-6 rounded-full bg-gray-100 flex items-center justify-center cursor-not-allowed">
+                  <span className="text-xs text-gray-300">🔒</span>
+                </div>
+              ) : (
+                <button
+                  onClick={() => toggleModule(module.id)}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${
+                    module.enabled ? 'bg-indigo-500' : 'bg-gray-200'
+                  }`}
+                >
+                  <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                    module.enabled ? 'translate-x-7' : 'translate-x-1'
+                  }`} />
+                </button>
+              )}
             </div>
           ))}
         </div>
