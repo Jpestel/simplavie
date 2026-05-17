@@ -143,7 +143,7 @@ export default function AdminDashboard() {
             className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
           >
             <span>👤 Profil utilisateur</span>
-            <span className="text-gray-400">→</span>
+            <span className="text-xl">⚙️</span>
           </Link>
           {[
             { id: 'routine',   href: '/admin/modules/routine',   label: '📋 Routine du jour' },
@@ -161,7 +161,7 @@ export default function AdminDashboard() {
               className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
             >
               <span>{item.label}</span>
-              <span className="text-gray-400">→</span>
+              <span className="text-xl">⚙️</span>
             </Link>
           ))}
           {hasOwnAccount && (
@@ -170,7 +170,7 @@ export default function AdminDashboard() {
               className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
             >
               <span>👥 Gérer les administrateurs</span>
-              <span className="text-gray-400">→</span>
+              <span className="text-xl">⚙️</span>
             </Link>
           )}
         </div>
