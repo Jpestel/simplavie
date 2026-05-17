@@ -29,7 +29,6 @@ export default function HomePage() {
   const [reminderAlert, setReminderAlert] = useState<{ count: number; first: string } | null>(null)
 
   const handleSignOut = async () => {
-    localStorage.clear()
     await signOut()
     router.push('/login')
   }
