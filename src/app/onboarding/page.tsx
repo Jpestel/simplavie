@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useProfile } from '@/lib/profileContext'
 import { useConfig } from '@/lib/configContext'
+import { useAuth } from '@/lib/authContext'
 import { useRouter } from 'next/navigation'
 import { Contact } from '@/types'
 
@@ -41,7 +42,13 @@ function InputField({ label, value, onChange, type = 'text', placeholder = '', o
 export default function OnboardingPage() {
   const { profile, updateProfile } = useProfile()
   const { updateConfig } = useConfig()
+  const { signOut } = useAuth()
   const router = useRouter()
+
+  const handleSignOut = async () => {
+    await signOut()
+    router.push('/login')
+  }
   const [step, setStep] = useState(0)
   const [newContact, setNewContact] = useState<Partial<Contact>>({ relation: '' })
   const [showContactForm, setShowContactForm] = useState(false)
@@ -82,9 +89,14 @@ export default function OnboardingPage() {
   return (
     <main className="min-h-screen p-6 max-w-lg mx-auto flex flex-col">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-800 mb-1">Bienvenue sur SimplaVie</h1>
-        <p className="text-gray-500">Quelques informations pour personnaliser l&apos;application</p>
+      <div className="flex items-start justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800 mb-1">Bienvenue sur SimplaVie</h1>
+          <p className="text-gray-500">Quelques informations pour personnaliser l&apos;application</p>
+        </div>
+        <button onClick={handleSignOut} className="text-xs text-gray-400 hover:text-gray-600 px-3 py-1.5 rounded-xl hover:bg-gray-100 transition-all">
+          Déconnexion
+        </button>
       </div>
 
       {/* Steps indicator */}
