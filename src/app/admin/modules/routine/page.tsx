@@ -1,4 +1,5 @@
 'use client'
+import BackBar from '@/components/BackBar'
 import { useState, useEffect } from 'react'
 import { RoutineStep, RecurrenceType } from '@/types'
 import { useRouter } from 'next/navigation'
@@ -163,7 +164,7 @@ export default function RoutineAdminPage() {
   const input = "w-full border border-gray-200 rounded-xl p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
 
   return (
-    <main className="min-h-screen p-6 max-w-2xl mx-auto pb-10">
+    <main className="min-h-screen p-6 max-w-2xl mx-auto pb-28">
       <div className="flex items-center gap-4 mb-8">
         <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-600 text-xl">←</button>
         <h1 className="text-2xl font-bold text-gray-800">Routine du jour</h1>

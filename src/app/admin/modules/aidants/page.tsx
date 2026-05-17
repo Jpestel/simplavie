@@ -1,4 +1,5 @@
 'use client'
+import BackBar from '@/components/BackBar'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { CareData, Caregiver, CareAppointment } from '@/types'
@@ -160,7 +161,7 @@ export default function AidantsAdminPage() {
   if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="text-xl text-gray-400">Chargement...</div></div>
 
   return (
-    <main className="min-h-screen p-6 max-w-2xl mx-auto">
+    <main className="min-h-screen p-6 max-w-2xl mx-auto pb-28">
       <div className="flex items-center gap-4 mb-6">
         <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-600 text-xl">←</button>
         <h1 className="text-2xl font-bold text-gray-800">Mes aidants</h1>

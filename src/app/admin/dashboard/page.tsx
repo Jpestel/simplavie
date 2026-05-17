@@ -1,4 +1,5 @@
 'use client'
+import BackBar from '@/components/BackBar'
 import { useState } from 'react'
 import { useConfig } from '@/lib/configContext'
 import { useAuth } from '@/lib/authContext'
@@ -33,7 +34,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <main className="min-h-screen p-6 max-w-2xl mx-auto">
+    <main className="min-h-screen p-6 max-w-2xl mx-auto pb-28">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold text-gray-800">Configuration</h1>
         <div className="flex items-center gap-2">

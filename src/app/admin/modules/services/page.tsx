@@ -1,4 +1,5 @@
 'use client'
+import BackBar from '@/components/BackBar'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/authContext'
 import { getSupabase, isSupabaseConfigured } from '@/lib/supabase'

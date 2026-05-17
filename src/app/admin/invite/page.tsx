@@ -1,4 +1,5 @@
 'use client'
+import BackBar from '@/components/BackBar'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/authContext'
 import { useProfile } from '@/lib/profileContext'
@@ -108,6 +109,7 @@ export default function AdminInvitePage() {
           <p className="mt-2 text-sm">Seul le propriétaire d&apos;un compte SimplaVie peut gérer ses administrateurs.</p>
           <button onClick={() => router.back()} className="mt-6 text-indigo-500 font-semibold">← Retour</button>
         </div>
+      <BackBar />
       </main>
     )
   }

@@ -1,4 +1,5 @@
 'use client'
+import BackBar from '@/components/BackBar'
 import { useProfile } from '@/lib/profileContext'
 import { useRouter } from 'next/navigation'
 import { Contact } from '@/types'
@@ -34,7 +35,7 @@ export default function AdminProfilePage() {
   }
 
   return (
-    <main className="min-h-screen p-6 max-w-2xl mx-auto">
+    <main className="min-h-screen p-6 max-w-2xl mx-auto pb-28">
       <div className="flex items-center gap-4 mb-8">
         <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-600 text-xl">←</button>
         <h1 className="text-2xl font-bold text-gray-800">Profil utilisateur</h1>
