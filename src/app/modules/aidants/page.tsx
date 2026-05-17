@@ -279,8 +279,8 @@ export default function AidantsPage() {
                     {care.company.phone && <a href={`tel:${care.company.phone}`} className="flex-1 flex items-center justify-center gap-1.5 bg-blue-500 hover:bg-blue-600 active:scale-95 text-white font-semibold text-sm rounded-xl py-2.5 transition-all"><span>📞</span><span>Fixe</span></a>}
                   </div>
                   {care.company.email && (
-                    <a href={`mailto:${care.company.email}`} className="mt-2 flex items-center justify-center gap-1.5 w-full bg-indigo-50 hover:bg-indigo-100 active:scale-95 text-indigo-600 font-semibold text-sm rounded-xl py-2.5 transition-all border border-indigo-100">
-                      <span>✉️</span><span>{care.company.email}</span>
+                    <a href={`mailto:${care.company.email}`} className="mt-2 flex items-center justify-center gap-1.5 w-full bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white font-semibold text-sm rounded-xl py-2.5 transition-all">
+                      <span>✉️</span><span>E-mail</span>
                     </a>
                   )}
                 </section>
