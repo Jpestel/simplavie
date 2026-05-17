@@ -47,14 +47,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
-  const [impersonatedUserId, setImpersonatedUserId] = useState<string | null>(() => {
-    if (typeof window === 'undefined') return null
-    return sessionStorage.getItem('simplavie_impersonate')
-  })
-  const [impersonatedUserName, setImpersonatedUserName] = useState<string | null>(() => {
-    if (typeof window === 'undefined') return null
-    return sessionStorage.getItem('simplavie_impersonate_name')
-  })
+  const [impersonatedUserId, setImpersonatedUserId] = useState<string | null>(null)
+  const [impersonatedUserName, setImpersonatedUserName] = useState<string | null>(null)
+
+  useEffect(() => {
+    setImpersonatedUserId(sessionStorage.getItem('simplavie_impersonate'))
+    setImpersonatedUserName(sessionStorage.getItem('simplavie_impersonate_name'))
+  }, [])
 
   async function loadProfile(uid: string): Promise<Profile> {
     const client = getSupabase()
