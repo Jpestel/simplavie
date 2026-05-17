@@ -274,9 +274,9 @@ export default function AidantsPage() {
                   <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Société</div>
                   <div className="text-2xl font-bold text-gray-800 mb-1">{care.company.name}</div>
                   {care.company.address && <div className="text-gray-500 text-sm mb-4">📍 {care.company.address}{care.company.city ? `, ${care.company.city}` : ''}</div>}
-                  <div className="flex gap-3">
-                    {care.company.mobile && <a href={`tel:${care.company.mobile}`} className="flex-1 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 active:scale-95 text-white font-bold text-xl rounded-2xl py-4 transition-all"><span>📱</span><span>Mobile</span></a>}
-                    {care.company.phone && <a href={`tel:${care.company.phone}`} className="flex-1 flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 active:scale-95 text-white font-bold text-xl rounded-2xl py-4 transition-all"><span>📞</span><span>Fixe</span></a>}
+                  <div className="flex gap-2">
+                    {care.company.mobile && <a href={`tel:${care.company.mobile}`} className="flex-1 flex items-center justify-center gap-1.5 bg-green-500 hover:bg-green-600 active:scale-95 text-white font-semibold text-sm rounded-xl py-2.5 transition-all"><span>📱</span><span>Mobile</span></a>}
+                    {care.company.phone && <a href={`tel:${care.company.phone}`} className="flex-1 flex items-center justify-center gap-1.5 bg-blue-500 hover:bg-blue-600 active:scale-95 text-white font-semibold text-sm rounded-xl py-2.5 transition-all"><span>📞</span><span>Fixe</span></a>}
                   </div>
                 </section>
               )}
