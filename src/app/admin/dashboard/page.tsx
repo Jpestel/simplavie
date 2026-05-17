@@ -65,110 +65,95 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <section className="bg-white rounded-2xl p-6 shadow-sm mb-6">
-        <h2 className="text-lg font-semibold text-gray-700 mb-4">Général</h2>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm text-gray-500 mb-1">Couleur principale</label>
-            <div className="flex items-center gap-3">
-              <input
-                type="color"
-                value={config.primaryColor}
-                onChange={e => updateConfig({ primaryColor: e.target.value })}
-                className="w-12 h-12 rounded-xl border-0 cursor-pointer"
-              />
-              <span className="text-gray-400 text-sm">{config.primaryColor}</span>
-            </div>
-            <p className="text-xs text-gray-400 mt-2">Utilisée pour la barre de progression de la routine et les bordures des modules sur la page d&apos;accueil.</p>
+      {/* Ligne du haut : Général + Configurer les modules */}
+      <div className="grid grid-cols-2 gap-4 mb-6 items-start">
+        <section className="bg-white rounded-2xl p-5 shadow-sm">
+          <h2 className="text-base font-semibold text-gray-700 mb-4">Général</h2>
+          <label className="block text-sm text-gray-500 mb-1">Couleur</label>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={config.primaryColor}
+              onChange={e => updateConfig({ primaryColor: e.target.value })}
+              className="w-12 h-12 rounded-xl border-0 cursor-pointer"
+            />
+            <span className="text-gray-400 text-xs">{config.primaryColor}</span>
           </div>
-        </div>
-      </section>
+          <p className="text-xs text-gray-400 mt-2">Barre de progression &amp; bordures des modules.</p>
+        </section>
 
+        <section className="bg-white rounded-2xl p-5 shadow-sm">
+          <h2 className="text-base font-semibold text-gray-700 mb-3">Configurer</h2>
+          <div className="space-y-0.5">
+            <Link href="/admin/profile" className="flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-gray-50 text-gray-700">
+              <span>👤</span><span className="text-sm font-medium truncate">Profil</span>
+            </Link>
+            {[
+              { id: 'routine',   href: '/admin/modules/routine',   icon: '📋', label: 'Routine' },
+              { id: 'contacts',  href: '/admin/modules/contacts',  icon: '📞', label: 'Contacts' },
+              { id: 'aidants',   href: '/admin/modules/aidants',   icon: '🤝', label: 'Aidants' },
+              { id: 'reminders', href: '/admin/modules/reminders', icon: '🔔', label: 'Rappels' },
+              { id: 'services',  href: '/admin/modules/services',  icon: '🔗', label: 'Services' },
+              { id: 'agenda',    href: '/admin/modules/agenda',    icon: '📅', label: 'Agenda' },
+            ].filter(item => {
+              const m = config.modules.find(m => m.id === item.id)
+              return m && m.enabled && !m.locked
+            }).map(item => (
+              <Link key={item.id} href={item.href} className="flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-gray-50 text-gray-700">
+                <span>{item.icon}</span><span className="text-sm font-medium truncate">{item.label}</span>
+              </Link>
+            ))}
+            {hasOwnAccount && (
+              <Link href="/admin/invite" className="flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-gray-50 text-gray-700">
+                <span>👥</span><span className="text-sm font-medium truncate">Admins</span>
+              </Link>
+            )}
+          </div>
+        </section>
+      </div>
+
+      {/* Modules : un par ligne */}
       <section className="bg-white rounded-2xl p-6 shadow-sm mb-6">
         <h2 className="text-lg font-semibold text-gray-700 mb-4">Modules</h2>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-3">
           {sorted.map((module, i) => (
-            <div key={module.id} className={`rounded-2xl border-2 p-4 flex flex-col gap-3 ${module.locked ? 'border-orange-100 bg-orange-50' : 'border-gray-100 bg-gray-50'}`}>
-              {/* Ligne icône + toggle */}
-              <div className="flex items-center justify-between">
-                <span className="text-3xl">{module.icon}</span>
-                {module.locked ? (
-                  <span className="text-lg">🔒</span>
-                ) : (
-                  <button
-                    onClick={() => toggleModule(module.id)}
-                    className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${module.enabled ? 'bg-indigo-500' : 'bg-gray-200'}`}
-                  >
-                    <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${module.enabled ? 'translate-x-7' : 'translate-x-1'}`} />
-                  </button>
-                )}
-              </div>
-
-              {/* Nom */}
-              <div>
-                <div className="font-semibold text-gray-700 text-sm leading-tight">{module.label}</div>
-                {module.locked && <div className="text-xs text-orange-400 mt-0.5">Désactivé</div>}
-              </div>
-
-              {/* Boutons ordre */}
-              <div className="flex gap-1">
+            <div key={module.id} className="flex items-center gap-2 p-3 rounded-xl hover:bg-gray-50">
+              <div className="flex flex-col gap-1 shrink-0">
                 <button
                   onClick={() => moveModule(i, -1)}
                   disabled={i === 0}
                   aria-label="Monter"
-                  className="flex-1 h-8 flex items-center justify-center rounded-lg bg-white border border-gray-200 hover:bg-indigo-50 hover:text-indigo-600 active:scale-95 transition-all disabled:opacity-20 disabled:pointer-events-none text-gray-500 text-sm font-bold"
+                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-indigo-100 hover:text-indigo-600 active:scale-95 transition-all disabled:opacity-20 disabled:pointer-events-none text-gray-500 text-lg font-bold"
                 >▲</button>
                 <button
                   onClick={() => moveModule(i, 1)}
                   disabled={i === sorted.length - 1}
                   aria-label="Descendre"
-                  className="flex-1 h-8 flex items-center justify-center rounded-lg bg-white border border-gray-200 hover:bg-indigo-50 hover:text-indigo-600 active:scale-95 transition-all disabled:opacity-20 disabled:pointer-events-none text-gray-500 text-sm font-bold"
+                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-indigo-100 hover:text-indigo-600 active:scale-95 transition-all disabled:opacity-20 disabled:pointer-events-none text-gray-500 text-lg font-bold"
                 >▼</button>
               </div>
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <span className="text-2xl">{module.icon}</span>
+                <div className="min-w-0">
+                  <div className="font-medium text-gray-700">{module.label}</div>
+                  <div className="text-sm text-gray-400">{module.description}</div>
+                  {module.locked && <div className="text-xs text-orange-400 mt-0.5">🔒 Désactivé par l&apos;administrateur</div>}
+                </div>
+              </div>
+              {module.locked ? (
+                <div className="w-12 h-6 rounded-full bg-gray-100 flex items-center justify-center cursor-not-allowed shrink-0">
+                  <span className="text-xs text-gray-300">🔒</span>
+                </div>
+              ) : (
+                <button
+                  onClick={() => toggleModule(module.id)}
+                  className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${module.enabled ? 'bg-indigo-500' : 'bg-gray-200'}`}
+                >
+                  <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${module.enabled ? 'translate-x-7' : 'translate-x-1'}`} />
+                </button>
+              )}
             </div>
           ))}
-        </div>
-      </section>
-
-      <section className="bg-white rounded-2xl p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-700 mb-4">Configurer les modules</h2>
-        <div className="space-y-2">
-          <Link
-            href="/admin/profile"
-            className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
-          >
-            <span>👤 Profil utilisateur</span>
-            <span className="text-xl">⚙️</span>
-          </Link>
-          {[
-            { id: 'routine',   href: '/admin/modules/routine',   label: '📋 Routine du jour' },
-            { id: 'contacts',  href: '/admin/modules/contacts',  label: "📞 Contacts d'urgence" },
-            { id: 'aidants',   href: '/admin/modules/aidants',   label: '🤝 Mes aidants' },
-            { id: 'reminders', href: '/admin/modules/reminders', label: '🔔 Rappels' },
-            { id: 'services',  href: '/admin/modules/services',  label: '🔗 Services utiles' },
-            { id: 'agenda',    href: '/admin/modules/agenda',    label: '📅 Agenda' },
-          ].filter(item => {
-            const m = config.modules.find(m => m.id === item.id)
-            return m && m.enabled && !m.locked
-          }).map(item => (
-            <Link
-              key={item.id}
-              href={item.href}
-              className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
-            >
-              <span>{item.label}</span>
-              <span className="text-xl">⚙️</span>
-            </Link>
-          ))}
-          {hasOwnAccount && (
-            <Link
-              href="/admin/invite"
-              className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
-            >
-              <span>👥 Gérer les administrateurs</span>
-              <span className="text-xl">⚙️</span>
-            </Link>
-          )}
         </div>
       </section>
 
