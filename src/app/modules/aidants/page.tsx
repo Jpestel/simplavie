@@ -131,7 +131,7 @@ export default function AidantsPage() {
   const isCurrentPeriod = offset === 0
 
   return (
-    <main className="min-h-screen p-6 pb-28 max-w-2xl mx-auto">
+    <main className="min-h-screen p-6 pb-28 max-w-6xl mx-auto">
       <div className="mb-5">
         <h1 className="text-2xl font-bold text-gray-800">Mes aidants</h1>
         <p className="text-gray-400">{DAYS_FULL[new Date().getDay()]} {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}</p>
@@ -144,11 +144,10 @@ export default function AidantsPage() {
           <p className="mt-2 text-sm">Tu peux le configurer depuis l&apos;espace configuration ⚙️</p>
         </div>
       ) : (
-        <div className="space-y-4">
-
-          {/* Alert today */}
+        <>
+          {/* Alert today — always full width */}
           {hasAlert && (
-            <div className="bg-orange-50 border-2 border-orange-300 rounded-3xl p-5">
+            <div className="bg-orange-50 border-2 border-orange-300 rounded-3xl p-5 mb-4">
               <h2 className="text-lg font-bold text-orange-700 mb-2">⚠️ Changement aujourd&apos;hui</h2>
               {todayAppts.filter(a => a.status !== 'planned').map(a => (
                 <div key={a.id} className="text-orange-800">
@@ -160,122 +159,131 @@ export default function AidantsPage() {
             </div>
           )}
 
-          {/* View tabs */}
-          <div className="grid grid-cols-4 gap-2">
-            {VIEWS.map(v => (
-              <button key={v.key} onClick={() => switchView(v.key)}
-                className={`py-3 rounded-2xl font-semibold text-sm transition-all active:scale-95 ${
-                  view === v.key ? 'bg-indigo-500 text-white shadow-md' : 'bg-white border-2 border-gray-200 text-gray-600'
-                }`}>
-                {v.label}
-              </button>
-            ))}
-          </div>
+          {/* 3-col desktop / stacked mobile */}
+          <div className="flex flex-col gap-4 lg:grid lg:grid-cols-3 lg:items-start lg:gap-6">
 
-          {/* Navigation bar */}
-          <div className="flex items-center gap-2">
-            <button onClick={() => setOffset(o => o - 1)}
-              className="w-14 h-14 flex items-center justify-center bg-white border-2 border-gray-200 rounded-2xl text-2xl text-gray-600 active:scale-95 hover:bg-gray-50 transition-all shrink-0">
-              ‹
-            </button>
-            <div className="flex-1 text-center">
-              <div className="font-bold text-gray-800 text-base leading-tight">{periodLabel}</div>
-              {!isCurrentPeriod && (
-                <button onClick={() => setOffset(0)} className="text-xs text-indigo-500 font-semibold mt-1 underline">
-                  Aujourd&apos;hui
-                </button>
-              )}
-            </div>
-            <button onClick={() => setOffset(o => o + 1)}
-              className="w-14 h-14 flex items-center justify-center bg-white border-2 border-gray-200 rounded-2xl text-2xl text-gray-600 active:scale-95 hover:bg-gray-50 transition-all shrink-0">
-              ›
-            </button>
-          </div>
-
-          {/* Planning */}
-          <div className="bg-white rounded-3xl shadow-sm border-2 border-gray-100 overflow-hidden">
-            {datesWithAppts.length === 0 ? (
-              <div className="p-8 text-center text-gray-400">
-                <div className="text-4xl mb-2">📭</div>
-                <p>Aucune intervention sur cette période</p>
-              </div>
-            ) : (
-              datesWithAppts.map((date) => {
-                const appts = getAppt(date)
-                const isToday = date === today
-                const d = new Date(date + 'T00:00:00')
-                return (
-                  <div key={date} className={`flex gap-3 p-4 border-b border-gray-50 last:border-0 ${isToday ? 'bg-indigo-50' : ''}`}>
-                    <div className="w-16 shrink-0">
-                      <div className={`text-sm font-bold ${isToday ? 'text-indigo-600' : 'text-gray-500'}`}>{DAYS_SHORT[d.getDay()]}</div>
-                      <div className={`text-xs ${isToday ? 'text-indigo-400' : 'text-gray-400'}`}>{d.getDate()} {MONTHS[d.getMonth()].slice(0,3)}.</div>
-                    </div>
-                    <div className="flex-1 space-y-1">
-                      {appts.length === 0 ? (
-                        <span className="text-gray-300 text-sm">—</span>
-                      ) : appts.map(a => (
-                        <div key={a.id} className={`flex items-center gap-2 ${a.status === 'cancelled' ? 'opacity-40' : ''}`}>
-                          <div className="flex-1 flex items-center gap-2 flex-wrap">
-                            <span className={`text-sm font-semibold ${a.status === 'cancelled' ? 'line-through text-gray-400' : isToday ? 'text-indigo-600' : 'text-gray-700'}`}>
-                              {a.time}{a.endTime ? ` → ${a.endTime}` : ''}
-                            </span>
-                            <span className={`text-sm ${a.status === 'cancelled' ? 'line-through text-gray-400' : 'text-gray-500'}`}>{getCaregiverName(a)}</span>
-                            {a.status === 'modified' && <span className="text-xs text-orange-500">⚠️</span>}
-                            {a.status === 'cancelled' && <span className="text-xs text-red-400">✕</span>}
-                          </div>
-                          <button
-                            onClick={() => setAlertAppt(a)}
-                            className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-orange-50 border border-orange-200 text-orange-500 font-semibold text-sm hover:bg-orange-100 active:scale-95 transition-all"
-                          >
-                            <span>🔔</span>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })
-            )}
-          </div>
-
-          {/* Company card */}
-          {hasCompany && (
-            <section className="bg-white rounded-3xl p-6 shadow-sm border-2 border-gray-100">
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Société</div>
-              <div className="text-2xl font-bold text-gray-800 mb-1">{care.company.name}</div>
-              {care.company.address && <div className="text-gray-500 text-sm mb-4">📍 {care.company.address}{care.company.city ? `, ${care.company.city}` : ''}</div>}
-              <div className="flex gap-3">
-                {care.company.mobile && <a href={`tel:${care.company.mobile}`} className="flex-1 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 active:scale-95 text-white font-bold text-xl rounded-2xl py-4 transition-all"><span>📱</span><span>Mobile</span></a>}
-                {care.company.phone && <a href={`tel:${care.company.phone}`} className="flex-1 flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 active:scale-95 text-white font-bold text-xl rounded-2xl py-4 transition-all"><span>📞</span><span>Fixe</span></a>}
-              </div>
-            </section>
-          )}
-
-          {/* Caregivers */}
-          {care.caregivers.length > 0 && (
-            <section>
-              <h2 className="text-lg font-bold text-gray-700 mb-3">Mes intervenants</h2>
-              <div className="space-y-3">
-                {care.caregivers.map(cg => (
-                  <div key={cg.id} className="bg-white rounded-3xl p-5 shadow-sm border-2 border-gray-100">
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="w-14 h-14 rounded-full bg-indigo-100 flex items-center justify-center text-xl font-bold text-indigo-500 shrink-0">{cg.name.charAt(0).toUpperCase()}</div>
-                      <div>
-                        <div className="text-xl font-bold text-gray-800">{cg.name}</div>
-                        <div className="text-indigo-500">{cg.role}</div>
-                      </div>
-                    </div>
-                    <div className="flex gap-3">
-                      {cg.mobile && <a href={`tel:${cg.mobile}`} className="flex-1 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 active:scale-95 text-white font-bold text-lg rounded-2xl py-4 transition-all"><span>📱</span><span>Mobile</span></a>}
-                      {cg.phone && <a href={`tel:${cg.phone}`} className="flex-1 flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 active:scale-95 text-white font-bold text-lg rounded-2xl py-4 transition-all"><span>📞</span><span>Fixe</span></a>}
-                      {!cg.mobile && !cg.phone && <div className="flex-1 text-center text-gray-400 py-4">Pas de numéro</div>}
-                    </div>
-                  </div>
+            {/* CALENDRIER — top on mobile (order 1), center on desktop (order 2) */}
+            <div className="lg:order-2 space-y-4">
+              <div className="grid grid-cols-4 gap-2">
+                {VIEWS.map(v => (
+                  <button key={v.key} onClick={() => switchView(v.key)}
+                    className={`py-3 rounded-2xl font-semibold text-sm transition-all active:scale-95 ${
+                      view === v.key ? 'bg-indigo-500 text-white shadow-md' : 'bg-white border-2 border-gray-200 text-gray-600'
+                    }`}>
+                    {v.label}
+                  </button>
                 ))}
               </div>
-            </section>
-          )}
-        </div>
+
+              <div className="flex items-center gap-2">
+                <button onClick={() => setOffset(o => o - 1)}
+                  className="w-14 h-14 flex items-center justify-center bg-white border-2 border-gray-200 rounded-2xl text-2xl text-gray-600 active:scale-95 hover:bg-gray-50 transition-all shrink-0">
+                  ‹
+                </button>
+                <div className="flex-1 text-center">
+                  <div className="font-bold text-gray-800 text-base leading-tight">{periodLabel}</div>
+                  {!isCurrentPeriod && (
+                    <button onClick={() => setOffset(0)} className="text-xs text-indigo-500 font-semibold mt-1 underline">
+                      Aujourd&apos;hui
+                    </button>
+                  )}
+                </div>
+                <button onClick={() => setOffset(o => o + 1)}
+                  className="w-14 h-14 flex items-center justify-center bg-white border-2 border-gray-200 rounded-2xl text-2xl text-gray-600 active:scale-95 hover:bg-gray-50 transition-all shrink-0">
+                  ›
+                </button>
+              </div>
+
+              <div className="bg-white rounded-3xl shadow-sm border-2 border-gray-100 overflow-hidden">
+                {datesWithAppts.length === 0 ? (
+                  <div className="p-8 text-center text-gray-400">
+                    <div className="text-4xl mb-2">📭</div>
+                    <p>Aucune intervention sur cette période</p>
+                  </div>
+                ) : (
+                  datesWithAppts.map((date) => {
+                    const appts = getAppt(date)
+                    const isToday = date === today
+                    const d = new Date(date + 'T00:00:00')
+                    return (
+                      <div key={date} className={`flex gap-3 p-4 border-b border-gray-50 last:border-0 ${isToday ? 'bg-indigo-50' : ''}`}>
+                        <div className="w-16 shrink-0">
+                          <div className={`text-sm font-bold ${isToday ? 'text-indigo-600' : 'text-gray-500'}`}>{DAYS_SHORT[d.getDay()]}</div>
+                          <div className={`text-xs ${isToday ? 'text-indigo-400' : 'text-gray-400'}`}>{d.getDate()} {MONTHS[d.getMonth()].slice(0,3)}.</div>
+                        </div>
+                        <div className="flex-1 space-y-1">
+                          {appts.length === 0 ? (
+                            <span className="text-gray-300 text-sm">—</span>
+                          ) : appts.map(a => (
+                            <div key={a.id} className={`flex items-center gap-2 ${a.status === 'cancelled' ? 'opacity-40' : ''}`}>
+                              <div className="flex-1 flex items-center gap-2 flex-wrap">
+                                <span className={`text-sm font-semibold ${a.status === 'cancelled' ? 'line-through text-gray-400' : isToday ? 'text-indigo-600' : 'text-gray-700'}`}>
+                                  {a.time}{a.endTime ? ` → ${a.endTime}` : ''}
+                                </span>
+                                <span className={`text-sm ${a.status === 'cancelled' ? 'line-through text-gray-400' : 'text-gray-500'}`}>{getCaregiverName(a)}</span>
+                                {a.status === 'modified' && <span className="text-xs text-orange-500">⚠️</span>}
+                                {a.status === 'cancelled' && <span className="text-xs text-red-400">✕</span>}
+                              </div>
+                              <button
+                                onClick={() => setAlertAppt(a)}
+                                className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-orange-50 border border-orange-200 text-orange-500 font-semibold text-sm hover:bg-orange-100 active:scale-95 transition-all"
+                              >
+                                <span>🔔</span>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* INTERVENANTS — middle on mobile (order 2), right on desktop (order 3) */}
+            <div className="lg:order-3">
+              {care.caregivers.length > 0 && (
+                <section>
+                  <h2 className="text-lg font-bold text-gray-700 mb-3">Mes intervenants</h2>
+                  <div className="space-y-3">
+                    {care.caregivers.map(cg => (
+                      <div key={cg.id} className="bg-white rounded-3xl p-5 shadow-sm border-2 border-gray-100">
+                        <div className="flex items-center gap-4 mb-4">
+                          <div className="w-14 h-14 rounded-full bg-indigo-100 flex items-center justify-center text-xl font-bold text-indigo-500 shrink-0">{cg.name.charAt(0).toUpperCase()}</div>
+                          <div>
+                            <div className="text-xl font-bold text-gray-800">{cg.name}</div>
+                            <div className="text-indigo-500">{cg.role}</div>
+                          </div>
+                        </div>
+                        <div className="flex gap-3">
+                          {cg.mobile && <a href={`tel:${cg.mobile}`} className="flex-1 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 active:scale-95 text-white font-bold text-lg rounded-2xl py-4 transition-all"><span>📱</span><span>Mobile</span></a>}
+                          {cg.phone && <a href={`tel:${cg.phone}`} className="flex-1 flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 active:scale-95 text-white font-bold text-lg rounded-2xl py-4 transition-all"><span>📞</span><span>Fixe</span></a>}
+                          {!cg.mobile && !cg.phone && <div className="flex-1 text-center text-gray-400 py-4">Pas de numéro</div>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
+
+            {/* SOCIÉTÉ — bottom on mobile (order 3), left on desktop (order 1) */}
+            <div className="lg:order-1">
+              {hasCompany && (
+                <section className="bg-white rounded-3xl p-6 shadow-sm border-2 border-gray-100">
+                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Société</div>
+                  <div className="text-2xl font-bold text-gray-800 mb-1">{care.company.name}</div>
+                  {care.company.address && <div className="text-gray-500 text-sm mb-4">📍 {care.company.address}{care.company.city ? `, ${care.company.city}` : ''}</div>}
+                  <div className="flex gap-3">
+                    {care.company.mobile && <a href={`tel:${care.company.mobile}`} className="flex-1 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 active:scale-95 text-white font-bold text-xl rounded-2xl py-4 transition-all"><span>📱</span><span>Mobile</span></a>}
+                    {care.company.phone && <a href={`tel:${care.company.phone}`} className="flex-1 flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 active:scale-95 text-white font-bold text-xl rounded-2xl py-4 transition-all"><span>📞</span><span>Fixe</span></a>}
+                  </div>
+                </section>
+              )}
+            </div>
+
+          </div>
+        </>
       )}
       {/* Alert absence bottom sheet */}
       {alertAppt && (() => {
