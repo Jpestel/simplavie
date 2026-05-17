@@ -11,14 +11,14 @@ export async function GET(req: NextRequest) {
   const { data: owners, error } = await admin
     .from('user_profile')
     .select('id, display_name, global_role, created_at')
-    .eq('role', 'owner')
+    .neq('global_role', 'superadmin')
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const enriched = await Promise.all((owners ?? []).map(async (owner) => {
     const [adminsRes, configRes, authRes] = await Promise.all([
-      admin.from('user_profile').select('id', { count: 'exact' }).eq('owner_id', owner.id).eq('role', 'admin'),
+      admin.from('admin_assignments').select('id', { count: 'exact' }).eq('owner_user_id', owner.id),
       admin.from('app_config').select('modules, user_name').eq('user_id', owner.id).maybeSingle(),
       admin.auth.admin.getUserById(owner.id),
     ])

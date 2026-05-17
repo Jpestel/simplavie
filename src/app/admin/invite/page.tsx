@@ -14,7 +14,7 @@ type AdminUser = {
 type Permission = 'read' | 'write'
 
 export default function AdminInvitePage() {
-  const { user, profile: authProfile } = useAuth()
+  const { user, hasOwnAccount, adminAssignments, profile: authProfile } = useAuth()
   const { profile } = useProfile()
   const router = useRouter()
 
@@ -30,14 +30,13 @@ export default function AdminInvitePage() {
   useEffect(() => {
     if (!user || !isSupabaseConfigured) { setLoadingAdmins(false); return }
     const sb = getSupabase()!
-    sb.from('user_profile')
-      .select('id, display_name, permission')
-      .eq('owner_id', user.id)
-      .eq('role', 'admin')
+    sb.from('admin_assignments')
+      .select('id, permission, user_profile:admin_user_id(display_name)')
+      .eq('owner_user_id', user.id)
       .then(({ data }) => {
-        setAdmins((data ?? []).map(d => ({
+        setAdmins((data ?? []).map((d: any) => ({
           id: d.id as string,
-          display_name: d.display_name as string | null,
+          display_name: d.user_profile?.display_name as string | null,
           permission: (d.permission as Permission) ?? 'read',
         })))
         setLoadingAdmins(false)
@@ -49,7 +48,7 @@ export default function AdminInvitePage() {
     const next: Permission = admin.permission === 'read' ? 'write' : 'read'
     setTogglingId(admin.id)
     const sb = getSupabase()!
-    await sb.from('user_profile').update({ permission: next }).eq('id', admin.id)
+    await sb.from('admin_assignments').update({ permission: next }).eq('id', admin.id)
     setAdmins(prev => prev.map(a => a.id === admin.id ? { ...a, permission: next } : a))
     setTogglingId(null)
   }
@@ -59,7 +58,7 @@ export default function AdminInvitePage() {
     if (!confirm('Retirer l\'accès à cette personne ?')) return
     setRevoking(adminId)
     const sb = getSupabase()!
-    await sb.from('user_profile').update({ role: 'owner', owner_id: null, permission: null }).eq('id', adminId)
+    await sb.from('admin_assignments').delete().eq('id', adminId)
     setAdmins(prev => prev.filter(a => a.id !== adminId))
     setRevoking(null)
   }
@@ -93,12 +92,12 @@ export default function AdminInvitePage() {
     setSendingTo(null)
   }
 
-  if (authProfile?.role === 'admin') {
+  if (!hasOwnAccount) {
     return (
       <main className="min-h-screen flex items-center justify-center p-6">
         <div className="text-center text-gray-400">
           <p className="text-xl">Action non disponible</p>
-          <p className="mt-2 text-sm">Seul le propriétaire du compte peut gérer les administrateurs.</p>
+          <p className="mt-2 text-sm">Seul le propriétaire d&apos;un compte SimplaVie peut gérer ses administrateurs.</p>
           <button onClick={() => router.back()} className="mt-6 text-indigo-500 font-semibold">← Retour</button>
         </div>
       </main>

@@ -15,7 +15,6 @@ export async function verifySuperAdmin(req: NextRequest): Promise<{ userId: stri
       .from('user_profile')
       .select('global_role')
       .eq('id', user.id)
-      .eq('role', 'owner')
       .maybeSingle()
 
     if (profile?.global_role !== 'superadmin') return { error: 'Accès refusé' }

@@ -13,10 +13,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
 
   const admin = getSupabaseAdmin()
   const { error } = await admin
-    .from('user_profile')
+    .from('admin_assignments')
     .update({ permission })
     .eq('id', adminId)
-    .eq('role', 'admin')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
@@ -29,8 +28,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<Par
   const { adminId } = await params
   const admin = getSupabaseAdmin()
   const { error } = await admin
-    .from('user_profile')
-    .update({ role: 'owner', owner_id: null, permission: null })
+    .from('admin_assignments')
+    .delete()
     .eq('id', adminId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

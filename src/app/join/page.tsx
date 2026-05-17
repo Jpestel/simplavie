@@ -39,8 +39,8 @@ function JoinInner() {
 
     if (!inv || inv.used_by) { setStatus('invalid'); return }
 
-    const { data: session } = await client.auth.getSession()
-    if (inv.owner_id === session.data?.session?.user?.id) { setStatus('invalid'); return }
+    const { data: sessionData } = await client.auth.getSession()
+    if (inv.owner_id === sessionData?.session?.user?.id) { setStatus('invalid'); return }
 
     const { data: ownerProfile } = await client
       .from('user_profile')
@@ -77,7 +77,7 @@ function JoinInner() {
     setBusy(true)
     setSignupError('')
 
-    const { error } = await signUp(email, password, '')
+    const { error } = await signUp(email, password, undefined, false)
     if (error) { setSignupError(error); setBusy(false); return }
 
     // Petit délai pour que la session soit établie
@@ -95,12 +95,15 @@ function JoinInner() {
     const { data: { session } } = await client.auth.getSession()
     if (!session) { setStatus('need-account'); setBusy(false); return }
 
-    const { error: profileError } = await client
-      .from('user_profile')
-      .update({ role: 'admin', owner_id: invite.owner_id, permission: invite.permission ?? 'read' })
-      .eq('id', session.user.id)
+    const { error: assignError } = await client
+      .from('admin_assignments')
+      .insert({
+        admin_user_id: session.user.id,
+        owner_user_id: invite.owner_id,
+        permission: invite.permission ?? 'read',
+      })
 
-    if (profileError) { setStatus('error'); setErrorMsg(profileError.message); setBusy(false); return }
+    if (assignError) { setStatus('error'); setErrorMsg(assignError.message); setBusy(false); return }
 
     await client
       .from('admin_invites')

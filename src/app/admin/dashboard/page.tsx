@@ -1,4 +1,5 @@
 'use client'
+import { useState } from 'react'
 import { useConfig } from '@/lib/configContext'
 import { useAuth } from '@/lib/authContext'
 import { useRouter } from 'next/navigation'
@@ -6,8 +7,18 @@ import Link from 'next/link'
 
 export default function AdminDashboard() {
   const { config, updateConfig } = useConfig()
-  const { signOut } = useAuth()
+  const { signOut, isAdmin, hasOwnAccount, createOwnAccount } = useAuth()
   const router = useRouter()
+  const [creatingAccount, setCreatingAccount] = useState(false)
+  const [createError, setCreateError] = useState('')
+
+  const handleCreateOwnAccount = async () => {
+    setCreatingAccount(true)
+    setCreateError('')
+    const { error } = await createOwnAccount()
+    if (error) { setCreateError(error); setCreatingAccount(false); return }
+    router.push('/')
+  }
 
   const toggleModule = (id: string) => {
     const updated = config.modules.map(m =>
@@ -142,15 +153,34 @@ export default function AdminDashboard() {
             <span>🔗 Services utiles</span>
             <span className="text-gray-400">→</span>
           </Link>
-          <Link
-            href="/admin/invite"
-            className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
-          >
-            <span>👥 Gérer les administrateurs</span>
-            <span className="text-gray-400">→</span>
-          </Link>
+          {hasOwnAccount && (
+            <Link
+              href="/admin/invite"
+              className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
+            >
+              <span>👥 Gérer les administrateurs</span>
+              <span className="text-gray-400">→</span>
+            </Link>
+          )}
         </div>
       </section>
+
+      {isAdmin && !hasOwnAccount && (
+        <section className="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 mt-6">
+          <h2 className="text-base font-semibold text-indigo-800 mb-1">Vous souhaitez aussi utiliser SimplaVie ?</h2>
+          <p className="text-sm text-indigo-600 mb-4">
+            Créez votre propre compte pour accéder à votre espace personnel SimplaVie.
+          </p>
+          {createError && <p className="text-red-500 text-sm mb-3">{createError}</p>}
+          <button
+            onClick={handleCreateOwnAccount}
+            disabled={creatingAccount}
+            className="w-full bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white rounded-2xl py-3 font-bold text-sm active:scale-95 transition-all"
+          >
+            {creatingAccount ? 'Création...' : 'Créer mon compte SimplaVie'}
+          </button>
+        </section>
+      )}
     </main>
   )
 }
