@@ -121,47 +121,31 @@ export default function AdminDashboard() {
         <h2 className="text-lg font-semibold text-gray-700 mb-4">Configurer les modules</h2>
         <div className="space-y-2">
           <Link
-            href="/admin/modules/routine"
-            className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
-          >
-            <span>📋 Routine du jour</span>
-            <span className="text-gray-400">→</span>
-          </Link>
-          <Link
             href="/admin/profile"
             className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
           >
             <span>👤 Profil utilisateur</span>
             <span className="text-gray-400">→</span>
           </Link>
-          <Link
-            href="/admin/modules/contacts"
-            className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
-          >
-            <span>📞 Contacts d&apos;urgence</span>
-            <span className="text-gray-400">→</span>
-          </Link>
-          <Link
-            href="/admin/modules/aidants"
-            className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
-          >
-            <span>🤝 Mes aidants</span>
-            <span className="text-gray-400">→</span>
-          </Link>
-          <Link
-            href="/admin/modules/reminders"
-            className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
-          >
-            <span>🔔 Rappels</span>
-            <span className="text-gray-400">→</span>
-          </Link>
-          <Link
-            href="/admin/modules/services"
-            className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
-          >
-            <span>🔗 Services utiles</span>
-            <span className="text-gray-400">→</span>
-          </Link>
+          {[
+            { id: 'routine',   href: '/admin/modules/routine',   label: '📋 Routine du jour' },
+            { id: 'contacts',  href: '/admin/modules/contacts',  label: "📞 Contacts d'urgence" },
+            { id: 'aidants',   href: '/admin/modules/aidants',   label: '🤝 Mes aidants' },
+            { id: 'reminders', href: '/admin/modules/reminders', label: '🔔 Rappels' },
+            { id: 'services',  href: '/admin/modules/services',  label: '🔗 Services utiles' },
+          ].filter(item => {
+            const m = config.modules.find(m => m.id === item.id)
+            return m && m.enabled && !m.locked
+          }).map(item => (
+            <Link
+              key={item.id}
+              href={item.href}
+              className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 text-gray-700"
+            >
+              <span>{item.label}</span>
+              <span className="text-gray-400">→</span>
+            </Link>
+          ))}
           {hasOwnAccount && (
             <Link
               href="/admin/invite"
