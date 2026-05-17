@@ -12,7 +12,30 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [suggestSignup, setSuggestSignup] = useState(false)
   const [busy, setBusy] = useState(false)
+
+  function translateError(msg: string): string {
+    if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
+      return 'Email ou mot de passe incorrect.'
+    }
+    if (msg.includes('Email not confirmed')) {
+      return 'Votre adresse e-mail n\'est pas confirmée. Vérifiez votre boîte mail.'
+    }
+    if (msg.includes('User not found') || msg.includes('user_not_found')) {
+      return 'Aucun compte trouvé avec cet email.'
+    }
+    if (msg.includes('Too many requests') || msg.includes('over_email_send_rate_limit')) {
+      return 'Trop de tentatives. Réessayez dans quelques minutes.'
+    }
+    if (msg.includes('Password should be at least')) {
+      return 'Le mot de passe doit contenir au moins 6 caractères.'
+    }
+    if (msg.includes('User already registered') || msg.includes('already_registered')) {
+      return 'Un compte existe déjà avec cet email.'
+    }
+    return msg
+  }
 
   useEffect(() => {
     fetch('/api/auth/is-first-setup')
@@ -34,7 +57,15 @@ export default function LoginPage() {
     }
     setBusy(false)
     if (result.error) {
-      setError(result.error)
+      const translated = translateError(result.error)
+      setError(translated)
+      if (mode === 'login' && (
+        result.error.includes('Invalid login credentials') ||
+        result.error.includes('invalid_credentials') ||
+        result.error.includes('User not found')
+      )) {
+        setSuggestSignup(true)
+      }
     } else {
       router.push('/')
     }
@@ -83,7 +114,17 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <p className="mt-5 text-red-500 text-center font-medium">{error}</p>
+          <div className="mt-5 text-center">
+            <p className="text-red-500 font-medium">{error}</p>
+            {suggestSignup && (
+              <button
+                onClick={() => { setMode('signup'); setError(null); setSuggestSignup(false) }}
+                className="mt-2 text-indigo-500 font-semibold text-sm underline"
+              >
+                Créer un compte →
+              </button>
+            )}
+          </div>
         )}
 
         <button
