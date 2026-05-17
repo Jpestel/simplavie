@@ -88,6 +88,16 @@ export async function loadExtras(date: string, userId: string): Promise<RoutineS
   return []
 }
 
+export async function addExtra(step: RoutineStep, date: string, userId: string) {
+  if (!isSupabaseConfigured || !userId) return
+  await supabase.from('routine_extras').upsert({
+    user_id: userId,
+    date,
+    step_id: step.id,
+    step_payload: step,
+  })
+}
+
 export async function postponeStep(step: RoutineStep, fromDate: string, toDate: string, userId: string) {
   await togglePostponement(fromDate, step.id, true, userId, toDate)
 

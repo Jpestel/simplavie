@@ -8,11 +8,31 @@ import {
   loadSteps, loadCompletions, toggleCompletion,
   loadCancellations, toggleCancellation,
   loadPostponements, togglePostponement,
-  loadExtras, postponeStep,
+  loadExtras, postponeStep, addExtra,
 } from '@/lib/routineService'
 import { stepAppliesOn } from '@/lib/routineUtils'
 
 const DEFAULT_STEPS: RoutineStep[] = []
+
+const QUICK_ICONS = [
+  { icon: '🌅', label: 'Réveil' },
+  { icon: '🚿', label: 'Douche' },
+  { icon: '👕', label: 'S\'habiller' },
+  { icon: '💊', label: 'Médicaments' },
+  { icon: '🍽️', label: 'Repas' },
+  { icon: '🦷', label: 'Brossage' },
+  { icon: '🚶', label: 'Sortie' },
+  { icon: '🛌', label: 'Repos' },
+  { icon: '📞', label: 'Téléphone' },
+  { icon: '🏥', label: 'Médecin' },
+  { icon: '🛒', label: 'Courses' },
+  { icon: '📖', label: 'Lecture' },
+  { icon: '🎵', label: 'Musique' },
+  { icon: '✏️', label: 'Écriture' },
+  { icon: '🌿', label: 'Plantes' },
+  { icon: '📺', label: 'Télévision' },
+]
+const QUICK_ICON_LABELS = new Set(QUICK_ICONS.map(i => i.label))
 
 function localISO(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
@@ -42,6 +62,10 @@ export default function RoutinePage() {
   const [postponedMap, setPostponedMap] = useState<Record<string, string>>({})
   const [actionStep, setActionStep] = useState<RoutineStep | null>(null)
   const [postponeDate, setPostponeDate] = useState('')
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [addIcon, setAddIcon] = useState(QUICK_ICONS[0].icon)
+  const [addLabel, setAddLabel] = useState(QUICK_ICONS[0].label)
+  const [addTime, setAddTime] = useState('')
   const [loading, setLoading] = useState(true)
   const today = localISO(new Date())
   const [date, setDate] = useState(today)
@@ -123,6 +147,26 @@ export default function RoutinePage() {
     await postponeStep(actionStep, date, postponeDate, uid)
     setActionStep(null)
     setPostponeDate('')
+  }
+
+  const handleAddExtra = async () => {
+    if (!addLabel.trim() || !activeUserId) return
+    const newStep: RoutineStep = {
+      id: `extra-${Date.now()}`,
+      label: addLabel.trim(),
+      icon: addIcon,
+      time: addTime || undefined,
+      order: steps.length + 1,
+      done: false,
+      recurrence: 'once',
+      specificDate: date,
+    }
+    setSteps(prev => sortSteps([...prev, newStep]))
+    await addExtra(newStep, date, activeUserId)
+    setAddIcon(QUICK_ICONS[0].icon)
+    setAddLabel(QUICK_ICONS[0].label)
+    setAddTime('')
+    setShowAddForm(false)
   }
 
   const findDate = (from: string, direction: 1 | -1, base: RoutineStep[]): string | null => {
@@ -324,6 +368,78 @@ export default function RoutinePage() {
                 className="w-full p-4 rounded-2xl border-2 border-gray-200 text-gray-500 font-semibold text-lg active:scale-95 transition-all">
                 Annuler
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FAB ajout rapide */}
+      {!showAddForm && !actionStep && (
+        <button
+          onClick={() => setShowAddForm(true)}
+          className="fixed bottom-32 right-6 w-16 h-16 bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white text-4xl rounded-full shadow-lg flex items-center justify-center transition-all z-40"
+        >+</button>
+      )}
+
+      {/* Formulaire ajout rapide */}
+      {showAddForm && (
+        <div className="fixed inset-0 z-[60] flex flex-col justify-end">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setShowAddForm(false)} />
+          <div className="relative bg-white rounded-t-3xl p-6 shadow-2xl max-w-2xl w-full mx-auto">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Ajouter une tâche</h2>
+
+            {/* Grille d'icônes */}
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-500 mb-2">Icône</label>
+              <div className="grid grid-cols-8 gap-1.5">
+                {QUICK_ICONS.map(({ icon, label }) => (
+                  <button
+                    key={icon}
+                    onClick={() => {
+                      setAddIcon(icon)
+                      if (!addLabel || QUICK_ICON_LABELS.has(addLabel)) setAddLabel(label)
+                    }}
+                    className={`aspect-square flex items-center justify-center text-2xl rounded-xl transition-all active:scale-95 ${
+                      addIcon === icon ? 'bg-indigo-100 ring-2 ring-indigo-400' : 'hover:bg-gray-100'
+                    }`}
+                  >{icon}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Nom de la tâche */}
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-500 mb-1">Nom de la tâche</label>
+              <input
+                type="text"
+                value={addLabel}
+                onChange={e => setAddLabel(e.target.value)}
+                placeholder="Ex : Médicaments du soir..."
+                className="w-full border-2 border-gray-200 rounded-2xl px-4 py-4 text-lg focus:outline-none focus:border-indigo-400"
+              />
+            </div>
+
+            {/* Heure optionnelle */}
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-gray-500 mb-1">Heure (optionnel)</label>
+              <input
+                type="time"
+                value={addTime}
+                onChange={e => setAddTime(e.target.value)}
+                className="w-full border-2 border-gray-200 rounded-2xl px-4 py-4 text-base focus:outline-none focus:border-indigo-400"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowAddForm(false)}
+                className="flex-1 py-4 rounded-2xl border-2 border-gray-200 text-gray-600 font-semibold text-lg active:scale-95 transition-all"
+              >Annuler</button>
+              <button
+                onClick={handleAddExtra}
+                disabled={!addLabel.trim()}
+                className="flex-[2] py-4 rounded-2xl bg-indigo-500 disabled:bg-gray-200 text-white font-bold text-lg active:scale-95 transition-all"
+              >Ajouter</button>
             </div>
           </div>
         </div>
