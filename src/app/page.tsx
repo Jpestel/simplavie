@@ -23,7 +23,7 @@ function isTodayReminder(r: { recurrence: string; week_days: number[] | null; mo
 export default function HomePage() {
   const { config, isLoading: configLoading } = useConfig()
   const { profile, isLoading: profileLoading } = useProfile()
-  const { signOut, activeUserId } = useAuth()
+  const { signOut, activeUserId, loading: authLoading } = useAuth()
   const router = useRouter()
   const [careAlert, setCareAlert] = useState<string | null>(null)
   const [reminderAlert, setReminderAlert] = useState<{ count: number; first: string } | null>(null)
@@ -40,10 +40,9 @@ export default function HomePage() {
   }, [profileLoading, profile.profileCompleted, router])
 
   useEffect(() => {
-    if (!profileLoading && !profile.profileCompleted) {
-      router.push('/onboarding')
-    }
-  }, [profileLoading, profile.profileCompleted, router])
+    if (authLoading || profileLoading) return
+    if (!profile.profileCompleted) router.push('/onboarding')
+  }, [authLoading, profileLoading, profile.profileCompleted, router])
 
   useEffect(() => {
     if (!profileLoading && profile.profileCompleted && activeUserId) {
@@ -69,7 +68,7 @@ export default function HomePage() {
     }
   }, [profileLoading, profile.profileCompleted, activeUserId])
 
-  if (configLoading || profileLoading) {
+  if (authLoading || configLoading || profileLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-2xl text-gray-400">Chargement...</div>

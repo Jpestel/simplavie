@@ -85,16 +85,20 @@ function fromRow(row: Record<string, unknown>): UserProfile {
 export function ProfileProvider({ children }: { children: ReactNode }) {
   const { activeUserId, loading: authLoading } = useAuth()
   const [profile, setProfile] = useState<UserProfile>(EMPTY_PROFILE)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    if (authLoading || !isSupabaseConfigured) return
-    if (!activeUserId) { setProfile(EMPTY_PROFILE); return }
+    if (authLoading) return
+    if (!activeUserId || !isSupabaseConfigured) {
+      setProfile(EMPTY_PROFILE)
+      setIsLoading(false)
+      return
+    }
     setProfile(EMPTY_PROFILE)
+    setIsLoading(true)
     supabase.from('user_profile').select('*').eq('user_id', activeUserId).maybeSingle().then(({ data }) => {
-      if (data) {
-        setProfile(fromRow(data))
-      }
+      if (data) setProfile(fromRow(data))
+      setIsLoading(false)
     })
   }, [activeUserId, authLoading])
 
