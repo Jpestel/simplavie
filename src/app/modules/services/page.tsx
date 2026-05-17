@@ -87,21 +87,15 @@ export default function ServicesPage() {
             <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3">
               {category}
             </h2>
-            <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
               {items.map(service => (
                 <button
                   key={service.id}
                   onClick={() => handleOpen(service.url)}
-                  className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 bg-white border-gray-100 hover:border-indigo-200 hover:bg-indigo-50 hover:shadow-md active:scale-95 transition-all text-left"
+                  className="flex flex-col items-center justify-center gap-3 p-5 rounded-3xl border-2 bg-white border-gray-100 hover:border-indigo-200 hover:bg-indigo-50 hover:shadow-md active:scale-95 transition-all aspect-square"
                 >
-                  <span className="text-3xl flex-shrink-0">{service.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-base text-gray-800">{service.name}</div>
-                    {service.description && (
-                      <div className="text-sm text-gray-500 mt-0.5 leading-snug">{service.description}</div>
-                    )}
-                  </div>
-                  <span className="text-gray-300 text-lg flex-shrink-0">↗</span>
+                  <span className="text-5xl">{service.icon}</span>
+                  <span className="font-semibold text-sm text-gray-700 text-center leading-tight">{service.name}</span>
                 </button>
               ))}
             </div>
