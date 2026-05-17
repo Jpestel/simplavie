@@ -128,7 +128,7 @@ export default function AdminAgendaPage() {
       {!showForm && (
         <button
           onClick={() => setShowForm(true)}
-          className="fixed bottom-24 right-6 w-16 h-16 bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white text-4xl rounded-full shadow-lg flex items-center justify-center transition-all z-40"
+          className="fixed bottom-32 right-6 w-16 h-16 bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white text-4xl rounded-full shadow-lg flex items-center justify-center transition-all z-40"
         >+</button>
       )}
 
