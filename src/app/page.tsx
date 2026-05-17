@@ -138,7 +138,7 @@ export default function HomePage() {
 
       <Link
         href="/admin"
-        className="mt-10 flex items-center justify-center gap-3 w-full bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all rounded-2xl py-5 text-gray-500 font-semibold text-lg"
+        className="mt-10 flex items-center justify-center gap-3 w-full bg-indigo-50 hover:bg-indigo-100 active:scale-95 transition-all rounded-2xl py-5 text-indigo-600 font-bold text-lg border-2 border-indigo-200"
       >
         <span className="text-2xl">⚙️</span>
         <span>Espace configuration</span>
