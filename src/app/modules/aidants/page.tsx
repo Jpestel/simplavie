@@ -160,10 +160,10 @@ export default function AidantsPage() {
           )}
 
           {/* 3-col desktop / stacked mobile */}
-          <div className="flex flex-col gap-4 lg:grid lg:grid-cols-3 lg:items-start lg:gap-6">
+          <div className="flex flex-col gap-4 lg:grid lg:grid-cols-5 lg:items-start lg:gap-6">
 
             {/* CALENDRIER — top on mobile (order 1), center on desktop (order 2) */}
-            <div className="lg:order-2 space-y-4">
+            <div className="lg:order-2 lg:col-span-3 space-y-4">
               <div className="grid grid-cols-4 gap-2">
                 {VIEWS.map(v => (
                   <button key={v.key} onClick={() => switchView(v.key)}
@@ -241,7 +241,7 @@ export default function AidantsPage() {
             </div>
 
             {/* INTERVENANTS — middle on mobile (order 2), right on desktop (order 3) */}
-            <div className="lg:order-3">
+            <div className="lg:order-3 lg:col-span-1">
               {care.caregivers.length > 0 && (
                 <section>
                   <h2 className="text-lg font-bold text-gray-700 mb-3">Mes intervenants</h2>
@@ -268,7 +268,7 @@ export default function AidantsPage() {
             </div>
 
             {/* SOCIÉTÉ — bottom on mobile (order 3), left on desktop (order 1) */}
-            <div className="lg:order-1">
+            <div className="lg:order-1 lg:col-span-1">
               {hasCompany && (
                 <section className="bg-white rounded-3xl p-6 shadow-sm border-2 border-gray-100">
                   <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Société</div>
