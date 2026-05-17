@@ -17,8 +17,13 @@ type UserRow = {
 }
 
 export default function SuperAdminPage() {
-  const { isSuperAdmin, loading, impersonate } = useAuth()
+  const { isSuperAdmin, loading, impersonate, signOut } = useAuth()
   const router = useRouter()
+
+  const handleSignOut = async () => {
+    await signOut()
+    router.push('/login')
+  }
   const [users, setUsers] = useState<UserRow[]>([])
   const [fetching, setFetching] = useState(true)
 
@@ -43,11 +48,16 @@ export default function SuperAdminPage() {
   return (
     <main className="min-h-screen p-6 max-w-3xl mx-auto">
       <div className="flex items-center gap-4 mb-8">
-        <Link href="/" className="flex items-center justify-center w-10 h-10 rounded-2xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all text-gray-600 font-bold text-lg">←</Link>
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-800">🛡️ Super Admin</h1>
           <p className="text-sm text-gray-400">{fetching ? '...' : `${users.length} compte(s) utilisateur(s)`}</p>
         </div>
+        <button
+          onClick={handleSignOut}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all text-gray-600 font-semibold text-sm"
+        >
+          <span>🔒</span><span>Déconnexion</span>
+        </button>
       </div>
 
       {fetching ? (

@@ -15,9 +15,14 @@ type UserDetail = {
 }
 
 export default function SuperAdminUserPage() {
-  const { isSuperAdmin, loading, impersonate } = useAuth()
+  const { isSuperAdmin, loading, impersonate, signOut } = useAuth()
   const router = useRouter()
   const { userId } = useParams<{ userId: string }>()
+
+  const handleSignOut = async () => {
+    await signOut()
+    router.push('/login')
+  }
   const [data, setData] = useState<UserDetail | null>(null)
   const [fetching, setFetching] = useState(true)
   const [saving, setSaving] = useState<string | null>(null)
@@ -84,6 +89,9 @@ export default function SuperAdminUserPage() {
         </div>
         <button onClick={handleImpersonate} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-indigo-500 hover:bg-indigo-600 active:scale-95 transition-all text-white font-semibold text-sm">
           <span>👁️</span><span>Voir le compte</span>
+        </button>
+        <button onClick={handleSignOut} className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all text-gray-600 font-semibold text-sm">
+          <span>🔒</span><span>Déconnexion</span>
         </button>
       </div>
 
