@@ -25,13 +25,15 @@ export default function TopBar() {
           </span>
         </Link>
 
-        <Link
-          href="/superadmin"
-          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-600 font-semibold active:scale-95 transition-all"
-        >
-          <span>🛡️</span>
-          <span>Super Admin</span>
-        </Link>
+        {isSuperAdmin && (
+          <Link
+            href="/superadmin"
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-600 font-semibold active:scale-95 transition-all"
+          >
+            <span>🛡️</span>
+            <span>Super Admin</span>
+          </Link>
+        )}
       </div>
     </div>
   )

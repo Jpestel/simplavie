@@ -43,7 +43,6 @@ const AuthContext = createContext<AuthContextType>({
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  console.log('[auth] AuthProvider init')
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -64,7 +63,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .select('id, display_name, role, owner_id, permission, global_role')
         .eq('id', uid)
         .maybeSingle()
-      console.log('[auth] profil chargé:', data)
       if (data) return data as Profile
       await client.from('user_profile').upsert({ id: uid, display_name: '', role: 'owner', owner_id: null, permission: null, global_role: 'user' })
     } catch { /* ignore */ }
