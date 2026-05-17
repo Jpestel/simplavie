@@ -28,6 +28,16 @@ export default function AdminDashboard() {
     updateConfig({ modules: updated })
   }
 
+  const sorted = [...config.modules].sort((a, b) => a.order - b.order)
+
+  const moveModule = (index: number, direction: -1 | 1) => {
+    const next = [...sorted]
+    const swap = index + direction
+    if (swap < 0 || swap >= next.length) return
+    ;[next[index], next[swap]] = [next[swap], next[index]]
+    updateConfig({ modules: next.map((m, i) => ({ ...m, order: i })) })
+  }
+
   const handleSignOut = async () => {
     await signOut()
     router.push('/login')
@@ -85,11 +95,18 @@ export default function AdminDashboard() {
       <section className="bg-white rounded-2xl p-6 shadow-sm mb-6">
         <h2 className="text-lg font-semibold text-gray-700 mb-4">Modules</h2>
         <div className="space-y-3">
-          {config.modules.map(module => (
-            <div key={module.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50">
-              <div className="flex items-center gap-3">
+          {sorted.map((module, i) => (
+            <div key={module.id} className="flex items-center gap-2 p-3 rounded-xl hover:bg-gray-50">
+              {/* Boutons ordre */}
+              <div className="flex flex-col gap-0.5 shrink-0">
+                <button onClick={() => moveModule(i, -1)} disabled={i === 0}
+                  className="w-6 h-6 flex items-center justify-center text-gray-400 disabled:opacity-20 hover:text-gray-600 text-sm">↑</button>
+                <button onClick={() => moveModule(i, 1)} disabled={i === sorted.length - 1}
+                  className="w-6 h-6 flex items-center justify-center text-gray-400 disabled:opacity-20 hover:text-gray-600 text-sm">↓</button>
+              </div>
+              <div className="flex items-center gap-3 flex-1 min-w-0">
                 <span className="text-2xl">{module.icon}</span>
-                <div>
+                <div className="min-w-0">
                   <div className="font-medium text-gray-700">{module.label}</div>
                   <div className="text-sm text-gray-400">{module.description}</div>
                   {module.locked && (
@@ -98,13 +115,13 @@ export default function AdminDashboard() {
                 </div>
               </div>
               {module.locked ? (
-                <div className="w-12 h-6 rounded-full bg-gray-100 flex items-center justify-center cursor-not-allowed">
+                <div className="w-12 h-6 rounded-full bg-gray-100 flex items-center justify-center cursor-not-allowed shrink-0">
                   <span className="text-xs text-gray-300">🔒</span>
                 </div>
               ) : (
                 <button
                   onClick={() => toggleModule(module.id)}
-                  className={`relative w-12 h-6 rounded-full transition-colors ${
+                  className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${
                     module.enabled ? 'bg-indigo-500' : 'bg-gray-200'
                   }`}
                 >
