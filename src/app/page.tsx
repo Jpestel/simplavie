@@ -81,13 +81,20 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!profileLoading && profile.profileCompleted && activeUserId && isSupabaseConfigured) {
-      getSupabase()!.from('reminders').select('*').eq('user_id', activeUserId).eq('active', true).order('time_of_day')
-        .then(({ data }) => {
-          const todayOnes = (data ?? []).filter(isTodayReminder)
-          if (todayOnes.length > 0) {
-            setReminderAlert({ count: todayOnes.length, first: todayOnes[0].label })
-          }
-        })
+      const todayStr = new Date().toISOString().slice(0, 10)
+      const db = getSupabase()!
+      Promise.all([
+        db.from('reminders').select('*').eq('user_id', activeUserId).eq('active', true).order('time_of_day'),
+        db.from('reminder_completions').select('reminder_id').eq('user_id', activeUserId).eq('date', todayStr),
+      ]).then(([remRes, doneRes]) => {
+        const doneIds = new Set((doneRes.data ?? []).map((r: { reminder_id: string }) => r.reminder_id))
+        const pending = (remRes.data ?? []).filter(isTodayReminder).filter((r: { id: string }) => !doneIds.has(r.id))
+        if (pending.length > 0) {
+          setReminderAlert({ count: pending.length, first: pending[0].label })
+        } else {
+          setReminderAlert(null)
+        }
+      })
     }
   }, [profileLoading, profile.profileCompleted, activeUserId])
 
