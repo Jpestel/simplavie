@@ -1,7 +1,6 @@
 'use client'
 import { createContext, useContext, useEffect, useState } from 'react'
-import type { User } from '@supabase/supabase-js'
-import { getSupabase, isSupabaseConfigured } from '@/lib/supabase'
+import { useSession, signOut as nextAuthSignOut } from 'next-auth/react'
 
 export type Profile = {
   id: string
@@ -13,12 +12,20 @@ export type AdminAssignment = {
   id: string
   owner_id: string
   owner_name: string | null
-  permission: 'read' | 'write'
+  permission: 'read' | 'write' | 'admin'
+}
+
+// Type simplifié pour l'utilisateur (remplace User de Supabase)
+export type AuthUser = {
+  id: string
+  email: string
+  name?: string | null
+  globalRole: string
 }
 
 type AuthContextType = {
-  user: User | null
-  profile: Profile | null           // propre profil utilisateur (null si pur admin)
+  user: AuthUser | null
+  profile: Profile | null           // profil utilisateur (null si pur admin)
   adminAssignments: AdminAssignment[]
   activeUserId: string | null       // compte actuellement géré
   adminTarget: string | null        // owner_id de l'aidé (si en mode admin)
@@ -48,119 +55,81 @@ const AuthContext = createContext<AuthContextType>({
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const { data: session, status } = useSession()
+
   const [profile, setProfile] = useState<Profile | null>(null)
   const [adminAssignments, setAdminAssignments] = useState<AdminAssignment[]>([])
-  const [loading, setLoading] = useState(true)
   const [adminTarget, setAdminTargetState] = useState<string | null>(null)
   const [impersonatedUserId, setImpersonatedUserId] = useState<string | null>(null)
   const [impersonatedUserName, setImpersonatedUserName] = useState<string | null>(null)
+  const [profileLoading, setProfileLoading] = useState(false)
 
+  const loading = status === 'loading' || profileLoading
+
+  // Restaurer depuis sessionStorage côté client uniquement
   useEffect(() => {
-    // Restaurer depuis sessionStorage côté client uniquement
     setImpersonatedUserId(sessionStorage.getItem('simplavie_impersonate'))
     setImpersonatedUserName(sessionStorage.getItem('simplavie_impersonate_name'))
     setAdminTargetState(sessionStorage.getItem('simplavie_admin_target'))
   }, [])
 
   async function loadProfile(uid: string): Promise<Profile | null> {
-    const client = getSupabase()
-    if (!client) return null
     try {
-      const { data } = await client
-        .from('user_profile')
-        .select('id, display_name, global_role')
-        .eq('id', uid)
-        .maybeSingle()
-      return (data as Profile | null) ?? null
+      const res = await fetch(`/api/auth/profile?userId=${uid}`)
+      if (!res.ok) return null
+      const data = await res.json()
+      return data ?? null
     } catch { return null }
   }
 
-  async function loadAdminAssignments(uid: string): Promise<AdminAssignment[]> {
-    const client = getSupabase()
-    if (!client) return []
+  async function loadAdminAssignments(): Promise<AdminAssignment[]> {
     try {
-      const { data } = await client
-        .from('admin_assignments')
-        .select('id, owner_user_id, permission')
-        .eq('admin_user_id', uid)
-      if (!data || data.length === 0) return []
-
-      // Récupérer le nom de chaque propriétaire depuis app_config
-      const results = await Promise.all(data.map(async (a) => {
-        const { data: cfg } = await client
-          .from('app_config')
-          .select('user_name')
-          .eq('user_id', a.owner_user_id)
-          .maybeSingle()
-        return {
-          id: a.id as string,
-          owner_id: a.owner_user_id as string,
-          owner_name: (cfg?.user_name as string | null) ?? null,
-          permission: (a.permission as 'read' | 'write') ?? 'read',
-        }
-      }))
-      return results
+      const res = await fetch('/api/auth/assignments')
+      if (!res.ok) return []
+      return await res.json()
     } catch { return [] }
   }
 
   async function loadAll(uid: string) {
     const [p, assignments] = await Promise.all([
       loadProfile(uid),
-      loadAdminAssignments(uid),
+      loadAdminAssignments(),
     ])
     setProfile(p)
     setAdminAssignments(assignments)
     // Si pur admin (pas de compte proprio) → auto-sélectionner le premier
     if (!p && assignments.length > 0) {
       const saved = sessionStorage.getItem('simplavie_admin_target')
-      const validSaved = saved && assignments.find(a => a.owner_id === saved)
-      setAdminTargetState(validSaved ? saved : assignments[0].owner_id)
-      sessionStorage.setItem('simplavie_admin_target', validSaved ? saved : assignments[0].owner_id)
+      const validSaved = saved && assignments.find((a: AdminAssignment) => a.owner_id === saved)
+      const target = validSaved ? saved : assignments[0].owner_id
+      setAdminTargetState(target)
+      sessionStorage.setItem('simplavie_admin_target', target)
     }
   }
 
   useEffect(() => {
-    if (!isSupabaseConfigured) { setLoading(false); return }
-    const client = getSupabase()
-    if (!client) { setLoading(false); return }
+    if (status === 'loading') return
 
-    const timeout = setTimeout(() => setLoading(false), 5000)
-
-    const withData = async (session: { user: User } | { user: null } | null) => {
-      const u = session?.user ?? null
-      setUser(u)
-      if (u) {
-        // Si un nouvel utilisateur se connecte, vider toute impersonation résiduelle
-        // (évite la contamination du sessionStorage entre sessions)
-        const storedImpersonate = sessionStorage.getItem('simplavie_impersonate')
-        if (storedImpersonate && storedImpersonate !== u.id) {
-          impersonate(null)
-        }
-        await Promise.race([
-          loadAll(u.id).catch(() => {}),
-          new Promise<void>(r => setTimeout(r, 4000)),
-        ])
-      } else {
-        setProfile(null)
-        setAdminAssignments([])
+    if (session?.user) {
+      const uid = session.user.id
+      // Si un nouvel utilisateur se connecte, vider toute impersonation résiduelle
+      const storedImpersonate = sessionStorage.getItem('simplavie_impersonate')
+      if (storedImpersonate && storedImpersonate !== uid) {
         impersonate(null)
-        setAdminTarget(null)
       }
-      setLoading(false)
+      setProfileLoading(true)
+      Promise.race([
+        loadAll(uid).catch(() => {}),
+        new Promise<void>(r => setTimeout(r, 4000)),
+      ]).finally(() => setProfileLoading(false))
+    } else {
+      setProfile(null)
+      setAdminAssignments([])
+      impersonate(null)
+      setAdminTarget(null)
     }
-
-    client.auth.getSession().then(({ data: { session } }) => {
-      clearTimeout(timeout)
-      withData(session)
-    }).catch(() => { clearTimeout(timeout); setLoading(false) })
-
-    const { data: { subscription } } = client.auth.onAuthStateChange((_event, session) => {
-      withData(session)
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id, status])
 
   function setAdminTarget(ownerId: string | null) {
     setAdminTargetState(ownerId)
@@ -181,17 +150,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signIn(email: string, password: string): Promise<{ error: string | null }> {
-    const client = getSupabase()
-    if (!client) return { error: 'Supabase non configuré' }
     try {
+      const { signIn: nextAuthSignIn } = await import('next-auth/react')
       const timeout = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Délai dépassé.')), 15000)
       )
-      const { error } = await Promise.race([
-        client.auth.signInWithPassword({ email, password }),
+      const result = await Promise.race([
+        nextAuthSignIn('credentials', { email, password, redirect: false }),
         timeout,
       ])
-      if (error) return { error: error.message }
+      if (result?.error) return { error: 'Email ou mot de passe incorrect' }
       return { error: null }
     } catch (e) {
       return { error: e instanceof Error ? e.message : 'Erreur de connexion' }
@@ -199,63 +167,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signUp(email: string, password: string, name?: string, asUser = true): Promise<{ error: string | null }> {
-    const client = getSupabase()
-    if (!client) return { error: 'Supabase non configuré' }
-
-    let isFirst = false
     try {
-      const res = await fetch('/api/auth/is-first-setup')
-      const json = await res.json()
-      isFirst = json.isFirst === true
-    } catch { /* ignore, default false */ }
-
-    const { data, error } = await client.auth.signUp({ email, password })
-    if (error) return { error: error.message }
-
-    if (data.user) {
-      if (isFirst) {
-        await client.from('user_profile').upsert({
-          id: data.user.id,
-          user_id: data.user.id,
-          display_name: name ?? email,
-          global_role: 'superadmin',
-        })
-      } else if (asUser) {
-        await client.from('user_profile').upsert({
-          id: data.user.id,
-          user_id: data.user.id,
-          display_name: name ?? '',
-          global_role: 'user',
-        })
-      }
-      await loadAll(data.user.id).catch(() => {})
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, name, asUser }),
+      })
+      const data = await res.json()
+      if (!res.ok) return { error: data.error ?? 'Erreur lors de la création du compte' }
+      return { error: null }
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : 'Erreur lors de la création du compte' }
     }
-    return { error: null }
   }
 
   async function createOwnAccount(): Promise<{ error: string | null }> {
-    const client = getSupabase()
-    if (!client || !user) return { error: 'Non connecté' }
-    const { error } = await client.from('user_profile').insert({
-      id: user.id,
-      display_name: '',
-      global_role: 'user',
-    })
-    if (error) return { error: error.message }
-    const p = await loadProfile(user.id)
-    setProfile(p)
-    return { error: null }
+    if (!session?.user?.id) return { error: 'Non connecté' }
+    try {
+      const res = await fetch('/api/auth/create-own-account', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) return { error: data.error ?? 'Erreur lors de la création du compte' }
+      const p = await loadProfile(session.user.id)
+      setProfile(p)
+      return { error: null }
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : 'Erreur lors de la création du compte' }
+    }
   }
 
   async function signOut(): Promise<void> {
     impersonate(null)
     setAdminTarget(null)
-    const client = getSupabase()
-    if (!client) return
-    await client.auth.signOut()
+    await nextAuthSignOut({ redirect: false })
   }
 
-  const isSuperAdmin = profile?.global_role === 'superadmin'
+  // Construire l'objet user depuis la session NextAuth
+  const user: AuthUser | null = session?.user
+    ? {
+        id: session.user.id,
+        email: session.user.email,
+        name: session.user.name,
+        globalRole: session.user.globalRole,
+      }
+    : null
+
+  const isSuperAdmin = user?.globalRole === 'superadmin' || profile?.global_role === 'superadmin'
   const isAdmin = adminAssignments.length > 0
   const hasOwnAccount = profile !== null && profile.global_role !== 'superadmin'
 

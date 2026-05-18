@@ -2,7 +2,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { AppConfig } from '@/types'
 import { DEFAULT_CONFIG, DEFAULT_MODULES } from './defaultConfig'
-import { supabase, isSupabaseConfigured } from './supabase'
 import { useAuth } from '@/lib/authContext'
 
 type ConfigContextType = {
@@ -14,16 +13,12 @@ type ConfigContextType = {
 
 const ConfigContext = createContext<ConfigContextType | null>(null)
 
-function toRow(c: AppConfig, userId: string) {
+function toBody(c: AppConfig) {
   return {
-    id: userId,
-    user_id: userId,
-    user_name: c.userName,
-    primary_color: c.primaryColor,
-    // background_color n'est pas encore dans le schéma Supabase → stocké en localStorage
-    admin_password: c.adminPassword,
+    userName: c.userName,
+    primaryColor: c.primaryColor,
+    adminPassword: c.adminPassword,
     modules: c.modules,
-    updated_at: new Date().toISOString(),
   }
 }
 
@@ -37,10 +32,10 @@ function mergeModules(saved: AppConfig['modules']): AppConfig['modules'] {
 function fromRow(row: Record<string, unknown>): AppConfig {
   const savedModules = (row.modules as AppConfig['modules']) ?? DEFAULT_CONFIG.modules
   return {
-    userName: (row.user_name as string) ?? DEFAULT_CONFIG.userName,
-    primaryColor: (row.primary_color as string) ?? DEFAULT_CONFIG.primaryColor,
-    backgroundColor: (row.background_color as string) ?? DEFAULT_CONFIG.backgroundColor,
-    adminPassword: (row.admin_password as string) ?? DEFAULT_CONFIG.adminPassword,
+    userName: (row.userName as string) ?? DEFAULT_CONFIG.userName,
+    primaryColor: (row.primaryColor as string) ?? DEFAULT_CONFIG.primaryColor,
+    backgroundColor: DEFAULT_CONFIG.backgroundColor,
+    adminPassword: (row.adminPassword as string) ?? DEFAULT_CONFIG.adminPassword,
     modules: mergeModules(savedModules),
   }
 }
@@ -53,44 +48,60 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (authLoading) return
     if (!activeUserId) { setConfig(DEFAULT_CONFIG); return }
-    if (!isSupabaseConfigured) return
-    supabase.from('app_config').select('*').eq('user_id', activeUserId).maybeSingle().then(async ({ data }) => {
-      const loaded = data ? fromRow(data) : DEFAULT_CONFIG
 
-      // Auto-repair : si le nom est encore le défaut, on récupère le prénom depuis user_profile
-      if (loaded.userName === 'Mon proche' || loaded.userName === DEFAULT_CONFIG.userName) {
-        const { data: profileData } = await supabase
-          .from('user_profile')
-          .select('display_name')
-          .eq('id', activeUserId)
-          .maybeSingle()
-        const firstName = (profileData?.display_name as string | null)?.split(' ')[0]
-        if (firstName) {
-          const repaired = { ...loaded, userName: firstName }
-          setConfig(repaired)
-          // Sauvegarder la correction en base
-          supabase.from('app_config').upsert(toRow(repaired, activeUserId)).then()
-          return
+    setIsLoading(true)
+    fetch(`/api/config?userId=${activeUserId}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(async (data) => {
+        const loaded = data ? fromRow(data) : DEFAULT_CONFIG
+
+        // Auto-repair : si le nom est encore le défaut, on récupère le prénom depuis user_profile
+        if (loaded.userName === 'Mon proche' || loaded.userName === DEFAULT_CONFIG.userName) {
+          const profileRes = await fetch(`/api/auth/profile?userId=${activeUserId}`)
+          const profileData = profileRes.ok ? await profileRes.json() : null
+          const firstName = (profileData?.displayName as string | null)?.split(' ')[0]
+            ?? (profileData?.firstName as string | null)
+          if (firstName) {
+            const repaired = { ...loaded, userName: firstName }
+            setConfig(repaired)
+            // Sauvegarder la correction en base
+            fetch(`/api/config?userId=${activeUserId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userName: firstName }),
+            }).then()
+            return
+          }
         }
-      }
 
-      setConfig(loaded)
-    })
+        setConfig(loaded)
+      })
+      .catch(() => setConfig(DEFAULT_CONFIG))
+      .finally(() => setIsLoading(false))
   }, [activeUserId, authLoading])
 
   const updateConfig = (updates: Partial<AppConfig>) => {
     const next = { ...config, ...updates }
     setConfig(next)
-    if (isSupabaseConfigured && activeUserId) {
-      supabase.from('app_config').upsert(toRow(next, activeUserId)).then()
+    if (activeUserId) {
+      fetch(`/api/config?userId=${activeUserId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(toBody(next)),
+      }).then()
     }
   }
 
   const reloadConfig = async () => {
-    if (!isSupabaseConfigured || !activeUserId) return
-    const { data } = await supabase.from('app_config').select('*').eq('user_id', activeUserId).maybeSingle()
-    if (data) setConfig(fromRow(data))
-    else setConfig(DEFAULT_CONFIG)
+    if (!activeUserId) return
+    const res = await fetch(`/api/config?userId=${activeUserId}`)
+    if (res.ok) {
+      const data = await res.json()
+      if (data) setConfig(fromRow(data))
+      else setConfig(DEFAULT_CONFIG)
+    } else {
+      setConfig(DEFAULT_CONFIG)
+    }
   }
 
   return (

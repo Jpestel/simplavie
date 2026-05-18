@@ -1,0 +1,266 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Auth ────────────────────────────────────────────────────────────────────
+
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  password    String
+  name        String?
+  globalRole  String   @default("user") @map("global_role")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  profile              UserProfile?
+  appConfig            AppConfig?
+  adminOf              AdminAssignment[] @relation("AdminUser")
+  managedBy            AdminAssignment[] @relation("OwnerUser")
+  routineData          RoutineData?
+  routineCompletions   RoutineCompletion[]
+  routineCancellations RoutineCancellation[]
+  routinePostponements RoutinePostponement[]
+  routineExtras        RoutineExtra[]
+  careData             CareData?
+  financeData          FinanceData?
+  agendaData           AgendaData?
+  reminders            Reminder[]
+  reminderCompletions  ReminderCompletion[]
+  services             Service[]
+
+  @@map("users")
+}
+
+// ─── Profil utilisateur ───────────────────────────────────────────────────────
+
+model UserProfile {
+  id                   String   @id
+  displayName          String?  @map("display_name")
+  firstName            String?  @map("first_name")
+  lastName             String?  @map("last_name")
+  birthDate            String?  @map("birth_date")
+  address              String?
+  city                 String?
+  postalCode           String?  @map("postal_code")
+  phone                String?
+  mobile               String?
+  email                String?
+  socialSecurityNumber String?  @map("social_security_number")
+  mutuelle             String?
+  mutuelleNumber       String?  @map("mutuelle_number")
+  cafNumber            String?  @map("caf_number")
+  mdphNumber           String?  @map("mdph_number")
+  aahRecipient         Boolean? @map("aah_recipient")
+  doctorName           String?  @map("doctor_name")
+  doctorPhone          String?  @map("doctor_phone")
+  pharmacyName         String?  @map("pharmacy_name")
+  pharmacyPhone        String?  @map("pharmacy_phone")
+  bloodType            String?  @map("blood_type")
+  allergies            String?  @db.Text
+  treatments           String?  @db.Text
+  contacts             Json?
+  calendarToken        String?  @map("calendar_token")
+  profileCompleted     Boolean  @default(false) @map("profile_completed")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [id], references: [id], onDelete: Cascade)
+
+  @@map("user_profile")
+}
+
+// ─── Config app ───────────────────────────────────────────────────────────────
+
+model AppConfig {
+  id            String   @id
+  userName      String   @default("Mon proche") @map("user_name")
+  primaryColor  String   @default("#6366f1") @map("primary_color")
+  adminPassword String   @default("1234") @map("admin_password")
+  modules       Json     @default("[]")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [id], references: [id], onDelete: Cascade)
+
+  @@map("app_config")
+}
+
+// ─── Admins délégués ──────────────────────────────────────────────────────────
+
+model AdminAssignment {
+  id          String @id @default(uuid())
+  ownerUserId String @map("owner_user_id")
+  adminUserId String @map("admin_user_id")
+  permission  String @default("admin")
+
+  owner User @relation("OwnerUser", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  admin User @relation("AdminUser", fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerUserId, adminUserId])
+  @@map("admin_assignments")
+}
+
+// ─── Routine ──────────────────────────────────────────────────────────────────
+
+model RoutineData {
+  id        String   @id
+  payload   Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [id], references: [id], onDelete: Cascade)
+
+  @@map("routine_data")
+}
+
+model RoutineCompletion {
+  userId String @map("user_id")
+  date   String
+  stepId String @map("step_id")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, date, stepId])
+  @@map("routine_completions")
+}
+
+model RoutineCancellation {
+  userId String @map("user_id")
+  date   String
+  stepId String @map("step_id")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, date, stepId])
+  @@map("routine_cancellations")
+}
+
+model RoutinePostponement {
+  userId String @map("user_id")
+  date   String
+  stepId String @map("step_id")
+  toDate String @map("to_date")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, date, stepId])
+  @@map("routine_postponements")
+}
+
+model RoutineExtra {
+  userId      String @map("user_id")
+  date        String
+  stepId      String @map("step_id")
+  stepPayload Json   @map("step_payload")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, date, stepId])
+  @@map("routine_extras")
+}
+
+// ─── Soins / Aidants ──────────────────────────────────────────────────────────
+
+model CareData {
+  id        String   @id
+  payload   Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [id], references: [id], onDelete: Cascade)
+
+  @@map("care_data")
+}
+
+// ─── Finances ─────────────────────────────────────────────────────────────────
+
+model FinanceData {
+  id        String   @id
+  payload   Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [id], references: [id], onDelete: Cascade)
+
+  @@map("finance_data")
+}
+
+// ─── Agenda ───────────────────────────────────────────────────────────────────
+
+model AgendaData {
+  id        String   @id
+  payload   Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [id], references: [id], onDelete: Cascade)
+
+  @@map("agenda_data")
+}
+
+// ─── Rappels ──────────────────────────────────────────────────────────────────
+
+model Reminder {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  label        String
+  timeOfDay    String   @map("time_of_day")
+  times        Json?
+  recurrence   String   @default("daily")
+  weekDays     Json?    @map("week_days")
+  monthDay     Int?     @map("month_day")
+  specificDate String?  @map("specific_date")
+  dateStart    String?  @map("date_start")
+  dateEnd      String?  @map("date_end")
+  emails       Json?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  completions ReminderCompletion[]
+
+  @@map("reminders")
+}
+
+model ReminderCompletion {
+  userId     String @map("user_id")
+  reminderId String @map("reminder_id")
+  date       String
+  timeSlot   String @map("time_slot")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reminder Reminder @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+
+  @@id([userId, reminderId, date, timeSlot])
+  @@map("reminder_completions")
+}
+
+// ─── Services utiles ──────────────────────────────────────────────────────────
+
+model Service {
+  id          String  @id @default(uuid())
+  userId      String  @map("user_id")
+  name        String
+  description String?
+  url         String  @db.Text
+  icon        String  @default("🔗")
+  category    String  @default("Autres")
+  order       Int     @default(0)
+  active      Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("services")
+}
+
+// ─── Messages d'alerte ────────────────────────────────────────────────────────
+
+model AlertMessage {
+  id        String   @id @default("default")
+  payload   Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("alert_messages")
+}

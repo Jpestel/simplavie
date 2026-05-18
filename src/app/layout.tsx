@@ -7,6 +7,7 @@ import { ProfileProvider } from '@/lib/profileContext'
 import AuthGate from '@/components/AuthGate'
 import TopBar from '@/components/TopBar'
 import BackgroundApplier from '@/components/BackgroundApplier'
+import SessionWrapper from '@/components/SessionWrapper'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="fr">
       <body className={`${inter.className} bg-gray-50 min-h-screen`}>
+        <SessionWrapper>
         <AuthProvider>
           <ConfigProvider>
             <ProfileProvider>
@@ -32,6 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </ProfileProvider>
           </ConfigProvider>
         </AuthProvider>
+        </SessionWrapper>
       </body>
     </html>
   )

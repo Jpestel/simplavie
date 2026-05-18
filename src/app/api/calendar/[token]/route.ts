@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { prisma } from '@/lib/prisma'
 import { CareData } from '@/types'
 
 function pad(n: number) { return String(n).padStart(2, '0') }
@@ -71,26 +71,23 @@ export async function GET(
   const { token } = await params
   if (!token) return new NextResponse('Not found', { status: 404 })
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  // NOTE: calendar_token n'est pas encore dans le schéma Prisma UserProfile.
+  // On utilise $queryRaw en attendant la migration officielle.
+  let userId: string | null = null
+  try {
+    const rows = await prisma.$queryRaw<{ id: string }[]>`
+      SELECT id FROM user_profile WHERE calendar_token = ${token} LIMIT 1
+    `
+    userId = rows[0]?.id ?? null
+  } catch {
+    return new NextResponse('Not found', { status: 404 })
+  }
 
-  const { data: profile } = await supabase
-    .from('user_profile')
-    .select('id')
-    .eq('calendar_token', token)
-    .maybeSingle()
+  if (!userId) return new NextResponse('Not found', { status: 404 })
 
-  if (!profile) return new NextResponse('Not found', { status: 404 })
+  const careRecord = await prisma.careData.findUnique({ where: { id: userId } })
 
-  const { data: careRow } = await supabase
-    .from('care_data')
-    .select('payload')
-    .eq('id', profile.id)
-    .maybeSingle()
-
-  const care: CareData = (careRow?.payload as CareData) ?? {
+  const care: CareData = (careRecord?.payload as CareData) ?? {
     company: { name: '' }, caregivers: [], appointments: [],
   }
 

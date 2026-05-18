@@ -1,24 +1,12 @@
-import type { NextRequest } from 'next/server'
-import { getSupabaseAdmin } from './supabaseAdmin'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 
-export async function verifySuperAdmin(req: NextRequest): Promise<{ userId: string } | { error: string }> {
+export async function verifySuperAdmin(): Promise<{ userId: string } | { error: string }> {
   try {
-    const authHeader = req.headers.get('Authorization')
-    const token = authHeader?.replace('Bearer ', '')
-    if (!token) return { error: 'Non authentifié' }
-
-    const admin = getSupabaseAdmin()
-    const { data: { user }, error } = await admin.auth.getUser(token)
-    if (error || !user) return { error: 'Non authentifié' }
-
-    const { data: profile } = await admin
-      .from('user_profile')
-      .select('global_role')
-      .eq('id', user.id)
-      .maybeSingle()
-
-    if (profile?.global_role !== 'superadmin') return { error: 'Accès refusé' }
-    return { userId: user.id }
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id) return { error: 'Non authentifié' }
+    if (session.user.globalRole !== 'superadmin') return { error: 'Accès refusé' }
+    return { userId: session.user.id }
   } catch {
     return { error: 'Erreur serveur' }
   }

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 
 function todayMatches(reminder: {
   recurrence: string
-  week_days: number[] | null
-  month_day: number | null
-  specific_date: string | null
+  weekDays: unknown
+  monthDay: number | null
+  specificDate: string | null
 }): boolean {
   const now = new Date()
   const dayOfWeek = now.getDay() // 0=dim, 1=lun...
@@ -15,9 +15,9 @@ function todayMatches(reminder: {
 
   switch (reminder.recurrence) {
     case 'daily': return true
-    case 'weekly': return (reminder.week_days ?? []).includes(dayOfWeek)
-    case 'monthly': return reminder.month_day === dayOfMonth
-    case 'once': return reminder.specific_date === today
+    case 'weekly': return ((reminder.weekDays as number[]) ?? []).includes(dayOfWeek)
+    case 'monthly': return reminder.monthDay === dayOfMonth
+    case 'once': return reminder.specificDate === today
     default: return false
   }
 }
@@ -32,28 +32,21 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  const reminders = await prisma.reminder.findMany({
+    where: { active: true },
+  })
 
-  const { data: reminders, error } = await supabase
-    .from('reminders')
-    .select('*')
-    .eq('active', true)
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  if (!reminders || reminders.length === 0) return NextResponse.json({ sent: 0 })
+  if (reminders.length === 0) return NextResponse.json({ sent: 0 })
 
   // Filtrer ceux d'aujourd'hui
   const todaysReminders = reminders.filter(r => todayMatches(r))
   if (todaysReminders.length === 0) return NextResponse.json({ sent: 0 })
 
-  // Grouper par user_id
+  // Grouper par userId
   const byUser: Record<string, typeof todaysReminders> = {}
   for (const r of todaysReminders) {
-    if (!byUser[r.user_id]) byUser[r.user_id] = []
-    byUser[r.user_id].push(r)
+    if (!byUser[r.userId]) byUser[r.userId] = []
+    byUser[r.userId].push(r)
   }
 
   const resend = new Resend(process.env.RESEND_API_KEY)
@@ -61,18 +54,18 @@ export async function GET(req: NextRequest) {
 
   for (const [, userReminders] of Object.entries(byUser)) {
     // Trier par heure
-    const sorted = [...userReminders].sort((a, b) => a.time_of_day.localeCompare(b.time_of_day))
+    const sorted = [...userReminders].sort((a, b) => a.timeOfDay.localeCompare(b.timeOfDay))
 
     // Collecter tous les emails de destination
-    const allEmails = [...new Set(sorted.flatMap((r: { emails: string[] }) => r.emails ?? []))]
+    const allEmails = [...new Set(sorted.flatMap((r) => (r.emails as string[]) ?? []))]
     if (allEmails.length === 0) continue
 
     const dateLabel = new Date().toLocaleDateString('fr-FR', {
       weekday: 'long', day: 'numeric', month: 'long'
     })
 
-    const lines = sorted.map((r: { time_of_day: string; label: string }) =>
-      `• ${timeLabel(r.time_of_day)} — ${r.label}`
+    const lines = sorted.map((r) =>
+      `• ${timeLabel(r.timeOfDay)} — ${r.label}`
     ).join('\n')
 
     const html = `
@@ -80,8 +73,8 @@ export async function GET(req: NextRequest) {
         <h2 style="color:#6366f1">📅 Rappels du jour</h2>
         <p style="color:#555;text-transform:capitalize">${dateLabel}</p>
         <div style="background:#f8f8f8;border-radius:12px;padding:16px;margin:16px 0">
-          ${sorted.map((r: { time_of_day: string; label: string }) =>
-            `<p style="margin:8px 0"><strong>${timeLabel(r.time_of_day)}</strong> — ${r.label}</p>`
+          ${sorted.map((r) =>
+            `<p style="margin:8px 0"><strong>${timeLabel(r.timeOfDay)}</strong> — ${r.label}</p>`
           ).join('')}
         </div>
         <p style="color:#aaa;font-size:12px">SimplaVie — rappels automatiques</p>

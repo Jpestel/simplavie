@@ -3,7 +3,6 @@ import BackBar from '@/components/BackBar'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/authContext'
 import { useProfile } from '@/lib/profileContext'
-import { getSupabase, isSupabaseConfigured } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
 type AdminUser = {
@@ -29,73 +28,59 @@ export default function AdminInvitePage() {
   const contactsWithEmail = profile.contacts.filter(c => c.email)
 
   useEffect(() => {
-    if (!user || !isSupabaseConfigured) { setLoadingAdmins(false); return }
-    const sb = getSupabase()!
-    sb.from('admin_assignments')
-      .select('id, admin_user_id, permission')
-      .eq('owner_user_id', user.id)
-      .then(async ({ data }) => {
-        const rows = await Promise.all((data ?? []).map(async (a) => {
-          const { data: profile } = await sb
-            .from('user_profile')
-            .select('display_name')
-            .eq('id', a.admin_user_id)
-            .maybeSingle()
-          return {
-            id: a.id as string,
-            display_name: (profile?.display_name as string | null) ?? null,
-            permission: (a.permission as Permission) ?? 'read',
-          }
-        }))
-        setAdmins(rows)
-        setLoadingAdmins(false)
-      })
+    if (!user) { setLoadingAdmins(false); return }
+    fetch(`/api/admin-assignments?ownerId=${user.id}`)
+      .then(r => r.ok ? r.json() : [])
+      .then(data => { setAdmins(data ?? []); setLoadingAdmins(false) })
+      .catch(() => setLoadingAdmins(false))
   }, [user])
 
   const handleTogglePermission = async (admin: AdminUser) => {
-    if (!isSupabaseConfigured) return
     const next: Permission = admin.permission === 'read' ? 'write' : 'read'
     setTogglingId(admin.id)
-    const sb = getSupabase()!
-    await sb.from('admin_assignments').update({ permission: next }).eq('id', admin.id)
+    await fetch('/api/admin-assignments', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: admin.id, permission: next }),
+    })
     setAdmins(prev => prev.map(a => a.id === admin.id ? { ...a, permission: next } : a))
     setTogglingId(null)
   }
 
   const handleRevoke = async (adminId: string) => {
-    if (!isSupabaseConfigured) return
     if (!confirm('Retirer l\'accès à cette personne ?')) return
     setRevoking(adminId)
-    const sb = getSupabase()!
-    await sb.from('admin_assignments').delete().eq('id', adminId)
+    await fetch(`/api/admin-assignments?id=${adminId}`, { method: 'DELETE' })
     setAdmins(prev => prev.filter(a => a.id !== adminId))
     setRevoking(null)
   }
 
   const handleInvite = async (contactId: string, contactEmail: string, contactName: string) => {
-    if (!user || !isSupabaseConfigured) return
+    if (!user) return
     setSendingTo(contactId)
-    const sb = getSupabase()!
     const permission = contactPermissions[contactId] ?? 'read'
 
-    const { data } = await sb
-      .from('admin_invites')
-      .insert({ owner_id: user.id, permission })
-      .select('token')
-      .single()
+    const res = await fetch('/api/invites', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ owner_id: user.id, permission }),
+    })
 
-    if (data?.token) {
-      const link = `${window.location.origin}/join?token=${data.token}`
-      const ownerName = profile.firstName || authProfile?.display_name || 'votre proche'
-      const permLabel = permission === 'write' ? 'consulter et modifier' : 'consulter'
-      const subject = encodeURIComponent(`Accès à l'espace SimplaVie de ${ownerName}`)
-      const body = encodeURIComponent(
-        `Bonjour ${contactName},\n\n` +
-        `Vous avez été invité(e) à accéder à l'espace SimplaVie de ${ownerName} en mode « ${permLabel} ».\n\n` +
-        `Cliquez sur ce lien pour accepter l'invitation :\n${link}\n\n` +
-        `Ce lien est à usage unique.\n\nSimplaVie`
-      )
-      window.location.href = `mailto:${contactEmail}?subject=${subject}&body=${body}`
+    if (res.ok) {
+      const data = await res.json()
+      if (data?.token) {
+        const link = `${window.location.origin}/join?token=${data.token}`
+        const ownerName = profile.firstName || authProfile?.display_name || 'votre proche'
+        const permLabel = permission === 'write' ? 'consulter et modifier' : 'consulter'
+        const subject = encodeURIComponent(`Accès à l'espace SimplaVie de ${ownerName}`)
+        const body = encodeURIComponent(
+          `Bonjour ${contactName},\n\n` +
+          `Vous avez été invité(e) à accéder à l'espace SimplaVie de ${ownerName} en mode « ${permLabel} ».\n\n` +
+          `Cliquez sur ce lien pour accepter l'invitation :\n${link}\n\n` +
+          `Ce lien est à usage unique.\n\nSimplaVie`
+        )
+        window.location.href = `mailto:${contactEmail}?subject=${subject}&body=${body}`
+      }
     }
 
     setSendingTo(null)

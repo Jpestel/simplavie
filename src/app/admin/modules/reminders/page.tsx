@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/authContext'
-import { getSupabase, isSupabaseConfigured } from '@/lib/supabase'
 import BackBar from '@/components/BackBar'
 
 type Recurrence = 'daily' | 'weekly' | 'monthly' | 'once' | 'period'
@@ -10,14 +9,14 @@ type Recurrence = 'daily' | 'weekly' | 'monthly' | 'once' | 'period'
 type Reminder = {
   id: string
   label: string
-  time_of_day: string
+  timeOfDay: string
   times: string[] | null   // plusieurs horaires dans la journée
   recurrence: Recurrence
-  week_days: number[] | null
-  month_day: number | null
-  specific_date: string | null
-  date_start: string | null
-  date_end: string | null
+  weekDays: number[] | null
+  monthDay: number | null
+  specificDate: string | null
+  dateStart: string | null
+  dateEnd: string | null
   emails: string[]
   active: boolean
 }
@@ -37,14 +36,14 @@ const RECURRENCE_LABELS: Record<Recurrence, string> = {
 
 const EMPTY: Omit<Reminder, 'id'> = {
   label: '',
-  time_of_day: '08:00',
+  timeOfDay: '08:00',
   times: null,
   recurrence: 'daily',
-  week_days: null,
-  month_day: null,
-  specific_date: null,
-  date_start: localISO(new Date()),
-  date_end: localISO(new Date()),
+  weekDays: null,
+  monthDay: null,
+  specificDate: null,
+  dateStart: localISO(new Date()),
+  dateEnd: localISO(new Date()),
   emails: [],
   active: true,
 }
@@ -61,15 +60,17 @@ export default function RemindersAdminPage() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    if (!activeUserId || !isSupabaseConfigured) { setLoading(false); return }
-    getSupabase()!.from('reminders').select('*').eq('user_id', activeUserId).order('time_of_day')
-      .then(({ data }) => { setReminders((data ?? []) as Reminder[]); setLoading(false) })
+    if (!activeUserId) { setLoading(false); return }
+    fetch(`/api/reminders?userId=${activeUserId}`)
+      .then(r => r.json())
+      .then(data => { setReminders((data ?? []) as Reminder[]); setLoading(false) })
+      .catch(() => setLoading(false))
   }, [activeUserId])
 
   const resetForm = () => { setForm(EMPTY); setEmailInput(''); setEditId(null); setShowForm(false) }
 
   const openEdit = (r: Reminder) => {
-    setForm({ label: r.label, time_of_day: r.time_of_day, times: r.times, recurrence: r.recurrence, week_days: r.week_days, month_day: r.month_day, specific_date: r.specific_date, date_start: r.date_start, date_end: r.date_end, emails: r.emails, active: r.active })
+    setForm({ label: r.label, timeOfDay: r.timeOfDay, times: r.times, recurrence: r.recurrence, weekDays: r.weekDays, monthDay: r.monthDay, specificDate: r.specificDate, dateStart: r.dateStart, dateEnd: r.dateEnd, emails: r.emails, active: r.active })
     setEmailInput('')
     setEditId(r.id)
     setShowForm(true)
@@ -83,40 +84,49 @@ export default function RemindersAdminPage() {
   }
 
   const save = async () => {
-    if (!form.label || !activeUserId || !isSupabaseConfigured) return
+    if (!form.label || !activeUserId) return
     setSaving(true)
-    const sb = getSupabase()!
-    const row = { ...form, user_id: activeUserId }
     if (editId) {
-      await sb.from('reminders').update(row).eq('id', editId)
-      setReminders(prev => prev.map(r => r.id === editId ? { ...row, id: editId } : r))
+      const updated = await fetch('/api/reminders', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editId, ...form }),
+      }).then(r => r.json())
+      setReminders(prev => prev.map(r => r.id === editId ? { ...updated } as Reminder : r))
     } else {
-      const { data } = await sb.from('reminders').insert(row).select().single()
-      if (data) setReminders(prev => [...prev, data as Reminder])
+      const created = await fetch('/api/reminders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: activeUserId, ...form }),
+      }).then(r => r.json())
+      if (created?.id) setReminders(prev => [...prev, created as Reminder])
     }
     setSaving(false)
     resetForm()
   }
 
   const deleteReminder = async (id: string) => {
-    if (!confirm('Supprimer ce rappel ?') || !isSupabaseConfigured) return
-    await getSupabase()!.from('reminders').delete().eq('id', id)
+    if (!confirm('Supprimer ce rappel ?')) return
+    await fetch(`/api/reminders?id=${id}`, { method: 'DELETE' })
     setReminders(prev => prev.filter(r => r.id !== id))
   }
 
   const toggleActive = async (r: Reminder) => {
-    if (!isSupabaseConfigured) return
-    await getSupabase()!.from('reminders').update({ active: !r.active }).eq('id', r.id)
+    await fetch('/api/reminders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: r.id, active: !r.active }),
+    })
     setReminders(prev => prev.map(x => x.id === r.id ? { ...x, active: !x.active } : x))
   }
 
   const fmtDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 
   const recurrenceDetail = (r: Reminder) => {
-    if (r.recurrence === 'weekly' && r.week_days?.length) return r.week_days.map(d => DAYS[d]).join(', ')
-    if (r.recurrence === 'monthly' && r.month_day) return `Le ${r.month_day} du mois`
-    if (r.recurrence === 'once' && r.specific_date) return fmtDate(r.specific_date)
-    if (r.recurrence === 'period' && r.date_start && r.date_end) return `Du ${fmtDate(r.date_start)} au ${fmtDate(r.date_end)}`
+    if (r.recurrence === 'weekly' && r.weekDays?.length) return (r.weekDays as number[]).map(d => DAYS[d]).join(', ')
+    if (r.recurrence === 'monthly' && r.monthDay) return `Le ${r.monthDay} du mois`
+    if (r.recurrence === 'once' && r.specificDate) return fmtDate(r.specificDate)
+    if (r.recurrence === 'period' && r.dateStart && r.dateEnd) return `Du ${fmtDate(r.dateStart)} au ${fmtDate(r.dateEnd)}`
     return RECURRENCE_LABELS[r.recurrence]
   }
 
@@ -144,9 +154,9 @@ export default function RemindersAdminPage() {
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-gray-800">{r.label}</div>
                 <div className="text-sm text-gray-500">
-                  {r.times && r.times.length > 1
-                    ? `${r.times.length}x · ${r.times.map(t => t.slice(0,5)).join(', ')}`
-                    : r.time_of_day.slice(0, 5)
+                  {r.times && (r.times as string[]).length > 1
+                    ? `${(r.times as string[]).length}x · ${(r.times as string[]).map(t => t.slice(0,5)).join(', ')}`
+                    : r.timeOfDay.slice(0, 5)
                   } · {recurrenceDetail(r)}
                 </div>
                 {r.emails.length > 0 && <div className="text-xs text-indigo-500 mt-0.5">✉️ {r.emails.join(', ')}</div>}
@@ -181,13 +191,13 @@ export default function RemindersAdminPage() {
             <label className="text-sm font-medium text-gray-600 block mb-2">Prises par jour</label>
             <div className="flex gap-2 flex-wrap mb-3">
               {[1,2,3,4].map(n => {
-                const currentCount = form.times ? form.times.length : 1
+                const currentCount = form.times ? (form.times as string[]).length : 1
                 return (
                   <button key={n} onClick={() => {
                     if (n === 1) {
                       setForm(f => ({ ...f, times: null }))
                     } else {
-                      const existing = form.times ?? [form.time_of_day]
+                      const existing = (form.times as string[]) ?? [form.timeOfDay]
                       const next = Array.from({ length: n }, (_, i) => existing[i] ?? '08:00')
                       setForm(f => ({ ...f, times: next }))
                     }
@@ -200,13 +210,13 @@ export default function RemindersAdminPage() {
             </div>
 
             {/* Horaires */}
-            {form.times && form.times.length > 1 ? (
+            {form.times && (form.times as string[]).length > 1 ? (
               <div className="space-y-2">
-                {form.times.map((t, i) => (
+                {(form.times as string[]).map((t, i) => (
                   <div key={i} className="flex items-center gap-3">
                     <span className="text-sm text-gray-400 w-16">Prise {i + 1}</span>
                     <input type="time" value={t} onChange={e => {
-                      const next = [...form.times!]
+                      const next = [...(form.times as string[])]
                       next[i] = e.target.value
                       setForm(f => ({ ...f, times: next }))
                     }}
@@ -217,7 +227,7 @@ export default function RemindersAdminPage() {
             ) : (
               <div className="flex items-center gap-3">
                 <span className="text-sm text-gray-400 w-16">Heure</span>
-                <input type="time" value={form.time_of_day} onChange={e => setForm(f => ({ ...f, time_of_day: e.target.value }))}
+                <input type="time" value={form.timeOfDay} onChange={e => setForm(f => ({ ...f, timeOfDay: e.target.value }))}
                   className="border border-gray-200 rounded-xl px-4 py-2.5 text-gray-800 focus:outline-none focus:border-indigo-400" />
               </div>
             )}
@@ -240,9 +250,9 @@ export default function RemindersAdminPage() {
               <label className="text-sm font-medium text-gray-600 block mb-1">Jours</label>
               <div className="flex gap-1 flex-wrap">
                 {DAYS.map((d, i) => {
-                  const selected = (form.week_days ?? []).includes(i)
+                  const selected = ((form.weekDays as number[]) ?? []).includes(i)
                   return (
-                    <button key={i} onClick={() => setForm(f => ({ ...f, week_days: selected ? (f.week_days ?? []).filter(x => x !== i) : [...(f.week_days ?? []), i] }))}
+                    <button key={i} onClick={() => setForm(f => ({ ...f, weekDays: selected ? ((f.weekDays as number[]) ?? []).filter(x => x !== i) : [...((f.weekDays as number[]) ?? []), i] }))}
                       className={`px-3 py-1.5 rounded-xl text-sm font-semibold transition-all ${selected ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-600'}`}>
                       {d}
                     </button>
@@ -255,7 +265,7 @@ export default function RemindersAdminPage() {
           {form.recurrence === 'monthly' && (
             <div>
               <label className="text-sm font-medium text-gray-600 block mb-1">Jour du mois</label>
-              <input type="number" min={1} max={31} value={form.month_day ?? ''} onChange={e => setForm(f => ({ ...f, month_day: Number(e.target.value) }))}
+              <input type="number" min={1} max={31} value={form.monthDay ?? ''} onChange={e => setForm(f => ({ ...f, monthDay: Number(e.target.value) }))}
                 className="w-24 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-800 focus:outline-none focus:border-indigo-400" />
             </div>
           )}
@@ -263,7 +273,7 @@ export default function RemindersAdminPage() {
           {form.recurrence === 'once' && (
             <div>
               <label className="text-sm font-medium text-gray-600 block mb-1">Date</label>
-              <input type="date" value={form.specific_date ?? ''} onChange={e => setForm(f => ({ ...f, specific_date: e.target.value }))}
+              <input type="date" value={form.specificDate ?? ''} onChange={e => setForm(f => ({ ...f, specificDate: e.target.value }))}
                 className="border border-gray-200 rounded-xl px-4 py-2.5 text-gray-800 focus:outline-none focus:border-indigo-400" />
             </div>
           )}
@@ -272,17 +282,17 @@ export default function RemindersAdminPage() {
             <div className="space-y-3">
               <div>
                 <label className="text-sm font-medium text-gray-600 block mb-1">Du (date de début)</label>
-                <input type="date" value={form.date_start ?? ''} onChange={e => setForm(f => ({ ...f, date_start: e.target.value }))}
+                <input type="date" value={form.dateStart ?? ''} onChange={e => setForm(f => ({ ...f, dateStart: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-gray-800 focus:outline-none focus:border-indigo-400" />
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600 block mb-1">Au (date de fin)</label>
-                <input type="date" value={form.date_end ?? ''} min={form.date_start ?? ''} onChange={e => setForm(f => ({ ...f, date_end: e.target.value }))}
+                <input type="date" value={form.dateEnd ?? ''} min={form.dateStart ?? ''} onChange={e => setForm(f => ({ ...f, dateEnd: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-gray-800 focus:outline-none focus:border-indigo-400" />
               </div>
-              {form.date_start && form.date_end && form.date_start <= form.date_end && (
+              {form.dateStart && form.dateEnd && form.dateStart <= form.dateEnd && (
                 <p className="text-xs text-indigo-500 font-semibold">
-                  📅 {Math.round((new Date(form.date_end).getTime() - new Date(form.date_start).getTime()) / 86400000) + 1} jour(s)
+                  📅 {Math.round((new Date(form.dateEnd).getTime() - new Date(form.dateStart).getTime()) / 86400000) + 1} jour(s)
                 </p>
               )}
             </div>
@@ -313,7 +323,7 @@ export default function RemindersAdminPage() {
           <div className="flex gap-2 pt-2">
             <button onClick={resetForm} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-semibold">Annuler</button>
             <button onClick={save} disabled={!form.label || saving}
-              className="flex-1 py-3 rounded-xl bg-indigo-500 text-white font-bold disabled:opacity-40 active:scale-95 transition-all">
+              className={`flex-1 py-3 rounded-xl text-white font-bold disabled:opacity-40 active:scale-95 transition-all ${editId ? 'bg-indigo-500 hover:bg-indigo-600' : 'bg-green-500 hover:bg-green-600'}`}>
               {saving ? 'Enregistrement...' : editId ? 'Modifier' : 'Ajouter'}
             </button>
           </div>

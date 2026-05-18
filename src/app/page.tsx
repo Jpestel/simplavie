@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { loadCareData } from '@/lib/careService'
 import { loadEvents } from '@/lib/agendaService'
-import { getSupabase, isSupabaseConfigured } from '@/lib/supabase'
 
 function isTodayReminder(r: { recurrence: string; week_days: number[] | null; month_day: number | null; specific_date: string | null; date_start?: string | null; date_end?: string | null }): boolean {
   const now = new Date()
@@ -81,21 +80,19 @@ export default function HomePage() {
   }, [profileLoading, profile.profileCompleted, activeUserId])
 
   useEffect(() => {
-    if (!profileLoading && profile.profileCompleted && activeUserId && isSupabaseConfigured) {
+    if (!profileLoading && profile.profileCompleted && activeUserId) {
       const todayStr = new Date().toISOString().slice(0, 10)
-      const db = getSupabase()!
       Promise.all([
-        db.from('reminders').select('*').eq('user_id', activeUserId).eq('active', true).order('time_of_day'),
-        db.from('reminder_completions').select('reminder_id, time_slot').eq('user_id', activeUserId).eq('date', todayStr),
-      ]).then(([remRes, doneRes]) => {
+        fetch('/api/reminders?userId=' + activeUserId).then(r => r.json()),
+        fetch('/api/reminders/completions?userId=' + activeUserId + '&date=' + todayStr).then(r => r.json()),
+      ]).then(([reminders, completions]) => {
         const doneKeys = new Set(
-          (doneRes.data ?? []).map((r: { reminder_id: string; time_slot: string }) => `${r.reminder_id}_${r.time_slot}`)
+          (Array.isArray(completions) ? completions : []).map((r: { reminderId: string; timeSlot: string }) => `${r.reminderId}_${r.timeSlot}`)
         )
-        const todayReminders = (remRes.data ?? []).filter(isTodayReminder)
-        // Compter toutes les occurrences non cochées (multi-prises)
+        const todayReminders = (Array.isArray(reminders) ? reminders : []).filter(isTodayReminder)
         const pendingOccs: { label: string }[] = []
         for (const r of todayReminders) {
-          const times = (r.times && r.times.length > 1) ? r.times.map((t: string) => t.slice(0,5)) : [r.time_of_day.slice(0,5)]
+          const times = (r.times && r.times.length > 1) ? r.times.map((t: string) => t.slice(0,5)) : [r.timeOfDay.slice(0,5)]
           for (const t of times) {
             if (!doneKeys.has(`${r.id}_${t}`)) pendingOccs.push({ label: r.label })
           }

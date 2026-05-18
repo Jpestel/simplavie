@@ -2,7 +2,6 @@
 import BackBar from '@/components/BackBar'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/authContext'
-import { getSupabase, isSupabaseConfigured } from '@/lib/supabase'
 import Link from 'next/link'
 
 type Service = {
@@ -56,33 +55,44 @@ export default function AdminServicesPage() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
 
-  const sb = isSupabaseConfigured ? getSupabase()! : null
-
   const load = async () => {
-    if (!sb || !activeUserId) return
-    const { data } = await sb.from('services').select('*').eq('user_id', activeUserId).order('category').order('order')
-    setServices(data ?? [])
+    if (!activeUserId) return
+    const data = await fetch('/api/services?userId=' + activeUserId).then(r => r.json())
+    setServices(Array.isArray(data) ? data : [])
     setLoading(false)
   }
 
   useEffect(() => { load() }, [activeUserId])
 
   const seedDefaults = async () => {
-    if (!sb || !activeUserId) return
+    if (!activeUserId) return
     setSaving(true)
-    const rows = DEFAULT_SERVICES.map((s, i) => ({ ...s, user_id: activeUserId, order: i, active: true }))
-    await sb.from('services').insert(rows)
+    await Promise.all(DEFAULT_SERVICES.map((s, i) =>
+      fetch('/api/services', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...s, userId: activeUserId, order: i }),
+      })
+    ))
     await load()
     setSaving(false)
   }
 
   const handleSave = async () => {
-    if (!sb || !activeUserId || !form.name || !form.url) return
+    if (!activeUserId || !form.name || !form.url) return
     setSaving(true)
     if (editingId) {
-      await sb.from('services').update({ name: form.name, description: form.description, url: form.url, icon: form.icon, category: form.category }).eq('id', editingId)
+      await fetch('/api/services', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editingId, name: form.name, description: form.description, url: form.url, icon: form.icon, category: form.category }),
+      })
     } else {
-      await sb.from('services').insert({ ...form, user_id: activeUserId, order: services.length, active: true })
+      await fetch('/api/services', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, userId: activeUserId, order: services.length }),
+      })
     }
     setForm(EMPTY_FORM)
     setShowForm(false)
@@ -99,14 +109,17 @@ export default function AdminServicesPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!sb || !confirm('Supprimer ce service ?')) return
-    await sb.from('services').delete().eq('id', id)
+    if (!confirm('Supprimer ce service ?')) return
+    await fetch('/api/services?id=' + id, { method: 'DELETE' })
     setServices(prev => prev.filter(s => s.id !== id))
   }
 
   const handleToggle = async (s: Service) => {
-    if (!sb) return
-    await sb.from('services').update({ active: !s.active }).eq('id', s.id)
+    await fetch('/api/services', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: s.id, active: !s.active }),
+    })
     setServices(prev => prev.map(x => x.id === s.id ? { ...x, active: !x.active } : x))
   }
 
@@ -208,7 +221,7 @@ export default function AdminServicesPage() {
             <button
               onClick={handleSave}
               disabled={saving || !form.name || !form.url}
-              className="flex-1 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-600 disabled:opacity-40 text-white font-semibold active:scale-95 transition-all"
+              className={`flex-1 py-3 rounded-xl disabled:opacity-40 text-white font-semibold active:scale-95 transition-all ${editingId ? 'bg-indigo-500 hover:bg-indigo-600' : 'bg-green-500 hover:bg-green-600'}`}
             >
               {saving ? 'Enregistrement...' : editingId ? 'Modifier' : 'Ajouter'}
             </button>

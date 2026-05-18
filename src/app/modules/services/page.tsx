@@ -2,7 +2,6 @@
 import BackBar from '@/components/BackBar'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/authContext'
-import { getSupabase, isSupabaseConfigured } from '@/lib/supabase'
 import Link from 'next/link'
 
 type Service = {
@@ -22,18 +21,10 @@ export default function ServicesPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!activeUserId || !isSupabaseConfigured) { setLoading(false); return }
-    getSupabase()!
-      .from('services')
-      .select('*')
-      .eq('user_id', activeUserId)
-      .eq('active', true)
-      .order('category')
-      .order('order')
-      .then(({ data }) => {
-        setServices(data ?? [])
-        setLoading(false)
-      })
+    if (!activeUserId) { setLoading(false); return }
+    fetch('/api/services?userId=' + activeUserId + '&active=true')
+      .then(r => r.json())
+      .then(data => { setServices(Array.isArray(data) ? data : []); setLoading(false) })
   }, [activeUserId])
 
   const handleOpen = (url: string) => {

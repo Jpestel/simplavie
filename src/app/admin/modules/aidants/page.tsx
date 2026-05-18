@@ -6,7 +6,6 @@ import { CareData, Caregiver, CareAppointment } from '@/types'
 import { loadCareData, saveCareData, EMPTY_CARE_DATA } from '@/lib/careService'
 import { loadAlertMessages, saveAlertMessages } from '@/lib/alertMessagesService'
 import { useAuth } from '@/lib/authContext'
-import { getSupabase, isSupabaseConfigured } from '@/lib/supabase'
 
 const DAYS_SHORT = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
 
@@ -45,16 +44,20 @@ export default function AidantsAdminPage() {
     if (!activeUserId) return
     loadCareData(activeUserId).then(d => { setCare(d); setLoading(false) })
     loadAlertMessages().then(setAlertMessages)
-    if (isSupabaseConfigured) {
-      getSupabase()!.from('user_profile').select('calendar_token').eq('id', activeUserId).maybeSingle()
-        .then(({ data }) => { if (data?.calendar_token) setCalendarToken(data.calendar_token as string) })
-    }
+    fetch(`/api/calendar-token?userId=${activeUserId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.token) setCalendarToken(data.token as string) })
+      .catch(() => {/* calendarToken non disponible */})
   }, [activeUserId])
 
   const generateCalendarToken = async () => {
-    if (!activeUserId || !isSupabaseConfigured) return
+    if (!activeUserId) return
     const token = crypto.randomUUID()
-    await getSupabase()!.from('user_profile').update({ calendar_token: token }).eq('id', activeUserId)
+    await fetch('/api/calendar-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: activeUserId, token }),
+    })
     setCalendarToken(token)
     setCalendarCopied(false)
   }

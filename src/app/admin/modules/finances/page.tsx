@@ -302,7 +302,7 @@ export default function FinancesAdminPage() {
             </div>
             <div className="flex gap-3">
               <button onClick={() => setSheet(null)} className="flex-1 py-4 rounded-2xl border-2 border-gray-200 text-gray-600 font-semibold text-lg active:scale-95 transition-all">Annuler</button>
-              <button onClick={handleSaveSheet} disabled={!fLabel.trim() || !fAmount} className="flex-[2] py-4 rounded-2xl bg-indigo-500 disabled:bg-gray-200 text-white font-bold text-lg active:scale-95 transition-all">
+              <button onClick={handleSaveSheet} disabled={!fLabel.trim() || !fAmount} className={`flex-[2] py-4 rounded-2xl disabled:bg-gray-200 text-white font-bold text-lg active:scale-95 transition-all ${sheet.item ? 'bg-indigo-500 hover:bg-indigo-600' : 'bg-green-500 hover:bg-green-600'}`}>
                 {sheet.item ? 'Modifier' : 'Ajouter'}
               </button>
             </div>

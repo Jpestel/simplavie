@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { getSupabase } from '@/lib/supabase'
+import { useSession } from 'next-auth/react'
 import { useAuth } from '@/lib/authContext'
 
 type Invite = {
@@ -15,6 +15,7 @@ type Invite = {
 function JoinInner() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const { data: session } = useSession()
   const { signUp } = useAuth()
   const token = searchParams.get('token') ?? ''
 
@@ -28,49 +29,37 @@ function JoinInner() {
   const [password, setPassword] = useState('')
   const [signupError, setSignupError] = useState('')
 
-  async function checkToken(client: ReturnType<typeof getSupabase>) {
-    if (!token || !client) { setStatus('invalid'); return }
+  async function checkToken() {
+    if (!token) { setStatus('invalid'); return }
 
-    const { data: inv } = await client
-      .from('admin_invites')
-      .select('token, owner_id, used_by, permission')
-      .eq('token', token)
-      .maybeSingle()
+    const res = await fetch(`/api/invites?token=${encodeURIComponent(token)}`)
+    if (!res.ok) { setStatus('invalid'); return }
 
+    const inv: Invite = await res.json()
     if (!inv || inv.used_by) { setStatus('invalid'); return }
 
-    const { data: sessionData } = await client.auth.getSession()
-    if (inv.owner_id === sessionData?.session?.user?.id) { setStatus('invalid'); return }
+    if (inv.owner_id === session?.user?.id) { setStatus('invalid'); return }
 
-    const { data: ownerProfile } = await client
-      .from('user_profile')
-      .select('display_name')
-      .eq('id', inv.owner_id)
-      .maybeSingle()
-
-    setInvite({ ...inv, owner_display_name: ownerProfile?.display_name ?? null })
+    setInvite(inv)
     return inv
   }
 
   useEffect(() => {
     async function init() {
       if (!token) { setStatus('invalid'); return }
-      const client = getSupabase()
-      if (!client) { setStatus('invalid'); return }
 
-      const { data: { session } } = await client.auth.getSession()
-
-      const inv = await checkToken(client)
+      const inv = await checkToken()
       if (!inv) return
 
-      if (!session) {
+      if (!session?.user) {
         setStatus('need-account')
       } else {
         setStatus('valid')
       }
     }
     init()
-  }, [token])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, session?.user?.id])
 
   async function handleSignupAndJoin() {
     if (!email || !password) return
@@ -87,32 +76,35 @@ function JoinInner() {
   }
 
   async function handleJoin() {
-    if (!invite) return
-    const client = getSupabase()
-    if (!client) return
+    if (!invite || !session?.user?.id) return
     setBusy(true)
 
-    const { data: { session } } = await client.auth.getSession()
-    if (!session) { setStatus('need-account'); setBusy(false); return }
-
-    const { error: assignError } = await client
-      .from('admin_assignments')
-      .insert({
-        admin_user_id: session.user.id,
-        owner_user_id: invite.owner_id,
+    const assignRes = await fetch('/api/superadmin/users/' + invite.owner_id + '/admins', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        adminUserId: session.user.id,
         permission: invite.permission ?? 'read',
-      })
+      }),
+    })
 
-    if (assignError) { setStatus('error'); setErrorMsg(assignError.message); setBusy(false); return }
+    if (!assignRes.ok) {
+      const data = await assignRes.json()
+      setStatus('error')
+      setErrorMsg(data.error ?? 'Erreur lors de l\'acceptation')
+      setBusy(false)
+      return
+    }
 
-    await client
-      .from('admin_invites')
-      .update({ used_by: session.user.id })
-      .eq('token', invite.token)
+    // Marquer l'invitation comme utilisée
+    await fetch('/api/invites', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: invite.token, usedBy: session.user.id }),
+    })
 
     setStatus('done')
     setBusy(false)
-    // Redirection vers la config, pas l'accueil
     router.push('/admin')
   }
 

@@ -1,7 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/lib/authContext'
-import { getSupabase, isSupabaseConfigured } from '@/lib/supabase'
 import BackBar from '@/components/BackBar'
 
 type Reminder = {
@@ -53,19 +52,18 @@ export default function RemindersPage() {
   const [loading, setLoading] = useState(true)
 
   const loadData = useCallback(async () => {
-    if (!activeUserId || !isSupabaseConfigured) { setLoading(false); return }
-    const db = getSupabase()!
+    if (!activeUserId) { setLoading(false); return }
     const [remRes, doneRes] = await Promise.all([
-      db.from('reminders').select('*').eq('user_id', activeUserId).eq('active', true).order('time_of_day'),
-      db.from('reminder_completions').select('reminder_id, time_slot').eq('user_id', activeUserId).eq('date', today),
+      fetch('/api/reminders?userId=' + activeUserId).then(r => r.json()),
+      fetch('/api/reminders/completions?userId=' + activeUserId + '&date=' + today).then(r => r.json()),
     ])
 
     const doneKeys = new Set(
-      (doneRes.data ?? []).map((r: { reminder_id: string; time_slot: string }) => `${r.reminder_id}_${r.time_slot}`)
+      (Array.isArray(doneRes) ? doneRes : []).map((r: { reminderId: string; timeSlot: string }) => `${r.reminderId}_${r.timeSlot}`)
     )
 
     const result: Occurrence[] = []
-    for (const r of (remRes.data ?? []) as Reminder[]) {
+    for (const r of (Array.isArray(remRes) ? remRes : []) as Reminder[]) {
       if (!isToday(r)) continue
       for (const timeSlot of getOccurrences(r)) {
         const key = `${r.id}_${timeSlot}`
@@ -82,16 +80,20 @@ export default function RemindersPage() {
   useEffect(() => { loadData() }, [loadData])
 
   const toggle = async (occ: Occurrence) => {
-    if (!activeUserId || !isSupabaseConfigured) return
-    const db = getSupabase()!
+    if (!activeUserId) return
     const isDone = occ.done
     setOccurrences(prev => prev.map(o => o.key === occ.key ? { ...o, done: !isDone } : o))
     if (isDone) {
-      await db.from('reminder_completions').delete()
-        .eq('user_id', activeUserId).eq('reminder_id', occ.reminderId).eq('date', today).eq('time_slot', occ.timeSlot)
+      await fetch('/api/reminders/completions', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: activeUserId, reminderId: occ.reminderId, date: today, timeSlot: occ.timeSlot }),
+      })
     } else {
-      await db.from('reminder_completions').upsert({
-        user_id: activeUserId, reminder_id: occ.reminderId, date: today, time_slot: occ.timeSlot,
+      await fetch('/api/reminders/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: activeUserId, reminderId: occ.reminderId, date: today, timeSlot: occ.timeSlot }),
       })
     }
   }

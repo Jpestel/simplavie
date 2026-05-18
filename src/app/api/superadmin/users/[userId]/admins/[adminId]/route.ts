@@ -1,37 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifySuperAdmin } from '@/lib/superadminAuth'
-import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { prisma } from '@/lib/prisma'
 
 type Params = { userId: string; adminId: string }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<Params> }) {
-  const check = await verifySuperAdmin(req)
+  const check = await verifySuperAdmin()
   if ('error' in check) return NextResponse.json({ error: check.error }, { status: 401 })
 
   const { adminId } = await params
   const { permission } = await req.json()
 
-  const admin = getSupabaseAdmin()
-  const { error } = await admin
-    .from('admin_assignments')
-    .update({ permission })
-    .eq('id', adminId)
+  await prisma.adminAssignment.update({
+    where: { id: adminId },
+    data: { permission },
+  })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<Params> }) {
-  const check = await verifySuperAdmin(req)
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<Params> }) {
+  const check = await verifySuperAdmin()
   if ('error' in check) return NextResponse.json({ error: check.error }, { status: 401 })
 
   const { adminId } = await params
-  const admin = getSupabaseAdmin()
-  const { error } = await admin
-    .from('admin_assignments')
-    .delete()
-    .eq('id', adminId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  await prisma.adminAssignment.delete({ where: { id: adminId } })
   return NextResponse.json({ ok: true })
 }
