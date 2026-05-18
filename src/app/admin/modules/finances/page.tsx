@@ -310,7 +310,7 @@ export default function FinancesAdminPage() {
         </div>
       )}
 
-      <BackBar label="Configurer · Finances" href="/admin/dashboard" />
+      <BackBar label="Sauvegarder" href="/admin/dashboard" />
     </main>
   )
 }
