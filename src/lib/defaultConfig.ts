@@ -61,6 +61,16 @@ export const DEFAULT_MODULES: Module[] = [
     locked: true,
     order: 5,
   },
+  {
+    id: 'finances',
+    name: 'finances',
+    label: 'Finances',
+    description: 'Budget quotidien simplifié',
+    icon: '💶',
+    enabled: false,
+    locked: true,
+    order: 6,
+  },
 ]
 
 export const DEFAULT_CONFIG: AppConfig = {

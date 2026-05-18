@@ -112,6 +112,7 @@ export default function AdminDashboard() {
               { id: 'reminders', href: '/admin/modules/reminders', icon: '🔔', label: 'Rappels' },
               { id: 'services',  href: '/admin/modules/services',  icon: '🔗', label: 'Services' },
               { id: 'agenda',    href: '/admin/modules/agenda',    icon: '📅', label: 'Agenda' },
+              { id: 'finances',  href: '/admin/modules/finances',  icon: '💶', label: 'Finances' },
             ].filter(item => {
               const m = config.modules.find(m => m.id === item.id)
               return m && m.enabled && !m.locked

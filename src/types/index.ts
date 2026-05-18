@@ -127,3 +127,43 @@ export type CareData = {
   caregivers: Caregiver[]
   appointments: CareAppointment[]
 }
+
+export type IncomeSource = {
+  id: string
+  label: string      // ex: "Salaire", "AAH"
+  amount: number
+  dayOfMonth: number // 1-31
+  active: boolean
+}
+
+export type FinanceFixedExpense = {
+  id: string
+  label: string      // ex: "Loyer", "EDF"
+  amount: number
+  dayOfMonth: number
+  active: boolean
+}
+
+export type FinancePlannedExpense = {
+  id: string
+  label: string
+  amount: number
+  date: string       // YYYY-MM-DD
+  paid: boolean
+}
+
+export type FinanceTransaction = {
+  id: string
+  label: string
+  amount: number
+  date: string       // YYYY-MM-DD
+}
+
+export type FinanceData = {
+  balance: number
+  balanceDate: string  // YYYY-MM-DD
+  incomeSources: IncomeSource[]
+  fixedExpenses: FinanceFixedExpense[]
+  plannedExpenses: FinancePlannedExpense[]
+  transactions: FinanceTransaction[]
+}
