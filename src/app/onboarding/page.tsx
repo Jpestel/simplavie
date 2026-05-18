@@ -222,14 +222,14 @@ export default function OnboardingPage() {
                     Annuler
                   </button>
                   <button onClick={addContact} disabled={!newContact.name}
-                    className="flex-1 py-3 rounded-xl bg-indigo-500 text-white font-semibold hover:bg-indigo-600 disabled:opacity-40">
+                    className="flex-1 py-3 rounded-xl bg-green-500 hover:bg-green-600 text-white font-semibold disabled:opacity-40">
                     Ajouter
                   </button>
                 </div>
               </div>
             ) : (
               <button onClick={() => setShowContactForm(true)}
-                className="w-full py-4 rounded-2xl border-2 border-dashed border-indigo-300 text-indigo-500 font-semibold hover:bg-indigo-50 transition-colors">
+                className="w-full py-4 rounded-2xl border-2 border-dashed border-green-300 text-green-600 font-semibold hover:bg-green-50 transition-colors">
                 + Ajouter un proche
               </button>
             )}

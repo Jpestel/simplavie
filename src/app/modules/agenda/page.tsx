@@ -316,7 +316,7 @@ export default function AgendaPage() {
                 Annuler
               </button>
               <button onClick={addEvent} disabled={!fTitle.trim() || !fDate}
-                className="flex-[2] py-4 rounded-2xl bg-indigo-500 disabled:bg-gray-200 text-white font-bold text-lg active:scale-95 transition-all">
+                className="flex-[2] py-4 rounded-2xl bg-green-500 hover:bg-green-600 disabled:bg-gray-200 text-white font-bold text-lg active:scale-95 transition-all">
                 Ajouter
               </button>
             </div>

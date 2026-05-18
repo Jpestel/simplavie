@@ -137,7 +137,7 @@ export default function AdminServicesPage() {
         </div>
         <button
           onClick={() => { setShowForm(true); setEditingId(null); setForm(EMPTY_FORM) }}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-indigo-500 hover:bg-indigo-600 active:scale-95 transition-all text-white font-semibold text-sm"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-green-500 hover:bg-green-600 active:scale-95 transition-all text-white font-semibold text-sm"
         >
           <span>＋</span>
           <span>Ajouter</span>

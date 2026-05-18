@@ -122,12 +122,12 @@ export default function AdminProfilePage() {
               <button onClick={() => { setShowForm(false); setNewContact({ relation: '' }) }}
                 className="flex-1 py-2 rounded-xl border border-gray-300 text-gray-600">Annuler</button>
               <button onClick={addContact} disabled={!newContact.name}
-                className="flex-1 py-2 rounded-xl bg-indigo-500 text-white font-semibold disabled:opacity-40">Ajouter</button>
+                className="flex-1 py-2 rounded-xl bg-green-500 hover:bg-green-600 text-white font-semibold disabled:opacity-40">Ajouter</button>
             </div>
           </div>
         ) : (
           <button onClick={() => setShowForm(true)}
-            className="w-full py-3 rounded-xl border-2 border-dashed border-indigo-300 text-indigo-500 hover:bg-indigo-50">
+            className="w-full py-3 rounded-xl border-2 border-dashed border-green-300 text-green-600 hover:bg-green-50">
             + Ajouter un proche
           </button>
         )}

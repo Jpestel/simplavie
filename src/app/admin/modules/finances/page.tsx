@@ -174,7 +174,7 @@ export default function FinancesAdminPage() {
       <section className="mb-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-gray-700">Ressources (revenus)</h2>
-          <button onClick={() => openSheet({ type: 'income' })} className="px-3 py-2 bg-green-50 hover:bg-green-100 text-green-700 font-semibold rounded-xl text-sm active:scale-95 transition-all">+ Ajouter</button>
+          <button onClick={() => openSheet({ type: 'income' })} className="px-3 py-2 bg-green-50 hover:bg-green-100 text-green-700 border-green-300 font-semibold rounded-xl text-sm active:scale-95 transition-all">+ Ajouter</button>
         </div>
         {data.incomeSources.length === 0 ? (
           <div className="text-center text-gray-400 py-6 bg-white rounded-2xl">Aucune ressource configurée</div>
@@ -198,7 +198,7 @@ export default function FinancesAdminPage() {
       <section className="mb-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-gray-700">Dépenses fixes</h2>
-          <button onClick={() => openSheet({ type: 'fixed' })} className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-semibold rounded-xl text-sm active:scale-95 transition-all">+ Ajouter</button>
+          <button onClick={() => openSheet({ type: 'fixed' })} className="px-3 py-2 bg-green-50 hover:bg-green-100 text-green-700 border-green-300 font-semibold rounded-xl text-sm active:scale-95 transition-all">+ Ajouter</button>
         </div>
         {data.fixedExpenses.length === 0 ? (
           <div className="text-center text-gray-400 py-6 bg-white rounded-2xl">Aucune dépense fixe</div>
@@ -222,7 +222,7 @@ export default function FinancesAdminPage() {
       <section className="mb-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-gray-700">Dépenses planifiées</h2>
-          <button onClick={() => openSheet({ type: 'planned' })} className="px-3 py-2 bg-orange-50 hover:bg-orange-100 text-orange-600 font-semibold rounded-xl text-sm active:scale-95 transition-all">+ Ajouter</button>
+          <button onClick={() => openSheet({ type: 'planned' })} className="px-3 py-2 bg-green-50 hover:bg-green-100 text-green-700 border-green-300 font-semibold rounded-xl text-sm active:scale-95 transition-all">+ Ajouter</button>
         </div>
         {data.plannedExpenses.length === 0 ? (
           <div className="text-center text-gray-400 py-6 bg-white rounded-2xl">Aucune dépense planifiée</div>

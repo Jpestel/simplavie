@@ -322,7 +322,7 @@ export default function RemindersAdminPage() {
 
       {!showForm && (
         <button onClick={() => setShowForm(true)}
-          className="w-full py-4 rounded-2xl border-2 border-dashed border-indigo-300 text-indigo-500 font-semibold text-lg hover:bg-indigo-50 active:scale-95 transition-all">
+          className="w-full py-4 rounded-2xl border-2 border-dashed border-green-300 text-green-600 font-semibold text-lg hover:bg-green-50 active:scale-95 transition-all">
           + Ajouter un rappel
         </button>
       )}

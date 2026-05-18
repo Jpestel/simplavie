@@ -204,7 +204,7 @@ export default function RoutineAdminPage() {
       </section>
 
       <button onClick={() => setShowForm(true)}
-        className="w-full py-4 rounded-2xl border-2 border-dashed border-indigo-300 text-indigo-500 font-semibold hover:bg-indigo-50 active:scale-95 transition-all text-lg">
+        className="w-full py-4 rounded-2xl border-2 border-dashed border-green-300 text-green-600 font-semibold hover:bg-green-50 active:scale-95 transition-all text-lg">
         + Ajouter une tâche
       </button>
 
@@ -347,7 +347,7 @@ export default function RoutineAdminPage() {
                 Annuler
               </button>
               <button onClick={addStep} disabled={!form.label.trim()}
-                className="flex-1 py-4 rounded-2xl bg-indigo-500 disabled:bg-gray-200 text-white font-bold text-lg active:scale-95 transition-all">
+                className="flex-1 py-4 rounded-2xl bg-green-500 hover:bg-green-600 disabled:bg-gray-200 text-white font-bold text-lg active:scale-95 transition-all">
                 Ajouter
               </button>
             </div>

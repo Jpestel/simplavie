@@ -290,7 +290,7 @@ export default function AidantsAdminPage() {
                       {DAYS_SHORT[d.getDay()]} {d.getDate()}/{d.getMonth()+1}{isToday ? ' — Aujourd\'hui' : ''}
                     </div>
                     <button onClick={() => { setEditAppt({ date, status: 'planned' }); setShowApptForm(true) }}
-                      className="text-xs text-indigo-500 hover:text-indigo-700 font-medium">+ Ajouter</button>
+                      className="text-xs text-green-600 hover:text-green-700 font-medium">+ Ajouter</button>
                   </div>
                   {appts.length === 0 ? (
                     <div className="text-gray-300 text-sm">Aucun passage</div>
@@ -361,7 +361,7 @@ export default function AidantsAdminPage() {
                   <input className={input} placeholder="Toilette, repas..." value={editAppt.notes || ''} onChange={e => setEditAppt(p => ({ ...p, notes: e.target.value }))} /></div>
                 <div className="flex gap-3 pt-2">
                   <button onClick={() => { setShowApptForm(false); setEditAppt(null) }} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600">Annuler</button>
-                  <button onClick={addAppointment} disabled={!editAppt.date || !editAppt.time} className="flex-1 py-3 rounded-xl bg-indigo-500 text-white font-bold disabled:opacity-40">Ajouter</button>
+                  <button onClick={addAppointment} disabled={!editAppt.date || !editAppt.time} className="flex-1 py-3 rounded-xl bg-green-500 hover:bg-green-600 text-white font-bold disabled:opacity-40">Ajouter</button>
                 </div>
               </div>
             </div>
@@ -414,7 +414,7 @@ export default function AidantsAdminPage() {
                 setNewMessage('')
               }}
               disabled={!newMessage.trim()}
-              className="w-full py-3 rounded-xl bg-indigo-500 text-white font-bold disabled:opacity-40">
+              className="w-full py-3 rounded-xl bg-green-500 hover:bg-green-600 text-white font-bold disabled:opacity-40">
               + Ajouter ce message
             </button>
           </div>
@@ -444,11 +444,11 @@ export default function AidantsAdminPage() {
               <input className={input} type="tel" placeholder="Fixe" value={newCg.phone || ''} onChange={e => setNewCg(p => ({ ...p, phone: e.target.value }))} />
               <div className="flex gap-2">
                 <button onClick={() => { setShowCgForm(false); setNewCg({}) }} className="flex-1 py-2 rounded-xl border border-gray-300 text-gray-600">Annuler</button>
-                <button onClick={addCaregiver} disabled={!newCg.name} className="flex-1 py-2 rounded-xl bg-indigo-500 text-white font-semibold disabled:opacity-40">Ajouter</button>
+                <button onClick={addCaregiver} disabled={!newCg.name} className="flex-1 py-2 rounded-xl bg-green-500 hover:bg-green-600 text-white font-semibold disabled:opacity-40">Ajouter</button>
               </div>
             </div>
           ) : (
-            <button onClick={() => setShowCgForm(true)} className="w-full py-3 rounded-xl border-2 border-dashed border-indigo-300 text-indigo-500 hover:bg-indigo-50">+ Ajouter un intervenant</button>
+            <button onClick={() => setShowCgForm(true)} className="w-full py-3 rounded-xl border-2 border-dashed border-green-300 text-green-600 hover:bg-green-50">+ Ajouter un intervenant</button>
           )}
         </section>
       )}
