@@ -54,12 +54,27 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
     if (authLoading) return
     if (!activeUserId) { setConfig(DEFAULT_CONFIG); return }
     if (!isSupabaseConfigured) return
-    supabase.from('app_config').select('*').eq('user_id', activeUserId).maybeSingle().then(({ data }) => {
-      if (data) {
-        setConfig(fromRow(data))
-      } else {
-        setConfig(DEFAULT_CONFIG)
+    supabase.from('app_config').select('*').eq('user_id', activeUserId).maybeSingle().then(async ({ data }) => {
+      const loaded = data ? fromRow(data) : DEFAULT_CONFIG
+
+      // Auto-repair : si le nom est encore le défaut, on récupère le prénom depuis user_profile
+      if (loaded.userName === 'Mon proche' || loaded.userName === DEFAULT_CONFIG.userName) {
+        const { data: profileData } = await supabase
+          .from('user_profile')
+          .select('display_name')
+          .eq('id', activeUserId)
+          .maybeSingle()
+        const firstName = (profileData?.display_name as string | null)?.split(' ')[0]
+        if (firstName) {
+          const repaired = { ...loaded, userName: firstName }
+          setConfig(repaired)
+          // Sauvegarder la correction en base
+          supabase.from('app_config').upsert(toRow(repaired, activeUserId)).then()
+          return
+        }
       }
+
+      setConfig(loaded)
     })
   }, [activeUserId, authLoading])
 
