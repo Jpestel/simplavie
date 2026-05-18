@@ -8,6 +8,7 @@ function localISO(d: Date): string {
 export const DEFAULT_FINANCE: FinanceData = {
   balance: 0,
   balanceDate: localISO(new Date()),
+  alertThreshold: 5,
   incomeSources: [],
   fixedExpenses: [],
   plannedExpenses: [],

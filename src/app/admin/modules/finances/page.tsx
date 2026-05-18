@@ -31,11 +31,14 @@ export default function FinancesAdminPage() {
   const [fDay, setFDay] = useState('1')
   const [fDate, setFDate] = useState(localISO(new Date()))
   const [fActive, setFActive] = useState(true)
-  const [fPaid, setFPaid] = useState(false)
 
   // Balance update
   const [showBalance, setShowBalance] = useState(false)
   const [balanceInput, setBalanceInput] = useState('')
+
+  // Alert threshold
+  const [thresholdInput, setThresholdInput] = useState('')
+  const [editingThreshold, setEditingThreshold] = useState(false)
 
   useEffect(() => {
     if (authLoading || !activeUserId) return
@@ -55,9 +58,9 @@ export default function FinancesAdminPage() {
     } else if (s.type === 'fixed' && s.item) {
       setFLabel(s.item.label); setFAmount(s.item.amount.toString()); setFDay(s.item.dayOfMonth.toString()); setFActive(s.item.active)
     } else if (s.type === 'planned' && s.item) {
-      setFLabel(s.item.label); setFAmount(s.item.amount.toString()); setFDate(s.item.date); setFPaid(s.item.paid)
+      setFLabel(s.item.label); setFAmount(s.item.amount.toString()); setFDate(s.item.date)
     } else {
-      setFLabel(''); setFAmount(''); setFDay('1'); setFDate(localISO(new Date())); setFActive(true); setFPaid(false)
+      setFLabel(''); setFAmount(''); setFDay('1'); setFDate(localISO(new Date())); setFActive(true)
     }
   }
 
@@ -76,7 +79,7 @@ export default function FinancesAdminPage() {
       const list = sheet.item ? data.fixedExpenses.map(i => i.id === item.id ? item : i) : [...data.fixedExpenses, item]
       await save({ ...data, fixedExpenses: list })
     } else if (sheet.type === 'planned') {
-      const item: FinancePlannedExpense = { id: sheet.item?.id ?? `pln-${Date.now()}`, label: fLabel.trim(), amount, date: fDate, paid: fPaid }
+      const item: FinancePlannedExpense = { id: sheet.item?.id ?? `pln-${Date.now()}`, label: fLabel.trim(), amount, date: fDate, paid: sheet.item?.paid ?? false }
       const list = sheet.item ? data.plannedExpenses.map(i => i.id === item.id ? item : i) : [...data.plannedExpenses, item]
       await save({ ...data, plannedExpenses: list })
     }
@@ -97,8 +100,11 @@ export default function FinancesAdminPage() {
     setBalanceInput('')
   }
 
-  const togglePlannedPaid = async (id: string) => {
-    await save({ ...data, plannedExpenses: data.plannedExpenses.map(e => e.id === id ? { ...e, paid: !e.paid } : e) })
+  const handleSaveThreshold = async () => {
+    const val = parseFloat(thresholdInput.replace(',', '.'))
+    if (isNaN(val) || val < 0) return
+    await save({ ...data, alertThreshold: val })
+    setEditingThreshold(false)
   }
 
   if (authLoading || loading) return (
@@ -110,6 +116,43 @@ export default function FinancesAdminPage() {
   return (
     <main className="min-h-screen p-6 pb-28 max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold text-gray-800 mb-6">💶 Configuration Finances</h1>
+
+      {/* Seuil d'alerte */}
+      <section className="mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-gray-700">Seuil d&apos;alerte</h2>
+        </div>
+        <div className="bg-white rounded-2xl p-5 shadow-sm">
+          <p className="text-sm text-gray-400 mb-3">Une alerte s&apos;affiche quand le budget disponible par jour passe sous ce seuil.</p>
+          {editingThreshold ? (
+            <div className="flex gap-2 items-center">
+              <div className="relative flex-1">
+                <input
+                  type="number" min="0" step="1"
+                  value={thresholdInput}
+                  onChange={e => setThresholdInput(e.target.value)}
+                  className="w-full border-2 border-indigo-300 rounded-2xl px-4 py-3 text-xl font-bold focus:outline-none focus:border-indigo-500 text-center"
+                  autoFocus
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">€</span>
+              </div>
+              <button onClick={() => setEditingThreshold(false)} className="px-4 py-3 rounded-2xl border-2 border-gray-200 text-gray-500 font-semibold active:scale-95 transition-all">✕</button>
+              <button onClick={handleSaveThreshold} className="px-4 py-3 rounded-2xl bg-indigo-500 text-white font-bold active:scale-95 transition-all">✓</button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-orange-500 text-2xl">⚠️</span>
+                <span className="text-2xl font-black text-gray-800">{data.alertThreshold ?? 5} €<span className="text-base font-semibold text-gray-400"> / jour</span></span>
+              </div>
+              <button
+                onClick={() => { setThresholdInput((data.alertThreshold ?? 5).toString()); setEditingThreshold(true) }}
+                className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-semibold rounded-xl text-sm active:scale-95 transition-all"
+              >Modifier</button>
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* Solde */}
       <section className="mb-6">
@@ -186,12 +229,9 @@ export default function FinancesAdminPage() {
         ) : (
           <div className="space-y-2">
             {data.plannedExpenses.map(item => (
-              <div key={item.id} className={`bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3 ${item.paid ? 'opacity-50' : ''}`}>
-                <button onClick={() => togglePlannedPaid(item.id)} className={`w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${item.paid ? 'bg-green-400 border-green-400 text-white' : 'border-gray-300'}`}>
-                  {item.paid && '✓'}
-                </button>
+              <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3">
                 <div className="flex-1">
-                  <div className={`font-semibold ${item.paid ? 'line-through text-gray-400' : 'text-gray-800'}`}>{item.label}</div>
+                  <div className="font-semibold text-gray-800">{item.label}</div>
                   <div className="text-sm text-gray-400">{new Date(item.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} · {fmt(item.amount)}</div>
                 </div>
                 <button onClick={() => openSheet({ type: 'planned', item })} className="text-gray-400 hover:text-indigo-500 text-xl px-2 active:scale-95 transition-all">✏️</button>

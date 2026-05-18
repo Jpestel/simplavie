@@ -81,8 +81,9 @@ export default function FinancesPage() {
   )
 
   const daily = summary?.dailyBudget ?? 0
+  const threshold = data.alertThreshold ?? 5
   const isNegative = daily < 0
-  const isWarning = daily >= 0 && daily < 5
+  const isWarning = daily >= 0 && daily < threshold
   const cardBg = isNegative ? 'bg-red-500' : isWarning ? 'bg-orange-400' : 'bg-indigo-500'
   const recentTx = data.transactions.slice(0, 5)
 

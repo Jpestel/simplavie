@@ -162,6 +162,7 @@ export type FinanceTransaction = {
 export type FinanceData = {
   balance: number
   balanceDate: string  // YYYY-MM-DD
+  alertThreshold: number  // seuil d'alerte budget/jour en €
   incomeSources: IncomeSource[]
   fixedExpenses: FinanceFixedExpense[]
   plannedExpenses: FinancePlannedExpense[]
