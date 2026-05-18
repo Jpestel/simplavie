@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/authContext'
 type ConfigContextType = {
   config: AppConfig
   updateConfig: (updates: Partial<AppConfig>) => void
+  reloadConfig: () => Promise<void>
   isLoading: boolean
 }
 
@@ -70,8 +71,15 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const reloadConfig = async () => {
+    if (!isSupabaseConfigured || !activeUserId) return
+    const { data } = await supabase.from('app_config').select('*').eq('user_id', activeUserId).maybeSingle()
+    if (data) setConfig(fromRow(data))
+    else setConfig(DEFAULT_CONFIG)
+  }
+
   return (
-    <ConfigContext.Provider value={{ config, updateConfig, isLoading }}>
+    <ConfigContext.Provider value={{ config, updateConfig, reloadConfig, isLoading }}>
       {children}
     </ConfigContext.Provider>
   )

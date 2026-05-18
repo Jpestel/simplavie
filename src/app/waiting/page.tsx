@@ -1,25 +1,35 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '@/lib/authContext'
 import { useConfig } from '@/lib/configContext'
 import { useRouter } from 'next/navigation'
 
 export default function WaitingPage() {
   const { user, signOut, loading: authLoading } = useAuth()
-  const { config, isLoading: configLoading } = useConfig()
+  const { config, reloadConfig, isLoading: configLoading } = useConfig()
   const router = useRouter()
+  const [checking, setChecking] = useState(false)
 
-  // Si des modules ont été activés, rediriger vers l'accueil
+  // Rediriger si des modules ont été activés
   useEffect(() => {
     if (authLoading || configLoading) return
     if (!user) { router.replace('/login'); return }
     if (config.modules.some(m => m.enabled)) router.replace('/')
   }, [authLoading, configLoading, user, config.modules, router])
 
+  const handleCheck = async () => {
+    setChecking(true)
+    await reloadConfig()
+    // Le useEffect ci-dessus prendra le relais si des modules sont activés
+    setChecking(false)
+  }
+
   const handleSignOut = async () => {
     await signOut()
     router.push('/login')
   }
+
+  const activated = config.modules.some(m => m.enabled)
 
   if (authLoading || configLoading) return (
     <div className="flex items-center justify-center min-h-screen">
@@ -29,10 +39,10 @@ export default function WaitingPage() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-6 max-w-lg mx-auto text-center">
-      <div className="text-7xl mb-6">⏳</div>
+      <div className="text-7xl mb-6">{activated ? '🎉' : '⏳'}</div>
 
       <h1 className="text-2xl font-bold text-gray-800 mb-3">
-        Votre espace est en cours d&apos;activation
+        {activated ? 'Votre espace est prêt !' : 'Votre espace est en cours d\'activation'}
       </h1>
 
       <p className="text-gray-500 mb-2 leading-relaxed">
@@ -49,19 +59,20 @@ export default function WaitingPage() {
         <div className="flex items-center gap-2 text-indigo-700 font-semibold text-sm">
           <span>📧</span> Administrateur notifié
         </div>
-        <div className="flex items-center gap-2 text-gray-400 text-sm">
-          <span>🔓</span> Activation des modules (en attente)
+        <div className={`flex items-center gap-2 text-sm font-semibold ${activated ? 'text-indigo-700' : 'text-gray-400'}`}>
+          <span>{activated ? '✅' : '🔓'}</span> Activation des modules {activated ? '' : '(en attente)'}
         </div>
-        <div className="flex items-center gap-2 text-gray-400 text-sm">
-          <span>🚀</span> Accès à SimplaVie (en attente)
+        <div className={`flex items-center gap-2 text-sm font-semibold ${activated ? 'text-indigo-700' : 'text-gray-400'}`}>
+          <span>{activated ? '✅' : '🚀'}</span> Accès à SimplaVie {activated ? '' : '(en attente)'}
         </div>
       </div>
 
       <button
-        onClick={() => router.refresh()}
-        className="w-full py-4 rounded-2xl bg-indigo-500 hover:bg-indigo-600 active:scale-95 transition-all text-white font-bold text-lg mb-3"
+        onClick={handleCheck}
+        disabled={checking}
+        className="w-full py-4 rounded-2xl bg-indigo-500 hover:bg-indigo-600 active:scale-95 transition-all text-white font-bold text-lg mb-3 disabled:opacity-60"
       >
-        Vérifier l&apos;activation
+        {checking ? 'Vérification...' : activated ? 'Accéder à mon espace →' : 'Vérifier l\'activation'}
       </button>
 
       <button
