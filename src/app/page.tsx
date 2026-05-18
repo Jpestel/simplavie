@@ -128,7 +128,7 @@ export default function HomePage() {
 
       <div className="text-center mb-10">
         <h1 className="text-4xl font-bold text-gray-800 mb-2">
-          Bonjour {profile.firstName || impersonatedUserName} 👋
+          Bonjour {impersonatedUserId ? (impersonatedUserName || config.userName) : (profile.firstName || config.userName)} 👋
         </h1>
         <p className="text-xl text-gray-500">
           {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}

@@ -131,6 +131,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const u = session?.user ?? null
       setUser(u)
       if (u) {
+        // Si un nouvel utilisateur se connecte, vider toute impersonation résiduelle
+        // (évite la contamination du sessionStorage entre sessions)
+        const storedImpersonate = sessionStorage.getItem('simplavie_impersonate')
+        if (storedImpersonate && storedImpersonate !== u.id) {
+          impersonate(null)
+        }
         await Promise.race([
           loadAll(u.id).catch(() => {}),
           new Promise<void>(r => setTimeout(r, 4000)),
