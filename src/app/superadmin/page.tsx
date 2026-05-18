@@ -77,10 +77,13 @@ export default function SuperAdminPage() {
                 </span>
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-semibold text-gray-800 truncate">{u.display_name || '(sans nom)'}</span>
                   {u.global_role === 'superadmin' && (
                     <span className="text-xs bg-indigo-100 text-indigo-600 font-semibold px-2 py-0.5 rounded-full">Super Admin</span>
+                  )}
+                  {u.enabled_modules === 0 && u.global_role !== 'superadmin' && (
+                    <span className="text-xs bg-orange-100 text-orange-600 font-semibold px-2 py-0.5 rounded-full">⏳ En attente</span>
                   )}
                 </div>
                 <div className="text-sm text-gray-400 truncate">{u.email}</div>

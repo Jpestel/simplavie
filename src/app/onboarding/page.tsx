@@ -79,9 +79,8 @@ export default function OnboardingPage() {
 
   const finish = () => {
     updateProfile({ profileCompleted: true })
-    // Sync first name to config display name
     if (profile.firstName) updateConfig({ userName: profile.firstName })
-    router.push('/')
+    router.push('/waiting')
   }
 
   const progress = ((step) / (STEPS.length - 1)) * 100

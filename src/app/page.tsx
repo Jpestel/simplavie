@@ -42,10 +42,12 @@ export default function HomePage() {
   }, [profileLoading, profile.profileCompleted, router])
 
   useEffect(() => {
-    if (authLoading || profileLoading || !user) return
+    if (authLoading || configLoading || profileLoading || !user) return
     if (isSuperAdmin || (isAdmin && !hasOwnAccount)) return
-    if (!profile.profileCompleted) router.push('/onboarding')
-  }, [authLoading, profileLoading, user, isSuperAdmin, isAdmin, hasOwnAccount, profile.profileCompleted, router])
+    if (!profile.profileCompleted) { router.push('/onboarding'); return }
+    // Si le profil est complété mais aucun module activé → page d'attente
+    if (config.modules.every(m => !m.enabled)) router.push('/waiting')
+  }, [authLoading, configLoading, profileLoading, user, isSuperAdmin, isAdmin, hasOwnAccount, profile.profileCompleted, config.modules, router])
 
   useEffect(() => {
     if (!profileLoading && profile.profileCompleted && activeUserId) {

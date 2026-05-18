@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifySuperAdmin } from '@/lib/superadminAuth'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { DEFAULT_MODULES } from '@/lib/defaultConfig'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
   const check = await verifySuperAdmin(req)
@@ -29,9 +30,21 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ user
     }
   }))
 
+  // Si aucune config en base, on expose les modules par défaut (tous désactivés)
+  // pour que le superadmin puisse les activer
+  const rawModules = (configRes.data?.modules ?? null) as Array<{ id: string; enabled: boolean; [key: string]: unknown }> | null
+  const savedIds = new Set((rawModules ?? []).map(m => m.id))
+  const mergedModules = rawModules
+    ? [...rawModules, ...DEFAULT_MODULES.filter(m => !savedIds.has(m.id))]
+    : DEFAULT_MODULES
+
+  const config = configRes.data
+    ? { ...configRes.data, modules: mergedModules }
+    : { user_name: null, modules: mergedModules }
+
   return NextResponse.json({
     profile: profileRes.data,
-    config: configRes.data,
+    config,
     admins: adminsWithInfo,
     email: authRes.data?.user?.email ?? '',
   })

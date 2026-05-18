@@ -7,7 +7,8 @@ export const DEFAULT_MODULES: Module[] = [
     label: 'Ma journée',
     description: 'Routine visuelle étape par étape',
     icon: '📋',
-    enabled: true,
+    enabled: false,
+    locked: true,
     order: 0,
   },
   {
@@ -17,6 +18,7 @@ export const DEFAULT_MODULES: Module[] = [
     description: 'Médicaments, repas, tâches récurrentes',
     icon: '🔔',
     enabled: false,
+    locked: true,
     order: 1,
   },
   {
@@ -25,7 +27,8 @@ export const DEFAULT_MODULES: Module[] = [
     label: 'Agenda',
     description: 'Calendrier simplifié',
     icon: '📅',
-    enabled: true,
+    enabled: false,
+    locked: true,
     order: 2,
   },
   {
@@ -34,7 +37,8 @@ export const DEFAULT_MODULES: Module[] = [
     label: 'Contacts',
     description: "Contacts d'urgence en un clic",
     icon: '📞',
-    enabled: true,
+    enabled: false,
+    locked: true,
     order: 3,
   },
   {
@@ -43,7 +47,8 @@ export const DEFAULT_MODULES: Module[] = [
     label: 'Mes aidants',
     description: 'Société, intervenants et planning',
     icon: '🤝',
-    enabled: true,
+    enabled: false,
+    locked: true,
     order: 4,
   },
   {
@@ -52,7 +57,8 @@ export const DEFAULT_MODULES: Module[] = [
     label: 'Services utiles',
     description: 'CAF, CPAM, impôts, santé…',
     icon: '🔗',
-    enabled: true,
+    enabled: false,
+    locked: true,
     order: 5,
   },
 ]
