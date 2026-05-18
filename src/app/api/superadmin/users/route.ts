@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifySuperAdmin } from '@/lib/superadminAuth'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { DEFAULT_MODULES } from '@/lib/defaultConfig'
 
 export async function GET(req: NextRequest) {
   const check = await verifySuperAdmin(req)
@@ -23,7 +24,11 @@ export async function GET(req: NextRequest) {
       admin.auth.admin.getUserById(owner.id),
     ])
 
-    const modules = (configRes.data?.modules ?? []) as Array<{ enabled: boolean }>
+    const rawModules = (configRes.data?.modules ?? null) as Array<{ id: string; enabled: boolean }> | null
+    const savedIds = new Set((rawModules ?? []).map(m => m.id))
+    const modules = rawModules
+      ? [...rawModules, ...DEFAULT_MODULES.filter(m => !savedIds.has(m.id))]
+      : DEFAULT_MODULES
     return {
       id: owner.id,
       display_name: configRes.data?.user_name ?? owner.display_name ?? 'Sans nom',
