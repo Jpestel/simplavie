@@ -24,7 +24,7 @@ function isTodayReminder(r: { recurrence: string; week_days: number[] | null; mo
 export default function HomePage() {
   const { config, isLoading: configLoading } = useConfig()
   const { profile, isLoading: profileLoading } = useProfile()
-  const { signOut, activeUserId, loading: authLoading, user, isSuperAdmin, isAdmin, hasOwnAccount } = useAuth()
+  const { signOut, activeUserId, loading: authLoading, user, isSuperAdmin, isAdmin, hasOwnAccount, impersonatedUserId, impersonatedUserName, impersonate } = useAuth()
   const router = useRouter()
   const [careAlert, setCareAlert] = useState<string | null>(null)
   const [reminderAlert, setReminderAlert] = useState<{ count: number; first: string } | null>(null)
@@ -43,11 +43,13 @@ export default function HomePage() {
 
   useEffect(() => {
     if (authLoading || configLoading || profileLoading || !user) return
+    // En mode impersonation : afficher l'interface de l'utilisateur ciblé
+    if (impersonatedUserId) return
     if (isSuperAdmin || (isAdmin && !hasOwnAccount)) return
     if (!profile.profileCompleted) { router.push('/onboarding'); return }
     // Si le profil est complété mais aucun module activé → page d'attente
     if (config.modules.every(m => !m.enabled)) router.push('/waiting')
-  }, [authLoading, configLoading, profileLoading, user, isSuperAdmin, isAdmin, hasOwnAccount, profile.profileCompleted, config.modules, router])
+  }, [authLoading, configLoading, profileLoading, user, isSuperAdmin, isAdmin, hasOwnAccount, impersonatedUserId, profile.profileCompleted, config.modules, router])
 
   useEffect(() => {
     if (!profileLoading && profile.profileCompleted && activeUserId) {
@@ -97,15 +99,36 @@ export default function HomePage() {
     )
   }
 
-  if (!user || isSuperAdmin || (isAdmin && !hasOwnAccount) || !profile.profileCompleted) return null
+  // Sans impersonation : règles normales
+  if (!impersonatedUserId && (!user || isSuperAdmin || (isAdmin && !hasOwnAccount) || !profile.profileCompleted)) return null
 
   const activeModules = config.modules.filter(m => m.enabled).sort((a, b) => a.order - b.order)
 
+  const handleStopImpersonate = () => {
+    impersonate(null)
+    router.push('/superadmin')
+  }
+
   return (
     <main className="min-h-screen p-6 max-w-2xl mx-auto">
+      {impersonatedUserId && (
+        <div className="flex items-center justify-between bg-amber-50 border-2 border-amber-300 rounded-2xl px-4 py-3 mb-6">
+          <div>
+            <p className="text-amber-800 font-semibold text-sm">👁️ Mode aperçu</p>
+            <p className="text-amber-600 text-xs">Vous visualisez le compte de <strong>{impersonatedUserName || 'cet utilisateur'}</strong></p>
+          </div>
+          <button
+            onClick={handleStopImpersonate}
+            className="text-xs px-3 py-2 rounded-xl bg-amber-200 hover:bg-amber-300 text-amber-800 font-semibold active:scale-95 transition-all"
+          >
+            ✕ Quitter
+          </button>
+        </div>
+      )}
+
       <div className="text-center mb-10">
         <h1 className="text-4xl font-bold text-gray-800 mb-2">
-          Bonjour {profile.firstName} 👋
+          Bonjour {profile.firstName || impersonatedUserName} 👋
         </h1>
         <p className="text-xl text-gray-500">
           {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
