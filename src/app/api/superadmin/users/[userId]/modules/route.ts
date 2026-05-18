@@ -24,7 +24,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ us
     user_id: userId,
     user_name: existing?.user_name ?? 'Mon proche',
     primary_color: existing?.primary_color ?? '#6366f1',
-    background_color: existing?.background_color ?? '#f9fafb',
+    // background_color n'est pas encore dans le schéma Supabase → stocké en localStorage
     admin_password: existing?.admin_password ?? '1234',
     modules,
     updated_at: new Date().toISOString(),

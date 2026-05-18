@@ -3,13 +3,19 @@
 
 -- ─── App config ───────────────────────────────────────────────
 create table if not exists app_config (
-  id text primary key default 'default',
+  id text primary key,
+  user_id text not null,
   user_name text not null default 'Mon proche',
   primary_color text not null default '#6366f1',
+  background_color text default '#f9fafb',
   admin_password text not null default '1234',
   modules jsonb not null default '[]'::jsonb,
   updated_at timestamptz not null default now()
 );
+
+-- Migration : exécuter ces commandes si la table existe déjà
+-- alter table app_config add column if not exists user_id text;
+-- alter table app_config add column if not exists background_color text default '#f9fafb';
 
 -- ─── User profile ─────────────────────────────────────────────
 create table if not exists user_profile (

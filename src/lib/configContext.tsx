@@ -20,7 +20,7 @@ function toRow(c: AppConfig, userId: string) {
     user_id: userId,
     user_name: c.userName,
     primary_color: c.primaryColor,
-    background_color: c.backgroundColor,
+    // background_color n'est pas encore dans le schéma Supabase → stocké en localStorage
     admin_password: c.adminPassword,
     modules: c.modules,
     updated_at: new Date().toISOString(),
