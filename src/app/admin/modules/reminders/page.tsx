@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/authContext'
 import { getSupabase, isSupabaseConfigured } from '@/lib/supabase'
 import BackBar from '@/components/BackBar'
 
-type Recurrence = 'daily' | 'weekly' | 'monthly' | 'once'
+type Recurrence = 'daily' | 'weekly' | 'monthly' | 'once' | 'period'
 
 type Reminder = {
   id: string
@@ -15,8 +15,14 @@ type Reminder = {
   week_days: number[] | null
   month_day: number | null
   specific_date: string | null
+  date_start: string | null
+  date_end: string | null
   emails: string[]
   active: boolean
+}
+
+function localISO(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 }
 
 const DAYS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
@@ -25,6 +31,7 @@ const RECURRENCE_LABELS: Record<Recurrence, string> = {
   weekly: 'Certains jours',
   monthly: 'Chaque mois',
   once: 'Une seule fois',
+  period: 'Sur une période',
 }
 
 const EMPTY: Omit<Reminder, 'id'> = {
@@ -34,6 +41,8 @@ const EMPTY: Omit<Reminder, 'id'> = {
   week_days: null,
   month_day: null,
   specific_date: null,
+  date_start: localISO(new Date()),
+  date_end: localISO(new Date()),
   emails: [],
   active: true,
 }
@@ -58,7 +67,7 @@ export default function RemindersAdminPage() {
   const resetForm = () => { setForm(EMPTY); setEmailInput(''); setEditId(null); setShowForm(false) }
 
   const openEdit = (r: Reminder) => {
-    setForm({ label: r.label, time_of_day: r.time_of_day, recurrence: r.recurrence, week_days: r.week_days, month_day: r.month_day, specific_date: r.specific_date, emails: r.emails, active: r.active })
+    setForm({ label: r.label, time_of_day: r.time_of_day, recurrence: r.recurrence, week_days: r.week_days, month_day: r.month_day, specific_date: r.specific_date, date_start: r.date_start, date_end: r.date_end, emails: r.emails, active: r.active })
     setEmailInput('')
     setEditId(r.id)
     setShowForm(true)
@@ -99,10 +108,13 @@ export default function RemindersAdminPage() {
     setReminders(prev => prev.map(x => x.id === r.id ? { ...x, active: !x.active } : x))
   }
 
+  const fmtDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+
   const recurrenceDetail = (r: Reminder) => {
     if (r.recurrence === 'weekly' && r.week_days?.length) return r.week_days.map(d => DAYS[d]).join(', ')
     if (r.recurrence === 'monthly' && r.month_day) return `Le ${r.month_day} du mois`
-    if (r.recurrence === 'once' && r.specific_date) return new Date(r.specific_date + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+    if (r.recurrence === 'once' && r.specific_date) return fmtDate(r.specific_date)
+    if (r.recurrence === 'period' && r.date_start && r.date_end) return `Du ${fmtDate(r.date_start)} au ${fmtDate(r.date_end)}`
     return RECURRENCE_LABELS[r.recurrence]
   }
 
@@ -166,7 +178,7 @@ export default function RemindersAdminPage() {
           <div>
             <label className="text-sm font-medium text-gray-600 block mb-1">Récurrence</label>
             <div className="grid grid-cols-2 gap-2">
-              {(['daily', 'weekly', 'monthly', 'once'] as Recurrence[]).map(rec => (
+              {(['daily', 'weekly', 'monthly', 'once', 'period'] as Recurrence[]).map(rec => (
                 <button key={rec} onClick={() => setForm(f => ({ ...f, recurrence: rec }))}
                   className={`py-2 rounded-xl text-sm font-semibold transition-all ${form.recurrence === rec ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-600'}`}>
                   {RECURRENCE_LABELS[rec]}
@@ -205,6 +217,26 @@ export default function RemindersAdminPage() {
               <label className="text-sm font-medium text-gray-600 block mb-1">Date</label>
               <input type="date" value={form.specific_date ?? ''} onChange={e => setForm(f => ({ ...f, specific_date: e.target.value }))}
                 className="border border-gray-200 rounded-xl px-4 py-2.5 text-gray-800 focus:outline-none focus:border-indigo-400" />
+            </div>
+          )}
+
+          {form.recurrence === 'period' && (
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium text-gray-600 block mb-1">Du (date de début)</label>
+                <input type="date" value={form.date_start ?? ''} onChange={e => setForm(f => ({ ...f, date_start: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-gray-800 focus:outline-none focus:border-indigo-400" />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600 block mb-1">Au (date de fin)</label>
+                <input type="date" value={form.date_end ?? ''} min={form.date_start ?? ''} onChange={e => setForm(f => ({ ...f, date_end: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-gray-800 focus:outline-none focus:border-indigo-400" />
+              </div>
+              {form.date_start && form.date_end && form.date_start <= form.date_end && (
+                <p className="text-xs text-indigo-500 font-semibold">
+                  📅 {Math.round((new Date(form.date_end).getTime() - new Date(form.date_start).getTime()) / 86400000) + 1} jour(s)
+                </p>
+              )}
             </div>
           )}
 

@@ -12,7 +12,7 @@ type Reminder = {
   active: boolean
 }
 
-function isToday(r: { recurrence: string; week_days: number[] | null; month_day: number | null; specific_date: string | null }): boolean {
+function isToday(r: { recurrence: string; week_days: number[] | null; month_day: number | null; specific_date: string | null; date_start?: string | null; date_end?: string | null }): boolean {
   const now = new Date()
   const today = now.toISOString().slice(0, 10)
   switch (r.recurrence) {
@@ -20,6 +20,7 @@ function isToday(r: { recurrence: string; week_days: number[] | null; month_day:
     case 'weekly': return (r.week_days ?? []).includes(now.getDay())
     case 'monthly': return r.month_day === now.getDate()
     case 'once': return r.specific_date === today
+    case 'period': return !!(r.date_start && r.date_end && today >= r.date_start && today <= r.date_end)
     default: return false
   }
 }
