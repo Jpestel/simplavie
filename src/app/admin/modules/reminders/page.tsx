@@ -11,6 +11,7 @@ type Reminder = {
   id: string
   label: string
   time_of_day: string
+  times: string[] | null   // plusieurs horaires dans la journée
   recurrence: Recurrence
   week_days: number[] | null
   month_day: number | null
@@ -37,6 +38,7 @@ const RECURRENCE_LABELS: Record<Recurrence, string> = {
 const EMPTY: Omit<Reminder, 'id'> = {
   label: '',
   time_of_day: '08:00',
+  times: null,
   recurrence: 'daily',
   week_days: null,
   month_day: null,
@@ -67,7 +69,7 @@ export default function RemindersAdminPage() {
   const resetForm = () => { setForm(EMPTY); setEmailInput(''); setEditId(null); setShowForm(false) }
 
   const openEdit = (r: Reminder) => {
-    setForm({ label: r.label, time_of_day: r.time_of_day, recurrence: r.recurrence, week_days: r.week_days, month_day: r.month_day, specific_date: r.specific_date, date_start: r.date_start, date_end: r.date_end, emails: r.emails, active: r.active })
+    setForm({ label: r.label, time_of_day: r.time_of_day, times: r.times, recurrence: r.recurrence, week_days: r.week_days, month_day: r.month_day, specific_date: r.specific_date, date_start: r.date_start, date_end: r.date_end, emails: r.emails, active: r.active })
     setEmailInput('')
     setEditId(r.id)
     setShowForm(true)
@@ -141,7 +143,12 @@ export default function RemindersAdminPage() {
               <div className="text-3xl w-12 h-12 flex items-center justify-center bg-indigo-50 rounded-xl shrink-0">🔔</div>
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-gray-800">{r.label}</div>
-                <div className="text-sm text-gray-500">{r.time_of_day.slice(0, 5)} · {recurrenceDetail(r)}</div>
+                <div className="text-sm text-gray-500">
+                  {r.times && r.times.length > 1
+                    ? `${r.times.length}x · ${r.times.map(t => t.slice(0,5)).join(', ')}`
+                    : r.time_of_day.slice(0, 5)
+                  } · {recurrenceDetail(r)}
+                </div>
                 {r.emails.length > 0 && <div className="text-xs text-indigo-500 mt-0.5">✉️ {r.emails.join(', ')}</div>}
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -169,10 +176,51 @@ export default function RemindersAdminPage() {
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-gray-800 focus:outline-none focus:border-indigo-400" />
           </div>
 
+          {/* Nombre de prises par jour */}
           <div>
-            <label className="text-sm font-medium text-gray-600 block mb-1">Heure</label>
-            <input type="time" value={form.time_of_day} onChange={e => setForm(f => ({ ...f, time_of_day: e.target.value }))}
-              className="border border-gray-200 rounded-xl px-4 py-2.5 text-gray-800 focus:outline-none focus:border-indigo-400" />
+            <label className="text-sm font-medium text-gray-600 block mb-2">Prises par jour</label>
+            <div className="flex gap-2 flex-wrap mb-3">
+              {[1,2,3,4].map(n => {
+                const currentCount = form.times ? form.times.length : 1
+                return (
+                  <button key={n} onClick={() => {
+                    if (n === 1) {
+                      setForm(f => ({ ...f, times: null }))
+                    } else {
+                      const existing = form.times ?? [form.time_of_day]
+                      const next = Array.from({ length: n }, (_, i) => existing[i] ?? '08:00')
+                      setForm(f => ({ ...f, times: next }))
+                    }
+                  }}
+                    className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${currentCount === n ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                    {n}x
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Horaires */}
+            {form.times && form.times.length > 1 ? (
+              <div className="space-y-2">
+                {form.times.map((t, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <span className="text-sm text-gray-400 w-16">Prise {i + 1}</span>
+                    <input type="time" value={t} onChange={e => {
+                      const next = [...form.times!]
+                      next[i] = e.target.value
+                      setForm(f => ({ ...f, times: next }))
+                    }}
+                      className="border border-gray-200 rounded-xl px-4 py-2.5 text-gray-800 focus:outline-none focus:border-indigo-400" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-400 w-16">Heure</span>
+                <input type="time" value={form.time_of_day} onChange={e => setForm(f => ({ ...f, time_of_day: e.target.value }))}
+                  className="border border-gray-200 rounded-xl px-4 py-2.5 text-gray-800 focus:outline-none focus:border-indigo-400" />
+              </div>
+            )}
           </div>
 
           <div>

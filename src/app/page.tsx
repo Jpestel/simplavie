@@ -86,12 +86,22 @@ export default function HomePage() {
       const db = getSupabase()!
       Promise.all([
         db.from('reminders').select('*').eq('user_id', activeUserId).eq('active', true).order('time_of_day'),
-        db.from('reminder_completions').select('reminder_id').eq('user_id', activeUserId).eq('date', todayStr),
+        db.from('reminder_completions').select('reminder_id, time_slot').eq('user_id', activeUserId).eq('date', todayStr),
       ]).then(([remRes, doneRes]) => {
-        const doneIds = new Set((doneRes.data ?? []).map((r: { reminder_id: string }) => r.reminder_id))
-        const pending = (remRes.data ?? []).filter(isTodayReminder).filter((r: { id: string }) => !doneIds.has(r.id))
-        if (pending.length > 0) {
-          setReminderAlert({ count: pending.length, first: pending[0].label })
+        const doneKeys = new Set(
+          (doneRes.data ?? []).map((r: { reminder_id: string; time_slot: string }) => `${r.reminder_id}_${r.time_slot}`)
+        )
+        const todayReminders = (remRes.data ?? []).filter(isTodayReminder)
+        // Compter toutes les occurrences non cochées (multi-prises)
+        const pendingOccs: { label: string }[] = []
+        for (const r of todayReminders) {
+          const times = (r.times && r.times.length > 1) ? r.times.map((t: string) => t.slice(0,5)) : [r.time_of_day.slice(0,5)]
+          for (const t of times) {
+            if (!doneKeys.has(`${r.id}_${t}`)) pendingOccs.push({ label: r.label })
+          }
+        }
+        if (pendingOccs.length > 0) {
+          setReminderAlert({ count: pendingOccs.length, first: pendingOccs[0].label })
         } else {
           setReminderAlert(null)
         }
