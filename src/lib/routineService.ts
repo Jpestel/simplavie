@@ -88,14 +88,16 @@ export async function loadExtras(date: string, userId: string): Promise<RoutineS
   return []
 }
 
-export async function addExtra(step: RoutineStep, date: string, userId: string) {
-  if (!isSupabaseConfigured || !userId) return
-  await supabase.from('routine_extras').upsert({
+export async function addExtra(step: RoutineStep, date: string, userId: string): Promise<{ error: string | null }> {
+  if (!isSupabaseConfigured || !userId) return { error: null }
+  const { error } = await supabase.from('routine_extras').upsert({
     user_id: userId,
     date,
     step_id: step.id,
     step_payload: step,
-  })
+  }, { onConflict: 'user_id,date,step_id' })
+  if (error) console.error('[addExtra] Supabase error:', error.message)
+  return { error: error?.message ?? null }
 }
 
 export async function postponeStep(step: RoutineStep, fromDate: string, toDate: string, userId: string) {

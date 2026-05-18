@@ -58,23 +58,65 @@ create table if not exists routine_steps (
   created_at timestamptz not null default now()
 );
 
--- ─── Routine completions (which steps done on which day) ──────
-create table if not exists routine_completions (
-  date date not null,
-  step_id text not null references routine_steps(id) on delete cascade,
-  primary key (date, step_id)
+-- ─── Routine data (steps config per user) ────────────────────
+create table if not exists routine_data (
+  id text primary key,
+  user_id text not null unique,
+  payload jsonb not null default '[]'::jsonb,
+  updated_at timestamptz not null default now()
 );
 
--- ─── Disable RLS (single-tenant personal app) ─────────────────
+-- ─── Routine completions (which steps done on which day) ──────
+create table if not exists routine_completions (
+  user_id text not null,
+  date date not null,
+  step_id text not null,
+  primary key (user_id, date, step_id)
+);
+
+-- ─── Routine cancellations ────────────────────────────────────
+create table if not exists routine_cancellations (
+  user_id text not null,
+  date date not null,
+  step_id text not null,
+  primary key (user_id, date, step_id)
+);
+
+-- ─── Routine postponements ────────────────────────────────────
+create table if not exists routine_postponements (
+  user_id text not null,
+  date date not null,
+  step_id text not null,
+  to_date date,
+  primary key (user_id, date, step_id)
+);
+
+-- ─── Routine extras (one-time tasks added for a specific day) ─
+create table if not exists routine_extras (
+  user_id text not null,
+  date date not null,
+  step_id text not null,
+  step_payload jsonb not null,
+  created_at timestamptz not null default now(),
+  primary key (user_id, date, step_id)
+);
+
+-- ─── RLS ──────────────────────────────────────────────────────
 alter table app_config enable row level security;
 alter table user_profile enable row level security;
-alter table routine_steps enable row level security;
+alter table routine_data enable row level security;
 alter table routine_completions enable row level security;
+alter table routine_cancellations enable row level security;
+alter table routine_postponements enable row level security;
+alter table routine_extras enable row level security;
 
 create policy "Allow all" on app_config for all using (true) with check (true);
 create policy "Allow all" on user_profile for all using (true) with check (true);
-create policy "Allow all" on routine_steps for all using (true) with check (true);
+create policy "Allow all" on routine_data for all using (true) with check (true);
 create policy "Allow all" on routine_completions for all using (true) with check (true);
+create policy "Allow all" on routine_cancellations for all using (true) with check (true);
+create policy "Allow all" on routine_postponements for all using (true) with check (true);
+create policy "Allow all" on routine_extras for all using (true) with check (true);
 
 -- ─── Care data ────────────────────────────────────────────────
 create table if not exists care_data (
