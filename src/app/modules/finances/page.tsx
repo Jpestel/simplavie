@@ -80,7 +80,10 @@ export default function FinancesPage() {
     </div>
   )
 
-  const isPositive = (summary?.dailyBudget ?? 0) >= 0
+  const daily = summary?.dailyBudget ?? 0
+  const isNegative = daily < 0
+  const isWarning = daily >= 0 && daily < 5
+  const cardBg = isNegative ? 'bg-red-500' : isWarning ? 'bg-orange-400' : 'bg-indigo-500'
   const recentTx = data.transactions.slice(0, 5)
 
   return (
@@ -88,7 +91,7 @@ export default function FinancesPage() {
       <h1 className="text-2xl font-bold text-gray-800 mb-6">💶 Finances</h1>
 
       {/* Big daily budget card */}
-      <div className={`rounded-3xl p-7 mb-5 text-white text-center shadow-lg ${isPositive ? 'bg-indigo-500' : 'bg-red-500'}`}>
+      <div className={`rounded-3xl p-7 mb-5 text-white text-center shadow-lg ${cardBg}`}>
         {summary ? (
           <>
             <div className="text-lg font-semibold opacity-80 mb-1">Budget disponible / jour</div>
@@ -101,6 +104,20 @@ export default function FinancesPage() {
             <div className="text-sm opacity-75 mt-1">
               Budget restant total : {fmt(summary.availableBudget)}
             </div>
+
+            {/* Barre de progression dans la période */}
+            <div className="mt-4">
+              <div className="flex justify-between text-xs opacity-60 mb-1">
+                <span>Jour {summary.daysElapsed + 1}</span>
+                <span>{summary.totalPeriodDays} jours au total</span>
+              </div>
+              <div className="w-full bg-white/20 rounded-full h-2">
+                <div
+                  className="h-2 rounded-full bg-white/80 transition-all duration-500"
+                  style={{ width: `${summary.periodProgress}%` }}
+                />
+              </div>
+            </div>
           </>
         ) : (
           <>
@@ -110,6 +127,20 @@ export default function FinancesPage() {
           </>
         )}
       </div>
+
+      {/* Alerte budget serré */}
+      {summary && isWarning && (
+        <div className="bg-orange-50 border-2 border-orange-300 rounded-2xl p-4 mb-5">
+          <p className="text-orange-700 font-bold">⚠️ Budget serré</p>
+          <p className="text-orange-600 text-sm mt-1">Il te reste moins de 5 € par jour jusqu&apos;à ta prochaine ressource. Sois vigilant(e) dans tes dépenses.</p>
+        </div>
+      )}
+      {summary && isNegative && (
+        <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-4 mb-5">
+          <p className="text-red-700 font-bold">🚨 Budget dépassé</p>
+          <p className="text-red-600 text-sm mt-1">Tes dépenses à venir dépassent ton solde actuel. Vérifie tes échéances.</p>
+        </div>
+      )}
 
       {/* Solde actuel */}
       <div className="bg-white rounded-2xl p-4 shadow-sm mb-5 flex items-center justify-between">

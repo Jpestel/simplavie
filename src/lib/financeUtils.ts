@@ -16,6 +16,18 @@ function nextOccurrence(from: Date, dayOfMonth: number): Date {
   return d
 }
 
+// Dernier jour du mois <= today (ce mois ou mois précédent)
+function prevOccurrence(from: Date, dayOfMonth: number): Date {
+  const d = new Date(from)
+  d.setHours(0, 0, 0, 0)
+  if (from.getDate() >= dayOfMonth) {
+    d.setDate(dayOfMonth)
+  } else {
+    d.setMonth(d.getMonth() - 1, dayOfMonth)
+  }
+  return d
+}
+
 export type BudgetSummary = {
   dailyBudget: number
   availableBudget: number
@@ -23,6 +35,10 @@ export type BudgetSummary = {
   nextIncomeDate: string
   nextIncomeTotal: number
   upcomingExpenses: Array<{ label: string; amount: number; date: string }>
+  // Pour la barre de progression
+  daysElapsed: number
+  totalPeriodDays: number
+  periodProgress: number  // 0-100
 }
 
 export function computeBudgetSummary(data: FinanceData): BudgetSummary | null {
@@ -78,6 +94,17 @@ export function computeBudgetSummary(data: FinanceData): BudgetSummary | null {
   const availableBudget = data.balance - totalUpcoming
   const dailyBudget = availableBudget / daysUntilNextIncome
 
+  // Calcul de la progression dans la période
+  // Source principale (celle qui détermine la prochaine ressource)
+  const mainSource = activeSources.find(s => localISO(nextOccurrence(today, s.dayOfMonth)) === nextIncomeDateStr)
+  const prevIncomeDate = mainSource ? prevOccurrence(today, mainSource.dayOfMonth) : null
+  const msPerDayN = 1000 * 60 * 60 * 24
+  const totalPeriodDays = prevIncomeDate
+    ? Math.round((nextIncomeDate.getTime() - prevIncomeDate.getTime()) / msPerDayN)
+    : daysUntilNextIncome
+  const daysElapsed = Math.max(0, totalPeriodDays - daysUntilNextIncome)
+  const periodProgress = totalPeriodDays > 0 ? Math.round((daysElapsed / totalPeriodDays) * 100) : 0
+
   return {
     dailyBudget,
     availableBudget,
@@ -85,5 +112,8 @@ export function computeBudgetSummary(data: FinanceData): BudgetSummary | null {
     nextIncomeDate: nextIncomeDateStr,
     nextIncomeTotal,
     upcomingExpenses,
+    daysElapsed,
+    totalPeriodDays,
+    periodProgress,
   }
 }
