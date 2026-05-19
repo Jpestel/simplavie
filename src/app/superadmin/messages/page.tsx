@@ -37,6 +37,13 @@ export default function SuperAdminMessagesPage() {
   const [savingGlobal, setSavingGlobal] = useState(false)
   const [newDefaultMessage, setNewDefaultMessage] = useState('')
 
+  // Inspection messages d'un utilisateur
+  const [inspectUserId, setInspectUserId] = useState<string>('')
+  const [inspectMessages, setInspectMessages] = useState<string[]>([])
+  const [loadingInspect, setLoadingInspect] = useState(false)
+  const [savingInspect, setSavingInspect] = useState(false)
+  const [newInspectMessage, setNewInspectMessage] = useState('')
+
   useEffect(() => {
     if (!loading && !isSuperAdmin) router.replace('/')
   }, [loading, isSuperAdmin, router])
@@ -100,6 +107,46 @@ export default function SuperAdminMessagesPage() {
     } finally {
       setSavingGlobal(false)
     }
+  }
+
+  const handleInspectUser = async (userId: string) => {
+    setInspectUserId(userId)
+    if (!userId) { setInspectMessages([]); return }
+    setLoadingInspect(true)
+    try {
+      const res = await fetch(`/api/alert-messages?userId=${userId}`)
+      const msgs = await res.json()
+      setInspectMessages(msgs)
+    } catch { setInspectMessages([]) }
+    finally { setLoadingInspect(false) }
+  }
+
+  const handleDeleteInspect = async (index: number) => {
+    const next = inspectMessages.filter((_, i) => i !== index)
+    setSavingInspect(true)
+    try {
+      await fetch(`/api/alert-messages?userId=${inspectUserId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(next),
+      })
+      setInspectMessages(next)
+    } finally { setSavingInspect(false) }
+  }
+
+  const handleAddInspect = async () => {
+    if (!newInspectMessage.trim()) return
+    const next = [...inspectMessages, newInspectMessage.trim()]
+    setSavingInspect(true)
+    try {
+      await fetch(`/api/alert-messages?userId=${inspectUserId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(next),
+      })
+      setInspectMessages(next)
+      setNewInspectMessage('')
+    } finally { setSavingInspect(false) }
   }
 
   if (loading || !isSuperAdmin) return null
@@ -188,6 +235,64 @@ export default function SuperAdminMessagesPage() {
         >
           {sending ? 'Envoi...' : '+ Ajouter ce message'}
         </button>
+      </section>
+
+      {/* Section messages d'un utilisateur */}
+      <section className="bg-white rounded-2xl p-6 shadow-sm mb-6 space-y-4">
+        <h2 className="text-base font-bold text-gray-700">Messages d&apos;un utilisateur</h2>
+        <p className="text-sm text-gray-400">Consulter, ajouter ou supprimer les messages personnalisés d&apos;un utilisateur.</p>
+
+        <div>
+          <label className="block text-sm text-gray-500 mb-1">Choisir un utilisateur</label>
+          <select
+            className="w-full border border-gray-200 rounded-xl p-3 text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            value={inspectUserId}
+            onChange={e => handleInspectUser(e.target.value)}
+          >
+            <option value="">— Sélectionner —</option>
+            {users.map(u => (
+              <option key={u.id} value={u.id}>{u.display_name || '(sans nom)'} — {u.email}</option>
+            ))}
+          </select>
+        </div>
+
+        {inspectUserId && (
+          <>
+            {loadingInspect ? (
+              <p className="text-sm text-gray-400">Chargement...</p>
+            ) : inspectMessages.length === 0 ? (
+              <p className="text-sm text-gray-400">Aucun message pour cet utilisateur.</p>
+            ) : (
+              <div className="space-y-2">
+                {inspectMessages.map((msg, i) => (
+                  <div key={i} className="flex items-start gap-3 bg-gray-50 rounded-xl p-4 border border-gray-100">
+                    <p className="flex-1 text-gray-700 text-sm">{msg}</p>
+                    <button
+                      onClick={() => handleDeleteInspect(i)}
+                      disabled={savingInspect}
+                      className="text-gray-300 hover:text-red-500 shrink-0 text-lg disabled:opacity-40"
+                    >🗑️</button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="pt-2 space-y-2 border-t border-gray-100">
+              <textarea
+                className="w-full border border-gray-200 rounded-xl p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white resize-none text-sm"
+                rows={2}
+                placeholder="Ajouter un message à cet utilisateur..."
+                value={newInspectMessage}
+                onChange={e => setNewInspectMessage(e.target.value)}
+              />
+              <button
+                onClick={handleAddInspect}
+                disabled={savingInspect || !newInspectMessage.trim()}
+                className="w-full py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold disabled:opacity-40 active:scale-95 transition-all"
+              >+ Ajouter à cet utilisateur</button>
+            </div>
+          </>
+        )}
       </section>
 
       {/* Section messages fallback */}

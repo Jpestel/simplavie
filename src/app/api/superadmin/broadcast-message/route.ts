@@ -52,5 +52,16 @@ export async function POST(req: NextRequest) {
     updated++
   }
 
+  // Si broadcast vers tous les utilisateurs, ajouter aussi aux messages par défaut
+  if (targetAll) {
+    const globalRow = await prisma.alertMessage.findUnique({ where: { id: 'default' } })
+    const globalMessages = (globalRow?.payload as string[]) ?? DEFAULT_MESSAGES
+    await prisma.alertMessage.upsert({
+      where: { id: 'default' },
+      update: { payload: [...globalMessages, message.trim()] },
+      create: { id: 'default', payload: [...globalMessages, message.trim()] },
+    })
+  }
+
   return NextResponse.json({ ok: true, updated })
 }
