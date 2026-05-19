@@ -35,6 +35,7 @@ export default function SuperAdminMessagesPage() {
   const [globalMessages, setGlobalMessages] = useState<string[]>([])
   const [loadingGlobal, setLoadingGlobal] = useState(true)
   const [savingGlobal, setSavingGlobal] = useState(false)
+  const [newDefaultMessage, setNewDefaultMessage] = useState('')
 
   useEffect(() => {
     if (!loading && !isSuperAdmin) router.replace('/')
@@ -189,15 +190,15 @@ export default function SuperAdminMessagesPage() {
         </button>
       </section>
 
-      {/* Section messages globaux */}
+      {/* Section messages fallback */}
       <section className="bg-white rounded-2xl p-6 shadow-sm space-y-4">
-        <h2 className="text-base font-bold text-gray-700">Messages globaux (défaut)</h2>
-        <p className="text-sm text-gray-400">Ces messages sont utilisés en fallback si un utilisateur n&apos;a pas encore ses propres messages.</p>
+        <h2 className="text-base font-bold text-gray-700">Messages par défaut</h2>
+        <p className="text-sm text-gray-400">Ces messages s&apos;affichent pour les utilisateurs qui n&apos;ont pas encore de messages personnalisés.</p>
 
         {loadingGlobal ? (
           <p className="text-gray-400 text-sm">Chargement...</p>
         ) : globalMessages.length === 0 ? (
-          <p className="text-gray-400 text-sm">Aucun message global.</p>
+          <p className="text-gray-400 text-sm">Aucun message par défaut.</p>
         ) : (
           <div className="space-y-2">
             {globalMessages.map((msg, i) => (
@@ -206,14 +207,36 @@ export default function SuperAdminMessagesPage() {
                 <button
                   onClick={() => handleDeleteGlobal(i)}
                   disabled={savingGlobal}
-                  className="text-red-400 hover:text-red-600 shrink-0 text-lg disabled:opacity-40"
-                >
-                  ✕
-                </button>
+                  className="text-gray-300 hover:text-red-500 shrink-0 text-lg disabled:opacity-40"
+                >🗑️</button>
               </div>
             ))}
           </div>
         )}
+
+        {/* Ajouter un message par défaut */}
+        <div className="pt-2 space-y-2 border-t border-gray-100">
+          <textarea
+            className="w-full border border-gray-200 rounded-xl p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white resize-none text-sm"
+            rows={2}
+            placeholder="Ajouter un message par défaut..."
+            value={newDefaultMessage ?? ''}
+            onChange={e => setNewDefaultMessage(e.target.value)}
+          />
+          <button
+            onClick={async () => {
+              if (!newDefaultMessage?.trim()) return
+              const next = [...globalMessages, newDefaultMessage.trim()]
+              setSavingGlobal(true)
+              await fetch('/api/alert-messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(next) })
+              setGlobalMessages(next)
+              setNewDefaultMessage('')
+              setSavingGlobal(false)
+            }}
+            disabled={savingGlobal || !newDefaultMessage?.trim()}
+            className="w-full py-2.5 rounded-xl bg-green-500 hover:bg-green-600 text-white text-sm font-semibold disabled:opacity-40 active:scale-95 transition-all"
+          >+ Ajouter</button>
+        </div>
       </section>
 
       <BackBar label="Super Admin" href="/superadmin" />

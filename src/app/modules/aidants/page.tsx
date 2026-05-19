@@ -96,7 +96,7 @@ export default function AidantsPage() {
   useEffect(() => {
     if (!activeUserId) return
     loadCareData(activeUserId).then(d => { setCare(d); setLoading(false) })
-    loadAlertMessages().then(setAlertMessages)
+    loadAlertMessages(activeUserId).then(setAlertMessages)
   }, [activeUserId])
 
   function switchView(v: View) { setView(v); setOffset(0) }
