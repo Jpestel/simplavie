@@ -61,6 +61,23 @@ export default function SuperAdminPage() {
         </button>
       </div>
 
+      {/* Actions rapides */}
+      <div className="mb-6">
+        <Link
+          href="/superadmin/messages"
+          className="flex items-center gap-3 bg-white rounded-2xl p-5 shadow-sm hover:bg-indigo-50 active:scale-95 transition-all border-2 border-transparent hover:border-indigo-100"
+        >
+          <div className="w-12 h-12 rounded-2xl bg-green-100 flex items-center justify-center flex-shrink-0">
+            <span className="text-2xl">💬</span>
+          </div>
+          <div>
+            <div className="font-semibold text-gray-800">Messages aidants</div>
+            <div className="text-sm text-gray-400">Broadcaster des messages types aux utilisateurs</div>
+          </div>
+          <span className="ml-auto text-gray-300 text-lg">→</span>
+        </Link>
+      </div>
+
       {fetching ? (
         <div className="text-center text-gray-400 mt-20 text-xl">Chargement...</div>
       ) : users.length === 0 ? (

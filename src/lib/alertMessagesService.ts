@@ -5,9 +5,10 @@ export const DEFAULT_MESSAGES = [
   "Je souhaite modifier ou annuler cette intervention.",
 ]
 
-export async function loadAlertMessages(): Promise<string[]> {
+export async function loadAlertMessages(userId?: string): Promise<string[]> {
   try {
-    const res = await fetch('/api/alert-messages')
+    const url = userId ? `/api/alert-messages?userId=${userId}` : '/api/alert-messages'
+    const res = await fetch(url)
     if (!res.ok) return DEFAULT_MESSAGES
     return await res.json()
   } catch {
@@ -15,8 +16,9 @@ export async function loadAlertMessages(): Promise<string[]> {
   }
 }
 
-export async function saveAlertMessages(messages: string[]) {
-  await fetch('/api/alert-messages', {
+export async function saveAlertMessages(messages: string[], userId?: string) {
+  const url = userId ? `/api/alert-messages?userId=${userId}` : '/api/alert-messages'
+  await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(messages),

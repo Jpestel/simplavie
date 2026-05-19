@@ -43,7 +43,7 @@ export default function AidantsAdminPage() {
   useEffect(() => {
     if (!activeUserId) return
     loadCareData(activeUserId).then(d => { setCare(d); setLoading(false) })
-    loadAlertMessages().then(setAlertMessages)
+    loadAlertMessages(activeUserId).then(setAlertMessages)
     fetch(`/api/calendar-token?userId=${activeUserId}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data?.token) setCalendarToken(data.token as string) })
@@ -395,7 +395,7 @@ export default function AidantsAdminPage() {
                 <button onClick={async () => {
                   const next = alertMessages.filter((_, j) => j !== i)
                   setAlertMessages(next)
-                  await saveAlertMessages(next)
+                  await saveAlertMessages(next, activeUserId ?? undefined)
                 }} className="text-red-400 hover:text-red-600 shrink-0 text-lg">✕</button>
               </div>
             ))}
@@ -413,7 +413,7 @@ export default function AidantsAdminPage() {
                 if (!newMessage.trim()) return
                 const next = [...alertMessages, newMessage.trim()]
                 setAlertMessages(next)
-                await saveAlertMessages(next)
+                await saveAlertMessages(next, activeUserId ?? undefined)
                 setNewMessage('')
               }}
               disabled={!newMessage.trim()}
