@@ -1,12 +1,12 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { getToken } from 'next-auth/jwt'
+import { NextRequest } from 'next/server'
 
-export async function verifySuperAdmin(): Promise<{ userId: string } | { error: string }> {
+export async function verifySuperAdmin(req: NextRequest): Promise<{ userId: string } | { error: string }> {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) return { error: 'Non authentifié' }
-    if (session.user.globalRole !== 'superadmin') return { error: 'Accès refusé' }
-    return { userId: session.user.id }
+    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
+    if (!token?.id) return { error: 'Non authentifié' }
+    if (token.globalRole !== 'superadmin') return { error: 'Accès refusé' }
+    return { userId: token.id as string }
   } catch {
     return { error: 'Erreur serveur' }
   }

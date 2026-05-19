@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 type Params = { userId: string; adminId: string }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<Params> }) {
-  const check = await verifySuperAdmin()
+  const check = await verifySuperAdmin(req)
   if ('error' in check) return NextResponse.json({ error: check.error }, { status: 401 })
 
   const { adminId } = await params
@@ -19,8 +19,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<Para
   return NextResponse.json({ ok: true })
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<Params> }) {
-  const check = await verifySuperAdmin()
+export async function DELETE(req: NextRequest, { params }: { params: Promise<Params> }) {
+  const check = await verifySuperAdmin(req)
   if ('error' in check) return NextResponse.json({ error: check.error }, { status: 401 })
 
   const { adminId } = await params

@@ -3,8 +3,8 @@ import { verifySuperAdmin } from '@/lib/superadminAuth'
 import { prisma } from '@/lib/prisma'
 import { DEFAULT_MODULES } from '@/lib/defaultConfig'
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
-  const check = await verifySuperAdmin()
+export async function GET(req: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
+  const check = await verifySuperAdmin(req)
   if ('error' in check) return NextResponse.json({ error: check.error }, { status: 401 })
 
   const { userId } = await params
@@ -50,7 +50,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
-  const check = await verifySuperAdmin()
+  const check = await verifySuperAdmin(req)
   if ('error' in check) return NextResponse.json({ error: check.error }, { status: 401 })
 
   const { userId } = await params

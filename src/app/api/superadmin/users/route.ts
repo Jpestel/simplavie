@@ -4,8 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { DEFAULT_MODULES } from '@/lib/defaultConfig'
 import bcrypt from 'bcryptjs'
 
-export async function GET() {
-  const check = await verifySuperAdmin()
+export async function GET(req: NextRequest) {
+  const check = await verifySuperAdmin(req)
   if ('error' in check) return NextResponse.json({ error: check.error }, { status: 401 })
 
   const users = await prisma.user.findMany({

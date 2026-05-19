@@ -10,7 +10,7 @@ const DEFAULT_MESSAGES = [
 ]
 
 export async function POST(req: NextRequest) {
-  const check = await verifySuperAdmin()
+  const check = await verifySuperAdmin(req)
   if ('error' in check) return NextResponse.json({ error: check.error }, { status: 401 })
 
   const { message, targetAll, userIds } = await req.json() as {
