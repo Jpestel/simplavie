@@ -27,8 +27,9 @@ export default function FinancesPage() {
   const [showBalance, setShowBalance] = useState(false)
   const [balanceInput, setBalanceInput] = useState('')
 
-  // Add transaction bottom sheet
+  // Add/edit transaction bottom sheet
   const [showAddTx, setShowAddTx] = useState(false)
+  const [editingTx, setEditingTx] = useState<FinanceTransaction | null>(null)
   const [txLabel, setTxLabel] = useState('')
   const [txAmount, setTxAmount] = useState('')
   const [txDate, setTxDate] = useState(localISO(new Date()))
@@ -50,28 +51,63 @@ export default function FinancesPage() {
     setBalanceInput('')
   }
 
-  const handleAddTransaction = async () => {
-    const amount = parseFloat(txAmount.replace(',', '.'))
-    if (!txLabel.trim() || isNaN(amount) || amount <= 0) return
-    const tx: FinanceTransaction = {
-      id: `tx-${Date.now()}`,
-      label: txLabel.trim(),
-      amount,
-      date: txDate,
-    }
-    // Déduire du solde
-    const next: FinanceData = {
-      ...data,
-      balance: data.balance - amount,
-      balanceDate: localISO(new Date()),
-      transactions: [tx, ...data.transactions].slice(0, 50), // garder 50 max
-    }
-    setData(next)
-    if (activeUserId) await saveFinanceData(next, activeUserId)
+  const openAddTx = () => {
+    setEditingTx(null)
     setTxLabel('')
     setTxAmount('')
     setTxDate(localISO(new Date()))
+    setShowAddTx(true)
+  }
+
+  const openEditTx = (tx: FinanceTransaction) => {
+    setEditingTx(tx)
+    setTxLabel(tx.label)
+    setTxAmount(tx.amount.toString())
+    setTxDate(tx.date)
+    setShowAddTx(true)
+  }
+
+  const handleAddTransaction = async () => {
+    const amount = parseFloat(txAmount.replace(',', '.'))
+    if (!txLabel.trim() || isNaN(amount) || amount <= 0) return
+
+    let next: FinanceData
+    if (editingTx) {
+      // Remboursement de l'ancienne dépense + déduction nouvelle
+      const diff = amount - editingTx.amount
+      const updatedTx: FinanceTransaction = { ...editingTx, label: txLabel.trim(), amount, date: txDate }
+      next = {
+        ...data,
+        balance: data.balance - diff,
+        balanceDate: localISO(new Date()),
+        transactions: data.transactions.map(t => t.id === editingTx.id ? updatedTx : t),
+      }
+    } else {
+      const tx: FinanceTransaction = { id: `tx-${Date.now()}`, label: txLabel.trim(), amount, date: txDate }
+      next = {
+        ...data,
+        balance: data.balance - amount,
+        balanceDate: localISO(new Date()),
+        transactions: [tx, ...data.transactions].slice(0, 50),
+      }
+    }
+    setData(next)
+    if (activeUserId) await saveFinanceData(next, activeUserId)
     setShowAddTx(false)
+    setEditingTx(null)
+  }
+
+  const handleDeleteTx = async (tx: FinanceTransaction) => {
+    if (!confirm('Supprimer cette dépense ?')) return
+    // Rembourser le montant au solde
+    const next: FinanceData = {
+      ...data,
+      balance: data.balance + tx.amount,
+      balanceDate: localISO(new Date()),
+      transactions: data.transactions.filter(t => t.id !== tx.id),
+    }
+    setData(next)
+    if (activeUserId) await saveFinanceData(next, activeUserId)
   }
 
   if (authLoading || loading) return (
@@ -184,12 +220,14 @@ export default function FinancesPage() {
           <h2 className="text-lg font-bold text-gray-700 mb-3">Dernières dépenses</h2>
           <div className="space-y-2">
             {recentTx.map(tx => (
-              <div key={tx.id} className="bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between">
-                <div>
+              <div key={tx.id} className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3">
+                <div className="flex-1">
                   <div className="font-semibold text-gray-800">{tx.label}</div>
                   <div className="text-sm text-gray-400">{fmtDate(tx.date)}</div>
                 </div>
-                <div className="text-gray-700 font-bold">-{fmt(tx.amount)}</div>
+                <div className="text-gray-700 font-bold mr-2">-{fmt(tx.amount)}</div>
+                <button onClick={() => openEditTx(tx)} className="text-gray-300 hover:text-indigo-500 text-xl active:scale-95 transition-all">✏️</button>
+                <button onClick={() => handleDeleteTx(tx)} className="text-gray-300 hover:text-red-500 text-xl active:scale-95 transition-all">🗑️</button>
               </div>
             ))}
           </div>
@@ -199,7 +237,7 @@ export default function FinancesPage() {
       {/* FAB */}
       {!showAddTx && !showBalance && (
         <button
-          onClick={() => setShowAddTx(true)}
+          onClick={openAddTx}
           className="fixed bottom-32 right-6 w-16 h-16 bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white text-4xl rounded-full shadow-lg flex items-center justify-center transition-all z-40"
         >+</button>
       )}
@@ -236,7 +274,7 @@ export default function FinancesPage() {
         <div className="fixed inset-0 z-[60] flex flex-col justify-end">
           <div className="absolute inset-0 bg-black/30" onClick={() => setShowAddTx(false)} />
           <div className="relative bg-white rounded-t-3xl p-6 shadow-2xl max-w-2xl w-full mx-auto">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Enregistrer une dépense</h2>
+            <h2 className="text-xl font-bold text-gray-800 mb-4">{editingTx ? 'Modifier la dépense' : 'Enregistrer une dépense'}</h2>
             <div className="space-y-4 mb-6">
               <div>
                 <label className="block text-sm font-semibold text-gray-500 mb-1">Description</label>
@@ -252,8 +290,8 @@ export default function FinancesPage() {
               </div>
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setShowAddTx(false)} className="flex-1 py-4 rounded-2xl border-2 border-gray-200 text-gray-600 font-semibold text-lg active:scale-95 transition-all">Annuler</button>
-              <button onClick={handleAddTransaction} disabled={!txLabel.trim() || !txAmount} className="flex-[2] py-4 rounded-2xl bg-indigo-500 disabled:bg-gray-200 text-white font-bold text-lg active:scale-95 transition-all">Enregistrer</button>
+              <button onClick={() => { setShowAddTx(false); setEditingTx(null) }} className="flex-1 py-4 rounded-2xl border-2 border-gray-200 text-gray-600 font-semibold text-lg active:scale-95 transition-all">Annuler</button>
+              <button onClick={handleAddTransaction} disabled={!txLabel.trim() || !txAmount} className={`flex-[2] py-4 rounded-2xl disabled:bg-gray-200 text-white font-bold text-lg active:scale-95 transition-all ${editingTx ? 'bg-indigo-500 hover:bg-indigo-600' : 'bg-green-500 hover:bg-green-600'}`}>{editingTx ? 'Modifier' : 'Enregistrer'}</button>
             </div>
           </div>
         </div>
