@@ -31,6 +31,8 @@ export default function FinancesAdminPage() {
   const [fDay, setFDay] = useState('1')
   const [fDate, setFDate] = useState(localISO(new Date()))
   const [fActive, setFActive] = useState(true)
+  const [fDateMode, setFDateMode] = useState<'fixed' | 'variable'>('fixed')
+  const [fNextDate, setFNextDate] = useState(localISO(new Date()))
 
   // Balance update
   const [showBalance, setShowBalance] = useState(false)
@@ -54,13 +56,19 @@ export default function FinancesAdminPage() {
     if (!s) { setSheet(null); return }
     setSheet(s)
     if (s.type === 'income' && s.item) {
-      setFLabel(s.item.label); setFAmount(s.item.amount.toString()); setFDay(s.item.dayOfMonth.toString()); setFActive(s.item.active)
+      setFLabel(s.item.label)
+      setFAmount(s.item.amount.toString())
+      setFDay(s.item.dayOfMonth.toString())
+      setFActive(s.item.active)
+      setFDateMode(s.item.dateMode ?? 'fixed')
+      setFNextDate(s.item.nextDate ?? localISO(new Date()))
     } else if (s.type === 'fixed' && s.item) {
       setFLabel(s.item.label); setFAmount(s.item.amount.toString()); setFDay(s.item.dayOfMonth.toString()); setFActive(s.item.active)
     } else if (s.type === 'planned' && s.item) {
       setFLabel(s.item.label); setFAmount(s.item.amount.toString()); setFDate(s.item.date)
     } else {
       setFLabel(''); setFAmount(''); setFDay('1'); setFDate(localISO(new Date())); setFActive(true)
+      setFDateMode('fixed'); setFNextDate(localISO(new Date()))
     }
   }
 
@@ -71,7 +79,15 @@ export default function FinancesAdminPage() {
     const day = parseInt(fDay)
 
     if (sheet.type === 'income') {
-      const item: IncomeSource = { id: sheet.item?.id ?? `inc-${Date.now()}`, label: fLabel.trim(), amount, dayOfMonth: day, active: fActive }
+      const item: IncomeSource = {
+        id: sheet.item?.id ?? `inc-${Date.now()}`,
+        label: fLabel.trim(),
+        amount,
+        dateMode: fDateMode,
+        dayOfMonth: fDateMode === 'fixed' ? day : (sheet.item?.dayOfMonth ?? 1),
+        nextDate: fDateMode === 'variable' ? fNextDate : undefined,
+        active: fActive,
+      }
       const list = sheet.item ? data.incomeSources.map(i => i.id === item.id ? item : i) : [...data.incomeSources, item]
       await save({ ...data, incomeSources: list })
     } else if (sheet.type === 'fixed') {
@@ -184,7 +200,14 @@ export default function FinancesAdminPage() {
               <div key={item.id} className={`bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3 ${!item.active ? 'opacity-50' : ''}`}>
                 <div className="flex-1">
                   <div className="font-semibold text-gray-800">{item.label}</div>
-                  <div className="text-sm text-gray-400">Le {item.dayOfMonth} du mois · {fmt(item.amount)}</div>
+                  <div className="text-sm text-gray-400">
+                    {(item.dateMode ?? 'fixed') === 'fixed'
+                      ? `Le ${item.dayOfMonth} du mois · ${fmt(item.amount)}`
+                      : item.nextDate
+                        ? `Variable · prochain le ${new Date(item.nextDate + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} · ${fmt(item.amount)}`
+                        : `Variable · date non définie · ${fmt(item.amount)}`
+                    }
+                  </div>
                 </div>
                 <button onClick={() => openSheet({ type: 'income', item })} className="text-gray-400 hover:text-indigo-500 text-xl px-2 active:scale-95 transition-all">✏️</button>
                 <button onClick={() => handleDelete('income', item.id)} className="text-gray-400 hover:text-red-500 text-xl px-2 active:scale-95 transition-all">🗑️</button>
@@ -279,7 +302,37 @@ export default function FinancesAdminPage() {
                 <label className="block text-sm font-semibold text-gray-500 mb-1">Montant (€)</label>
                 <input type="number" step="0.01" min="0" value={fAmount} onChange={e => setFAmount(e.target.value)} placeholder="0.00" className="w-full border-2 border-gray-200 rounded-2xl px-4 py-3 text-lg focus:outline-none focus:border-indigo-400" />
               </div>
-              {(sheet.type === 'income' || sheet.type === 'fixed') && (
+              {sheet.type === 'income' && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-500 mb-2">Type de date</label>
+                  <div className="flex gap-2 mb-3">
+                    <button
+                      type="button"
+                      onClick={() => setFDateMode('fixed')}
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${fDateMode === 'fixed' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                    >📅 Date fixe</button>
+                    <button
+                      type="button"
+                      onClick={() => setFDateMode('variable')}
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${fDateMode === 'variable' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                    >✏️ Date variable</button>
+                  </div>
+                  {fDateMode === 'fixed' ? (
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-500 mb-1">Jour du mois (1-31)</label>
+                      <input type="number" min="1" max="31" value={fDay} onChange={e => setFDay(e.target.value)} className="w-full border-2 border-gray-200 rounded-2xl px-4 py-3 text-lg focus:outline-none focus:border-indigo-400" />
+                      <p className="text-xs text-gray-400 mt-1">La ressource arrive toujours le même jour chaque mois.</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-500 mb-1">Prochaine date de versement</label>
+                      <input type="date" value={fNextDate} onChange={e => setFNextDate(e.target.value)} className="w-full border-2 border-gray-200 rounded-2xl px-4 py-3 text-base focus:outline-none focus:border-indigo-400" />
+                      <p className="text-xs text-gray-400 mt-1">À mettre à jour chaque mois quand la date est connue.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              {sheet.type === 'fixed' && (
                 <div>
                   <label className="block text-sm font-semibold text-gray-500 mb-1">Jour du mois (1-31)</label>
                   <input type="number" min="1" max="31" value={fDay} onChange={e => setFDay(e.target.value)} className="w-full border-2 border-gray-200 rounded-2xl px-4 py-3 text-lg focus:outline-none focus:border-indigo-400" />

@@ -132,7 +132,9 @@ export type IncomeSource = {
   id: string
   label: string      // ex: "Salaire", "AAH"
   amount: number
-  dayOfMonth: number // 1-31
+  dateMode: 'fixed' | 'variable'  // fixed = jour fixe chaque mois, variable = date saisie manuellement
+  dayOfMonth: number // utilisé si dateMode === 'fixed'
+  nextDate?: string  // YYYY-MM-DD, utilisé si dateMode === 'variable'
   active: boolean
 }
 
