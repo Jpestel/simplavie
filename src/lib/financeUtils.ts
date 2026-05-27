@@ -1,10 +1,16 @@
-import { FinanceData, IncomeSource } from '@/types'
+import { FinanceData, FinanceEvent } from '@/types'
 
-function localISO(d: Date): string {
+export function localISO(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 }
 
-// Prochain jour du mois > today (strictement futur — le jour de ressource lui-même pointe sur le mois suivant)
+function parseDate(s: string): Date {
+  const d = new Date(s + 'T00:00:00')
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+// Prochain jour du mois strictement après today
 function nextOccurrence(from: Date, dayOfMonth: number): Date {
   const d = new Date(from)
   d.setHours(0, 0, 0, 0)
@@ -16,168 +22,171 @@ function nextOccurrence(from: Date, dayOfMonth: number): Date {
   return d
 }
 
-// Dernier jour du mois <= today (ce mois ou mois précédent)
-function prevOccurrence(from: Date, dayOfMonth: number): Date {
-  const d = new Date(from)
-  d.setHours(0, 0, 0, 0)
-  if (from.getDate() >= dayOfMonth) {
-    d.setDate(dayOfMonth)
-  } else {
-    d.setMonth(d.getMonth() - 1, dayOfMonth)
-  }
-  return d
-}
+// ─── Types exportés ───────────────────────────────────────────────────────────
 
-// Retourne la prochaine date d'entrée pour une source donnée.
-// Retourne null si la source est variable et que sa date est passée ou non renseignée (nécessite mise à jour).
-function getNextIncome(source: IncomeSource, today: Date): Date | null {
-  if ((source.dateMode ?? 'fixed') === 'variable') {
-    if (!source.nextDate) return null
-    const d = new Date(source.nextDate + 'T00:00:00')
-    d.setHours(0, 0, 0, 0)
-    if (d <= today) return null  // date expirée, l'utilisateur doit saisir la prochaine
-    return d
-  }
-  return nextOccurrence(today, source.dayOfMonth)
+// Une entrée de la projection jour par jour
+export type ProjectionEntry = {
+  date: string
+  isToday: boolean
+  events: Array<{ id: string; label: string; amount: number; flow: 'in' | 'out' }>
+  balanceAfter: number  // solde projeté après les événements de ce jour
+  freePerDay: number    // budget libre/jour à partir de ce jour (freeTotal / jours restants depuis ce jour)
+  daysRemaining: number // jours restants jusqu'à la prochaine ressource (ce jour inclus)
 }
 
 export type BudgetSummary = {
-  dailyBudget: number
-  availableBudget: number
+  // Métrique principale
+  freePerDay: number
+  freeTotal: number        // argent libre pour toute la période (= solde - engagements sortants + rentrées ponctuelles)
+  committedOut: number     // total des sorties planifiées avant la prochaine ressource
+  committedIn: number      // total des entrées ponctuelles avant la prochaine ressource
+  // Prochaine ressource
   daysUntilNextIncome: number
   nextIncomeDate: string
-  nextIncomeTotal: number
-  upcomingExpenses: Array<{ label: string; amount: number; date: string }>
-  upcomingExceptionalIncomes: Array<{ label: string; amount: number; date: string }>
-  // Pour la barre de progression
-  daysElapsed: number
-  totalPeriodDays: number
-  periodProgress: number  // 0-100
-  // Alerte : sources variables dont la date est expirée et doit être mise à jour
+  nextIncomeLabel: string
+  nextIncomeAmount: number
+  // Alertes
   needsDateUpdate: boolean
-  expiredSources: string[]
+  expiredSources: string[]  // noms des sources variables dont la date est expirée
+  // Projection
+  projection: ProjectionEntry[]
 }
+
+// ─── Calcul principal ─────────────────────────────────────────────────────────
 
 export function computeBudgetSummary(data: FinanceData): BudgetSummary | null {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const todayStr = localISO(today)
+  const msPerDay = 1000 * 60 * 60 * 24
 
-  const activeSources = data.incomeSources.filter(s => s.active)
-  if (activeSources.length === 0) return null
+  const activeEvents = (data.events ?? []).filter(e => e.active !== false)
 
-  // Identifier les sources variables expirées (date passée ou non saisie)
+  // Sources de revenus récurrents (mode fixed ou variable)
+  const incomeSources = activeEvents.filter(e => e.flow === 'in' && e.mode !== 'oneshot')
+  if (incomeSources.length === 0) return null
+
+  // Détecter les sources variables expirées (date passée ou non saisie)
   const expiredSources: string[] = []
-  for (const source of activeSources) {
-    if ((source.dateMode ?? 'fixed') === 'variable' && getNextIncome(source, today) === null) {
-      expiredSources.push(source.label)
+  for (const ev of incomeSources) {
+    if (ev.mode === 'variable') {
+      if (!ev.nextDate || parseDate(ev.nextDate) <= today) {
+        expiredSources.push(ev.label)
+      }
     }
   }
 
-  // Trouver la prochaine date de ressource (la plus proche, parmi celles valides)
+  // Trouver la prochaine date de ressource (la plus proche parmi les sources valides)
   let nextIncomeDate: Date | null = null
-  for (const source of activeSources) {
-    const d = getNextIncome(source, today)
-    if (d === null) continue
-    if (!nextIncomeDate || d < nextIncomeDate) nextIncomeDate = d
+  for (const ev of incomeSources) {
+    let d: Date | null = null
+    if (ev.mode === 'fixed' && ev.dayOfMonth) {
+      d = nextOccurrence(today, ev.dayOfMonth)
+    } else if (ev.mode === 'variable' && ev.nextDate) {
+      const parsed = parseDate(ev.nextDate)
+      if (parsed > today) d = parsed
+    }
+    if (d && (!nextIncomeDate || d < nextIncomeDate)) nextIncomeDate = d
   }
 
-  // Si aucune date valide → on ne peut pas calculer, retourner alerte
+  // Aucune date valide → alerte, calcul impossible
   if (!nextIncomeDate) {
     return {
-      dailyBudget: 0,
-      availableBudget: data.balance,
-      daysUntilNextIncome: 0,
-      nextIncomeDate: '',
-      nextIncomeTotal: 0,
-      upcomingExpenses: [],
-      upcomingExceptionalIncomes: [],
-      daysElapsed: 0,
-      totalPeriodDays: 0,
-      periodProgress: 0,
-      needsDateUpdate: true,
-      expiredSources,
+      freePerDay: 0, freeTotal: data.balance,
+      committedOut: 0, committedIn: 0,
+      daysUntilNextIncome: 0, nextIncomeDate: '',
+      nextIncomeLabel: '', nextIncomeAmount: 0,
+      needsDateUpdate: true, expiredSources, projection: [],
     }
   }
 
   const nextIncomeDateStr = localISO(nextIncomeDate)
 
-  // Total des ressources ce jour-là
-  let nextIncomeTotal = 0
-  for (const source of activeSources) {
-    const d = getNextIncome(source, today)
+  // Calculer le total et le libellé de la prochaine ressource
+  let nextIncomeLabel = ''
+  let nextIncomeAmount = 0
+  for (const ev of incomeSources) {
+    let d: Date | null = null
+    if (ev.mode === 'fixed' && ev.dayOfMonth) d = nextOccurrence(today, ev.dayOfMonth)
+    else if (ev.mode === 'variable' && ev.nextDate) d = parseDate(ev.nextDate)
     if (d && localISO(d) === nextIncomeDateStr) {
-      nextIncomeTotal += source.amount
+      nextIncomeAmount += ev.amount
+      nextIncomeLabel = nextIncomeLabel ? `${nextIncomeLabel} + ${ev.label}` : ev.label
     }
   }
 
-  // Jours restants (aujourd'hui inclus)
-  const msPerDay = 1000 * 60 * 60 * 24
+  // Nombre de jours dans la période (aujourd'hui inclus)
   const daysUntilNextIncome = Math.max(1, Math.round((nextIncomeDate.getTime() - today.getTime()) / msPerDay) + 1)
 
-  // Dépenses fixes à venir avant la prochaine ressource
-  const upcomingExpenses: Array<{ label: string; amount: number; date: string }> = []
+  // ── Collecter tous les événements de la période [aujourd'hui, veille de la prochaine ressource] ──
+  // Sorties (dépenses fixes, variables, ponctuelles) + entrées ponctuelles (pas les sources récurrentes)
+  const periodEvents: Array<{ date: string; event: FinanceEvent }> = []
 
-  for (const expense of data.fixedExpenses.filter(e => e.active)) {
-    const d = nextOccurrence(today, expense.dayOfMonth)
-    if (d < nextIncomeDate) {
-      upcomingExpenses.push({ label: expense.label, amount: expense.amount, date: localISO(d) })
+  for (const ev of activeEvents) {
+    // Les sources récurrentes de revenus définissent la frontière de la période, on ne les inclut pas
+    if (ev.flow === 'in' && ev.mode !== 'oneshot') continue
+
+    let dateStr: string | null = null
+
+    if (ev.mode === 'fixed' && ev.dayOfMonth) {
+      const s = localISO(nextOccurrence(today, ev.dayOfMonth))
+      if (s >= todayStr && s < nextIncomeDateStr) dateStr = s
+    } else if (ev.mode === 'variable' && ev.nextDate) {
+      if (ev.nextDate >= todayStr && ev.nextDate < nextIncomeDateStr) dateStr = ev.nextDate
+    } else if (ev.mode === 'oneshot' && !ev.done && ev.nextDate) {
+      if (ev.nextDate >= todayStr && ev.nextDate < nextIncomeDateStr) dateStr = ev.nextDate
     }
+
+    if (dateStr) periodEvents.push({ date: dateStr, event: ev })
   }
 
-  // Dépenses planifiées à venir
-  for (const expense of data.plannedExpenses.filter(e => !e.paid)) {
-    if (expense.date >= todayStr && expense.date < nextIncomeDateStr) {
-      upcomingExpenses.push({ label: expense.label, amount: expense.amount, date: expense.date })
-    }
+  periodEvents.sort((a, b) => a.date.localeCompare(b.date))
+
+  const committedOut = periodEvents.filter(e => e.event.flow === 'out').reduce((s, e) => s + e.event.amount, 0)
+  const committedIn  = periodEvents.filter(e => e.event.flow === 'in' ).reduce((s, e) => s + e.event.amount, 0)
+
+  // Argent libre = solde - toutes les sorties planifiées + toutes les entrées ponctuelles
+  const freeTotal  = data.balance - committedOut + committedIn
+  const freePerDay = freeTotal / daysUntilNextIncome
+
+  // ── Construire la projection jour par jour (uniquement les jours avec événements + aujourd'hui) ──
+  const eventsByDate: Record<string, FinanceEvent[]> = {}
+  for (const { date, event } of periodEvents) {
+    if (!eventsByDate[date]) eventsByDate[date] = []
+    eventsByDate[date].push(event)
   }
 
-  upcomingExpenses.sort((a, b) => a.date.localeCompare(b.date))
+  const projectionDates = [...new Set([todayStr, ...Object.keys(eventsByDate)])].sort()
 
-  // Revenus exceptionnels à venir avant la prochaine ressource (non encore encaissés)
-  const upcomingExceptionalIncomes: Array<{ label: string; amount: number; date: string }> = []
-  for (const inc of (data.exceptionalIncomes ?? []).filter(e => !e.received)) {
-    if (inc.date >= todayStr && inc.date < nextIncomeDateStr) {
-      upcomingExceptionalIncomes.push({ label: inc.label, amount: inc.amount, date: inc.date })
+  let runningBalance = data.balance
+  const projection: ProjectionEntry[] = []
+
+  for (const dateStr of projectionDates) {
+    const dayEvents = eventsByDate[dateStr] ?? []
+    const dayIndex  = Math.round((parseDate(dateStr).getTime() - today.getTime()) / msPerDay)
+    const daysRemaining = daysUntilNextIncome - dayIndex  // jours restants depuis ce jour (inclus)
+
+    // Appliquer les événements du jour au solde courant
+    for (const ev of dayEvents) {
+      runningBalance += ev.flow === 'in' ? ev.amount : -ev.amount
     }
+
+    projection.push({
+      date: dateStr,
+      isToday: dateStr === todayStr,
+      events: dayEvents.map(ev => ({ id: ev.id, label: ev.label, amount: ev.amount, flow: ev.flow })),
+      balanceAfter: runningBalance,
+      // freeTotal est constant ; divisé par le nb de jours restants depuis ce jour
+      freePerDay: daysRemaining > 0 ? freeTotal / daysRemaining : 0,
+      daysRemaining,
+    })
   }
-  upcomingExceptionalIncomes.sort((a, b) => a.date.localeCompare(b.date))
-
-  const totalUpcoming = upcomingExpenses.reduce((sum, e) => sum + e.amount, 0)
-  const totalExceptional = upcomingExceptionalIncomes.reduce((sum, e) => sum + e.amount, 0)
-  const availableBudget = data.balance - totalUpcoming + totalExceptional
-  const dailyBudget = availableBudget / daysUntilNextIncome
-
-  // Calcul de la progression dans la période
-  // Source principale (celle qui détermine la prochaine ressource)
-  const mainSource = activeSources.find(s => {
-    const d = getNextIncome(s, today)
-    return d && localISO(d) === nextIncomeDateStr
-  })
-  const prevIncomeDate = mainSource
-    ? ((mainSource.dateMode ?? 'fixed') === 'variable'
-        ? null  // pour variable, pas de précédente connue
-        : prevOccurrence(today, mainSource.dayOfMonth))
-    : null
-  const msPerDayN = 1000 * 60 * 60 * 24
-  const totalPeriodDays = prevIncomeDate
-    ? Math.round((nextIncomeDate.getTime() - prevIncomeDate.getTime()) / msPerDayN)
-    : daysUntilNextIncome
-  const daysElapsed = Math.max(0, totalPeriodDays - daysUntilNextIncome)
-  const periodProgress = totalPeriodDays > 0 ? Math.round((daysElapsed / totalPeriodDays) * 100) : 0
 
   return {
-    dailyBudget,
-    availableBudget,
-    daysUntilNextIncome,
-    nextIncomeDate: nextIncomeDateStr,
-    nextIncomeTotal,
-    upcomingExpenses,
-    upcomingExceptionalIncomes,
-    daysElapsed,
-    totalPeriodDays,
-    periodProgress,
-    needsDateUpdate: expiredSources.length > 0,
-    expiredSources,
+    freePerDay, freeTotal, committedOut, committedIn,
+    daysUntilNextIncome, nextIncomeDate: nextIncomeDateStr,
+    nextIncomeLabel, nextIncomeAmount,
+    needsDateUpdate: expiredSources.length > 0, expiredSources,
+    projection,
   }
 }

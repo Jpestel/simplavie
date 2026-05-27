@@ -128,54 +128,30 @@ export type CareData = {
   appointments: CareAppointment[]
 }
 
-export type IncomeSource = {
-  id: string
-  label: string      // ex: "Salaire", "AAH"
-  amount: number
-  dateMode: 'fixed' | 'variable'  // fixed = jour fixe chaque mois, variable = date saisie manuellement
-  dayOfMonth: number // utilisé si dateMode === 'fixed'
-  nextDate?: string  // YYYY-MM-DD, utilisé si dateMode === 'variable'
-  active: boolean
-}
-
-export type FinanceFixedExpense = {
-  id: string
-  label: string      // ex: "Loyer", "EDF"
-  amount: number
-  dayOfMonth: number
-  active: boolean
-}
-
-export type FinancePlannedExpense = {
+// Un événement financier : tout ce qui crédite ou débite le compte
+export type FinanceEvent = {
   id: string
   label: string
-  amount: number
-  date: string       // YYYY-MM-DD
-  paid: boolean
-}
-
-export type FinanceExceptionalIncome = {
-  id: string
-  label: string      // ex: "Prime", "Remboursement CAF"
-  amount: number
-  date: string       // YYYY-MM-DD
-  received: boolean  // true quand encaissée
+  amount: number                          // toujours positif
+  flow: 'in' | 'out'                      // entrée ou sortie
+  mode: 'fixed' | 'variable' | 'oneshot' // récurrent fixe / récurrent variable / ponctuel
+  dayOfMonth?: number                     // fixed : jour du mois (1-31)
+  nextDate?: string                       // variable : prochaine date attendue ; oneshot : la date
+  active: boolean
+  done?: boolean                          // oneshot : déjà traité (ne compte plus dans le calcul)
 }
 
 export type FinanceTransaction = {
   id: string
   label: string
   amount: number
-  date: string       // YYYY-MM-DD
+  date: string  // YYYY-MM-DD
 }
 
 export type FinanceData = {
   balance: number
-  balanceDate: string  // YYYY-MM-DD
-  alertThreshold: number  // seuil d'alerte budget/jour en €
-  incomeSources: IncomeSource[]
-  fixedExpenses: FinanceFixedExpense[]
-  plannedExpenses: FinancePlannedExpense[]
-  exceptionalIncomes: FinanceExceptionalIncome[]
+  balanceDate: string
+  alertThreshold: number
+  events: FinanceEvent[]
   transactions: FinanceTransaction[]
 }
