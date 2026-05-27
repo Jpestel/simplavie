@@ -4,11 +4,11 @@ function localISO(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 }
 
-// Prochain jour du mois >= today (même mois ou mois suivant)
+// Prochain jour du mois > today (strictement futur — le jour de ressource lui-même pointe sur le mois suivant)
 function nextOccurrence(from: Date, dayOfMonth: number): Date {
   const d = new Date(from)
   d.setHours(0, 0, 0, 0)
-  if (from.getDate() <= dayOfMonth) {
+  if (from.getDate() < dayOfMonth) {
     d.setDate(dayOfMonth)
   } else {
     d.setMonth(d.getMonth() + 1, dayOfMonth)
