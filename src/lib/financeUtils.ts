@@ -28,12 +28,14 @@ function prevOccurrence(from: Date, dayOfMonth: number): Date {
   return d
 }
 
-// Retourne la prochaine date d'entrée pour une source donnée (strictement future pour fixed, ou nextDate pour variable)
-function getNextIncome(source: IncomeSource, today: Date): Date {
+// Retourne la prochaine date d'entrée pour une source donnée.
+// Retourne null si la source est variable et que sa date est passée ou non renseignée (nécessite mise à jour).
+function getNextIncome(source: IncomeSource, today: Date): Date | null {
   if ((source.dateMode ?? 'fixed') === 'variable') {
-    if (!source.nextDate) return nextOccurrence(today, source.dayOfMonth)
+    if (!source.nextDate) return null
     const d = new Date(source.nextDate + 'T00:00:00')
     d.setHours(0, 0, 0, 0)
+    if (d <= today) return null  // date expirée, l'utilisateur doit saisir la prochaine
     return d
   }
   return nextOccurrence(today, source.dayOfMonth)
@@ -51,6 +53,9 @@ export type BudgetSummary = {
   daysElapsed: number
   totalPeriodDays: number
   periodProgress: number  // 0-100
+  // Alerte : sources variables dont la date est expirée et doit être mise à jour
+  needsDateUpdate: boolean
+  expiredSources: string[]
 }
 
 export function computeBudgetSummary(data: FinanceData): BudgetSummary | null {
@@ -61,20 +66,47 @@ export function computeBudgetSummary(data: FinanceData): BudgetSummary | null {
   const activeSources = data.incomeSources.filter(s => s.active)
   if (activeSources.length === 0) return null
 
-  // Trouver la prochaine date de ressource (la plus proche)
+  // Identifier les sources variables expirées (date passée ou non saisie)
+  const expiredSources: string[] = []
+  for (const source of activeSources) {
+    if ((source.dateMode ?? 'fixed') === 'variable' && getNextIncome(source, today) === null) {
+      expiredSources.push(source.label)
+    }
+  }
+
+  // Trouver la prochaine date de ressource (la plus proche, parmi celles valides)
   let nextIncomeDate: Date | null = null
   for (const source of activeSources) {
     const d = getNextIncome(source, today)
+    if (d === null) continue
     if (!nextIncomeDate || d < nextIncomeDate) nextIncomeDate = d
   }
-  if (!nextIncomeDate) return null
+
+  // Si aucune date valide → on ne peut pas calculer, retourner alerte
+  if (!nextIncomeDate) {
+    return {
+      dailyBudget: 0,
+      availableBudget: data.balance,
+      daysUntilNextIncome: 0,
+      nextIncomeDate: '',
+      nextIncomeTotal: 0,
+      upcomingExpenses: [],
+      upcomingExceptionalIncomes: [],
+      daysElapsed: 0,
+      totalPeriodDays: 0,
+      periodProgress: 0,
+      needsDateUpdate: true,
+      expiredSources,
+    }
+  }
 
   const nextIncomeDateStr = localISO(nextIncomeDate)
 
   // Total des ressources ce jour-là
   let nextIncomeTotal = 0
   for (const source of activeSources) {
-    if (localISO(getNextIncome(source, today)) === nextIncomeDateStr) {
+    const d = getNextIncome(source, today)
+    if (d && localISO(d) === nextIncomeDateStr) {
       nextIncomeTotal += source.amount
     }
   }
@@ -118,7 +150,10 @@ export function computeBudgetSummary(data: FinanceData): BudgetSummary | null {
 
   // Calcul de la progression dans la période
   // Source principale (celle qui détermine la prochaine ressource)
-  const mainSource = activeSources.find(s => localISO(getNextIncome(s, today)) === nextIncomeDateStr)
+  const mainSource = activeSources.find(s => {
+    const d = getNextIncome(s, today)
+    return d && localISO(d) === nextIncomeDateStr
+  })
   const prevIncomeDate = mainSource
     ? ((mainSource.dateMode ?? 'fixed') === 'variable'
         ? null  // pour variable, pas de précédente connue
@@ -142,5 +177,7 @@ export function computeBudgetSummary(data: FinanceData): BudgetSummary | null {
     daysElapsed,
     totalPeriodDays,
     periodProgress,
+    needsDateUpdate: expiredSources.length > 0,
+    expiredSources,
   }
 }

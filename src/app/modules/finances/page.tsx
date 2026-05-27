@@ -118,9 +118,10 @@ export default function FinancesPage() {
 
   const daily = summary?.dailyBudget ?? 0
   const threshold = data.alertThreshold ?? 5
-  const isNegative = daily < 0
-  const isWarning = daily >= 0 && daily < threshold
-  const cardBg = isNegative ? 'bg-red-500' : isWarning ? 'bg-orange-400' : 'bg-indigo-500'
+  const needsDateUpdate = summary?.needsDateUpdate ?? false
+  const isNegative = !needsDateUpdate && daily < 0
+  const isWarning = !needsDateUpdate && daily >= 0 && daily < threshold
+  const cardBg = needsDateUpdate ? 'bg-gray-400' : isNegative ? 'bg-red-500' : isWarning ? 'bg-orange-400' : 'bg-indigo-500'
   const recentTx = data.transactions.slice(0, 5)
 
   return (
@@ -129,13 +130,24 @@ export default function FinancesPage() {
 
       {/* Big daily budget card */}
       <div className={`rounded-3xl p-7 mb-5 text-white text-center shadow-lg ${cardBg}`}>
-        {summary ? (
+        {summary && needsDateUpdate ? (
+          <>
+            <div className="text-4xl mb-3">📅</div>
+            <div className="text-lg font-bold mb-1">Date de versement inconnue</div>
+            <div className="text-sm opacity-90 mt-1">
+              {summary.expiredSources.length > 0
+                ? `Mettez à jour la prochaine date de : ${summary.expiredSources.join(', ')}`
+                : 'Renseignez la prochaine date de versement dans la configuration.'}
+            </div>
+            <div className="text-sm opacity-75 mt-2">Solde actuel : {fmt(summary.availableBudget)}</div>
+          </>
+        ) : summary ? (
           <>
             <div className="text-lg font-semibold opacity-80 mb-1">Budget disponible / jour</div>
             <div className="text-6xl font-black mb-2">{fmt(summary.dailyBudget)}</div>
             <div className="text-sm opacity-75">
               {summary.daysUntilNextIncome === 1
-                ? "Ressource attendue aujourd'hui"
+                ? "Ressource attendue demain"
                 : `${summary.daysUntilNextIncome} jours jusqu'au ${fmtDate(summary.nextIncomeDate)}`}
             </div>
             <div className="text-sm opacity-75 mt-1">
@@ -164,6 +176,17 @@ export default function FinancesPage() {
           </>
         )}
       </div>
+
+      {/* Alerte date de versement à mettre à jour */}
+      {summary && needsDateUpdate && (
+        <div className="bg-orange-50 border-2 border-orange-300 rounded-2xl p-4 mb-5">
+          <p className="text-orange-700 font-bold">📅 Mise à jour requise</p>
+          <p className="text-orange-600 text-sm mt-1">
+            Le budget journalier ne peut pas être calculé sans connaître la prochaine date de versement.
+            Rendez-vous dans la <strong>configuration</strong> pour mettre à jour la date de : <strong>{summary.expiredSources.join(', ')}</strong>.
+          </p>
+        </div>
+      )}
 
       {/* Alerte budget serré */}
       {summary && isWarning && (
