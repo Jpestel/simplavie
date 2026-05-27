@@ -196,6 +196,24 @@ export default function FinancesPage() {
         </button>
       </div>
 
+      {/* Revenus exceptionnels à venir */}
+      {summary && summary.upcomingExceptionalIncomes.length > 0 && (
+        <div className="mb-5">
+          <h2 className="text-lg font-bold text-gray-700 mb-3">Revenus exceptionnels attendus</h2>
+          <div className="space-y-2">
+            {summary.upcomingExceptionalIncomes.map((e, i) => (
+              <div key={i} className="bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between">
+                <div>
+                  <div className="font-semibold text-gray-800">{e.label}</div>
+                  <div className="text-sm text-gray-400">{fmtDate(e.date)}</div>
+                </div>
+                <div className="text-green-500 font-bold text-lg">+{fmt(e.amount)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Prochaines échéances */}
       {summary && summary.upcomingExpenses.length > 0 && (
         <div className="mb-5">

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/authContext'
 import BackBar from '@/components/BackBar'
 import { loadFinanceData, saveFinanceData, DEFAULT_FINANCE } from '@/lib/financeService'
-import type { FinanceData, IncomeSource, FinanceFixedExpense, FinancePlannedExpense } from '@/types'
+import type { FinanceData, IncomeSource, FinanceFixedExpense, FinancePlannedExpense, FinanceExceptionalIncome } from '@/types'
 
 function localISO(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
@@ -17,6 +17,7 @@ type FormSheet =
   | { type: 'income'; item?: IncomeSource }
   | { type: 'fixed'; item?: FinanceFixedExpense }
   | { type: 'planned'; item?: FinancePlannedExpense }
+  | { type: 'exceptional'; item?: FinanceExceptionalIncome }
   | null
 
 export default function FinancesAdminPage() {
@@ -66,6 +67,8 @@ export default function FinancesAdminPage() {
       setFLabel(s.item.label); setFAmount(s.item.amount.toString()); setFDay(s.item.dayOfMonth.toString()); setFActive(s.item.active)
     } else if (s.type === 'planned' && s.item) {
       setFLabel(s.item.label); setFAmount(s.item.amount.toString()); setFDate(s.item.date)
+    } else if (s.type === 'exceptional' && s.item) {
+      setFLabel(s.item.label); setFAmount(s.item.amount.toString()); setFDate(s.item.date)
     } else {
       setFLabel(''); setFAmount(''); setFDay('1'); setFDate(localISO(new Date())); setFActive(true)
       setFDateMode('fixed'); setFNextDate(localISO(new Date()))
@@ -98,14 +101,21 @@ export default function FinancesAdminPage() {
       const item: FinancePlannedExpense = { id: sheet.item?.id ?? `pln-${Date.now()}`, label: fLabel.trim(), amount, date: fDate, paid: sheet.item?.paid ?? false }
       const list = sheet.item ? data.plannedExpenses.map(i => i.id === item.id ? item : i) : [...data.plannedExpenses, item]
       await save({ ...data, plannedExpenses: list })
+    } else if (sheet.type === 'exceptional') {
+      const item: FinanceExceptionalIncome = { id: sheet.item?.id ?? `exc-${Date.now()}`, label: fLabel.trim(), amount, date: fDate, received: sheet.item?.received ?? false }
+      const list = sheet.item
+        ? (data.exceptionalIncomes ?? []).map(i => i.id === item.id ? item : i)
+        : [...(data.exceptionalIncomes ?? []), item]
+      await save({ ...data, exceptionalIncomes: list })
     }
     setSheet(null)
   }
 
-  const handleDelete = async (type: 'income' | 'fixed' | 'planned', id: string) => {
+  const handleDelete = async (type: 'income' | 'fixed' | 'planned' | 'exceptional', id: string) => {
     if (type === 'income') await save({ ...data, incomeSources: data.incomeSources.filter(i => i.id !== id) })
     else if (type === 'fixed') await save({ ...data, fixedExpenses: data.fixedExpenses.filter(i => i.id !== id) })
-    else await save({ ...data, plannedExpenses: data.plannedExpenses.filter(i => i.id !== id) })
+    else if (type === 'planned') await save({ ...data, plannedExpenses: data.plannedExpenses.filter(i => i.id !== id) })
+    else await save({ ...data, exceptionalIncomes: (data.exceptionalIncomes ?? []).filter(i => i.id !== id) })
   }
 
   const handleUpdateBalance = async () => {
@@ -265,6 +275,44 @@ export default function FinancesAdminPage() {
         )}
       </section>
 
+      {/* Revenus exceptionnels */}
+      <section className="mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-gray-700">Revenus exceptionnels</h2>
+          <button onClick={() => openSheet({ type: 'exceptional' })} className="px-3 py-2 bg-green-50 hover:bg-green-100 text-green-700 border-green-300 font-semibold rounded-xl text-sm active:scale-95 transition-all">+ Ajouter</button>
+        </div>
+        <p className="text-sm text-gray-400 mb-3">Remboursement CAF, prime, vente, don... Un revenu ponctuel attendu ou reçu.</p>
+        {(data.exceptionalIncomes ?? []).length === 0 ? (
+          <div className="text-center text-gray-400 py-6 bg-white rounded-2xl">Aucun revenu exceptionnel</div>
+        ) : (
+          <div className="space-y-2">
+            {(data.exceptionalIncomes ?? []).map(item => (
+              <div key={item.id} className={`bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3 ${item.received ? 'opacity-50' : ''}`}>
+                <div className="flex-1">
+                  <div className="font-semibold text-gray-800">{item.label}</div>
+                  <div className="text-sm text-gray-400">
+                    {new Date(item.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} · {fmt(item.amount)}
+                    {item.received && <span className="ml-2 text-green-600 font-semibold">· Encaissé ✓</span>}
+                  </div>
+                </div>
+                {!item.received && (
+                  <button
+                    onClick={async () => {
+                      const updated = { ...item, received: true }
+                      const list = (data.exceptionalIncomes ?? []).map(i => i.id === item.id ? updated : i)
+                      await save({ ...data, exceptionalIncomes: list })
+                    }}
+                    className="text-xs px-3 py-1.5 rounded-xl bg-green-100 hover:bg-green-200 text-green-700 font-semibold active:scale-95 transition-all shrink-0"
+                  >Encaissé</button>
+                )}
+                <button onClick={() => openSheet({ type: 'exceptional', item })} className="text-gray-400 hover:text-indigo-500 text-xl px-2 active:scale-95 transition-all">✏️</button>
+                <button onClick={() => handleDelete('exceptional', item.id)} className="text-gray-400 hover:text-red-500 text-xl px-2 active:scale-95 transition-all">🗑️</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
       {/* Bottom sheet balance */}
       {showBalance && (
         <div className="fixed inset-0 z-[60] flex flex-col justify-end">
@@ -291,6 +339,7 @@ export default function FinancesAdminPage() {
             <h2 className="text-xl font-bold text-gray-800 mb-4">
               {sheet.type === 'income' ? (sheet.item ? 'Modifier la ressource' : 'Ajouter une ressource')
               : sheet.type === 'fixed' ? (sheet.item ? 'Modifier la dépense fixe' : 'Ajouter une dépense fixe')
+              : sheet.type === 'exceptional' ? (sheet.item ? 'Modifier le revenu exceptionnel' : 'Ajouter un revenu exceptionnel')
               : (sheet.item ? 'Modifier la dépense planifiée' : 'Ajouter une dépense planifiée')}
             </h2>
             <div className="space-y-4 mb-6">
@@ -338,9 +387,11 @@ export default function FinancesAdminPage() {
                   <input type="number" min="1" max="31" value={fDay} onChange={e => setFDay(e.target.value)} className="w-full border-2 border-gray-200 rounded-2xl px-4 py-3 text-lg focus:outline-none focus:border-indigo-400" />
                 </div>
               )}
-              {sheet.type === 'planned' && (
+              {(sheet.type === 'planned' || sheet.type === 'exceptional') && (
                 <div>
-                  <label className="block text-sm font-semibold text-gray-500 mb-1">Date prévue</label>
+                  <label className="block text-sm font-semibold text-gray-500 mb-1">
+                    {sheet.type === 'exceptional' ? 'Date de réception prévue' : 'Date prévue'}
+                  </label>
                   <input type="date" value={fDate} onChange={e => setFDate(e.target.value)} className="w-full border-2 border-gray-200 rounded-2xl px-4 py-3 text-base focus:outline-none focus:border-indigo-400" />
                 </div>
               )}

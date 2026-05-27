@@ -46,6 +46,7 @@ export type BudgetSummary = {
   nextIncomeDate: string
   nextIncomeTotal: number
   upcomingExpenses: Array<{ label: string; amount: number; date: string }>
+  upcomingExceptionalIncomes: Array<{ label: string; amount: number; date: string }>
   // Pour la barre de progression
   daysElapsed: number
   totalPeriodDays: number
@@ -101,8 +102,18 @@ export function computeBudgetSummary(data: FinanceData): BudgetSummary | null {
 
   upcomingExpenses.sort((a, b) => a.date.localeCompare(b.date))
 
+  // Revenus exceptionnels à venir avant la prochaine ressource (non encore encaissés)
+  const upcomingExceptionalIncomes: Array<{ label: string; amount: number; date: string }> = []
+  for (const inc of (data.exceptionalIncomes ?? []).filter(e => !e.received)) {
+    if (inc.date >= todayStr && inc.date < nextIncomeDateStr) {
+      upcomingExceptionalIncomes.push({ label: inc.label, amount: inc.amount, date: inc.date })
+    }
+  }
+  upcomingExceptionalIncomes.sort((a, b) => a.date.localeCompare(b.date))
+
   const totalUpcoming = upcomingExpenses.reduce((sum, e) => sum + e.amount, 0)
-  const availableBudget = data.balance - totalUpcoming
+  const totalExceptional = upcomingExceptionalIncomes.reduce((sum, e) => sum + e.amount, 0)
+  const availableBudget = data.balance - totalUpcoming + totalExceptional
   const dailyBudget = availableBudget / daysUntilNextIncome
 
   // Calcul de la progression dans la période
@@ -127,6 +138,7 @@ export function computeBudgetSummary(data: FinanceData): BudgetSummary | null {
     nextIncomeDate: nextIncomeDateStr,
     nextIncomeTotal,
     upcomingExpenses,
+    upcomingExceptionalIncomes,
     daysElapsed,
     totalPeriodDays,
     periodProgress,

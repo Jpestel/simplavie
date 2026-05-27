@@ -154,6 +154,14 @@ export type FinancePlannedExpense = {
   paid: boolean
 }
 
+export type FinanceExceptionalIncome = {
+  id: string
+  label: string      // ex: "Prime", "Remboursement CAF"
+  amount: number
+  date: string       // YYYY-MM-DD
+  received: boolean  // true quand encaissée
+}
+
 export type FinanceTransaction = {
   id: string
   label: string
@@ -168,5 +176,6 @@ export type FinanceData = {
   incomeSources: IncomeSource[]
   fixedExpenses: FinanceFixedExpense[]
   plannedExpenses: FinancePlannedExpense[]
+  exceptionalIncomes: FinanceExceptionalIncome[]
   transactions: FinanceTransaction[]
 }
