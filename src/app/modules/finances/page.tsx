@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/authContext'
 import BackBar from '@/components/BackBar'
 import { loadFinanceData, saveFinanceData, DEFAULT_FINANCE } from '@/lib/financeService'
 import { computeBudgetSummary, localISO } from '@/lib/financeUtils'
-import type { FinanceData, FinanceTransaction } from '@/types'
+import type { FinanceData, FinanceTransaction, FinanceEvent } from '@/types'
 
 function fmt(amount: number) {
   return amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
@@ -102,6 +102,18 @@ export default function FinancesPage() {
       transactions: data.transactions.filter(t => t.id !== tx.id),
     }
     setData(next); if (activeUserId) await saveFinanceData(next, activeUserId)
+  }
+
+  // Marquer une entrée ponctuelle comme reçue → mise à jour du solde
+  const handleReceiveIncome = async (ev: FinanceEvent) => {
+    const next: FinanceData = {
+      ...data,
+      balance: data.balance + ev.amount,
+      balanceDate: localISO(new Date()),
+      events: data.events.map(e => e.id === ev.id ? { ...e, done: true } : e),
+    }
+    setData(next)
+    if (activeUserId) await saveFinanceData(next, activeUserId)
   }
 
   // ── Rendu ──────────────────────────────────────────────────────────────────
@@ -215,6 +227,45 @@ export default function FinancesPage() {
           Mettre à jour
         </button>
       </div>
+
+      {/* ── Entrées d'argent attendues ── */}
+      {(() => {
+        const pendingIncomes = data.events.filter(
+          e => e.flow === 'in' && e.mode === 'oneshot' && !e.done && e.nextDate
+        ).sort((a, b) => (a.nextDate ?? '').localeCompare(b.nextDate ?? ''))
+
+        if (pendingIncomes.length === 0) return null
+
+        const todayStr = localISO(new Date())
+
+        return (
+          <div className="mb-5">
+            <h2 className="text-lg font-bold text-gray-700 mb-3">💰 Entrées d&apos;argent attendues</h2>
+            <div className="space-y-2">
+              {pendingIncomes.map(ev => {
+                const isToday = ev.nextDate === todayStr
+                const isPast = (ev.nextDate ?? '') < todayStr
+                return (
+                  <div key={ev.id} className={`bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3 border-l-4 ${isPast ? 'border-orange-400' : isToday ? 'border-green-400' : 'border-indigo-200'}`}>
+                    <div className="flex-1">
+                      <div className="font-semibold text-gray-800">{ev.label}</div>
+                      <div className="text-sm text-gray-400">
+                        {isPast ? '⚠️ Attendue le ' : isToday ? '📅 Aujourd\'hui · ' : `Prévue le `}
+                        {fmtDate(ev.nextDate!)}
+                      </div>
+                    </div>
+                    <div className="text-green-600 font-bold text-lg mr-2">+{fmt(ev.amount)}</div>
+                    <button
+                      onClick={() => handleReceiveIncome(ev)}
+                      className="shrink-0 px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-bold rounded-xl active:scale-95 transition-all"
+                    >Reçu ✓</button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ── Évolution prévue ── */}
       {summary && !needsUpdate && summary.projection.length > 0 && (

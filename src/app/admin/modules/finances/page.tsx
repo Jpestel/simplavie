@@ -108,8 +108,16 @@ export default function FinancesAdminPage() {
   }
 
   const handleToggleDone = async (ev: FinanceEvent) => {
-    const updated = { ...ev, done: !ev.done }
-    await save({ ...data, events: data.events.map(e => e.id === ev.id ? updated : e) })
+    const markingDone = !ev.done
+    const updated = { ...ev, done: markingDone }
+    const events = data.events.map(e => e.id === ev.id ? updated : e)
+    // Pour les entrées ponctuelles : ajuster le solde quand on marque reçu/annule
+    if (ev.mode === 'oneshot' && ev.flow === 'in') {
+      const newBalance = markingDone ? data.balance + ev.amount : data.balance - ev.amount
+      await save({ ...data, balance: newBalance, balanceDate: localISO(new Date()), events })
+    } else {
+      await save({ ...data, events })
+    }
   }
 
   const handleUpdateBalance = async () => {
