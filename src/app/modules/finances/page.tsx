@@ -237,6 +237,7 @@ export default function FinancesPage() {
         if (pendingIncomes.length === 0) return null
 
         const todayStr = localISO(new Date())
+        const in48hStr = localISO(new Date(Date.now() + 2 * 24 * 60 * 60 * 1000))
 
         return (
           <div className="mb-5">
@@ -245,6 +246,7 @@ export default function FinancesPage() {
               {pendingIncomes.map(ev => {
                 const isToday = ev.nextDate === todayStr
                 const isPast = (ev.nextDate ?? '') < todayStr
+                const canReceive = (ev.nextDate ?? '') <= in48hStr
                 return (
                   <div key={ev.id} className={`bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3 border-l-4 ${isPast ? 'border-orange-400' : isToday ? 'border-green-400' : 'border-indigo-200'}`}>
                     <div className="flex-1">
@@ -255,10 +257,16 @@ export default function FinancesPage() {
                       </div>
                     </div>
                     <div className="text-green-600 font-bold text-lg mr-2">+{fmt(ev.amount)}</div>
-                    <button
-                      onClick={() => handleReceiveIncome(ev)}
-                      className="shrink-0 px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-bold rounded-xl active:scale-95 transition-all"
-                    >Reçu ✓</button>
+                    {canReceive ? (
+                      <button
+                        onClick={() => handleReceiveIncome(ev)}
+                        className="shrink-0 px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-bold rounded-xl active:scale-95 transition-all"
+                      >Reçu ✓</button>
+                    ) : (
+                      <div className="shrink-0 px-3 py-2 bg-gray-100 text-gray-400 text-xs font-semibold rounded-xl text-center leading-tight">
+                        Dispo le<br />{fmtDate(localISO(new Date(new Date(ev.nextDate! + 'T00:00:00').getTime() - 2 * 24 * 60 * 60 * 1000)))}
+                      </div>
+                    )}
                   </div>
                 )
               })}
