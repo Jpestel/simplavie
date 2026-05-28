@@ -104,7 +104,14 @@ export default function FinancesAdminPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Supprimer cet événement ?')) return
-    await save({ ...data, events: data.events.filter(e => e.id !== id) })
+    const ev = data.events.find(e => e.id === id)
+    const events = data.events.filter(e => e.id !== id)
+    // Si c'était une entrée ponctuelle déjà reçue, on retire le montant du solde
+    if (ev && ev.mode === 'oneshot' && ev.flow === 'in' && ev.done) {
+      await save({ ...data, balance: data.balance - ev.amount, balanceDate: localISO(new Date()), events })
+    } else {
+      await save({ ...data, events })
+    }
   }
 
   const handleToggleDone = async (ev: FinanceEvent) => {
