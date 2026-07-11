@@ -4,10 +4,14 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/authContext'
 import { useProfile } from '@/lib/profileContext'
 
-const PUBLIC_ROUTES = ['/login']
+const PUBLIC_ROUTES = ['/login', '/forgot-password']
 
 function isPublic(pathname: string) {
-  return PUBLIC_ROUTES.includes(pathname) || pathname.startsWith('/join')
+  return (
+    PUBLIC_ROUTES.includes(pathname) ||
+    pathname.startsWith('/join') ||
+    pathname.startsWith('/reset-password')
+  )
 }
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {

@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useAuth } from '@/lib/authContext'
 
 export default function LoginPage() {
@@ -137,6 +138,14 @@ export default function LoginPage() {
         >
           {busy ? 'En cours...' : mode === 'login' ? 'Se connecter' : 'Créer mon compte'}
         </button>
+
+        {mode === 'login' && !isFirstSetup && (
+          <div className="mt-4 text-center">
+            <Link href="/forgot-password" className="text-indigo-500 font-semibold text-sm underline">
+              Mot de passe oublié ?
+            </Link>
+          </div>
+        )}
 
         {!isFirstSetup && (
           <button
