@@ -1,5 +1,6 @@
 'use client'
 import BackBar from '@/components/BackBar'
+import TreatmentsEditor from '@/components/TreatmentsEditor'
 import { useProfile } from '@/lib/profileContext'
 import { useRouter } from 'next/navigation'
 import { Contact } from '@/types'
@@ -85,9 +86,8 @@ export default function AdminProfilePage() {
         <Field label="Groupe sanguin" value={f('bloodType')} onChange={s('bloodType')} />
         <Field label="Allergies" value={f('allergies')} onChange={s('allergies')} />
         <div>
-          <label className="block text-sm text-gray-500 mb-1">Traitements en cours</label>
-          <textarea value={f('treatments')} onChange={e => updateProfile({ treatments: e.target.value })} rows={3}
-            className="w-full border border-gray-200 rounded-xl p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none" />
+          <label className="block text-sm text-gray-500 mb-1">Traitements / médicaments</label>
+          <TreatmentsEditor value={f('treatments')} onChange={raw => updateProfile({ treatments: raw })} />
         </div>
       </section>
 

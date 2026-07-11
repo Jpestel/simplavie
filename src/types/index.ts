@@ -50,6 +50,15 @@ export type Contact = {
   city?: string
 }
 
+export type Treatment = {
+  id: string
+  name: string
+  dosage?: string       // dosage / quantité (ex: "1 comprimé", "500 mg")
+  moments: string[]     // moments de prise cochés : 'matin' | 'midi' | 'soir' | 'coucher'
+  time?: string         // heure précise optionnelle (HH:MM)
+  notes?: string
+}
+
 export type UserProfile = {
   // Identité
   firstName: string

@@ -1,10 +1,11 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useProfile } from '@/lib/profileContext'
 import { useConfig } from '@/lib/configContext'
 import { useAuth } from '@/lib/authContext'
 import { useRouter } from 'next/navigation'
 import { Contact } from '@/types'
+import TreatmentsEditor from '@/components/TreatmentsEditor'
 
 const STEPS = [
   { id: 'identity', label: 'Identité', icon: '👤' },
@@ -40,9 +41,9 @@ function InputField({ label, value, onChange, type = 'text', placeholder = '', o
 }
 
 export default function OnboardingPage() {
-  const { profile, updateProfile } = useProfile()
+  const { profile, updateProfile, isLoading } = useProfile()
   const { updateConfig } = useConfig()
-  const { signOut } = useAuth()
+  const { signOut, user, activeUserId } = useAuth()
   const router = useRouter()
 
   const handleSignOut = async () => {
@@ -52,6 +53,19 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(0)
   const [newContact, setNewContact] = useState<Partial<Contact>>({ relation: '' })
   const [showContactForm, setShowContactForm] = useState(false)
+
+  // Pré-remplit le prénom avec celui saisi (facultativement) à la création du
+  // compte, si le champ est encore vide. On ne le fait qu'une fois, et seulement
+  // pour son propre compte (pas en gestion d'un autre utilisateur).
+  const prefilledRef = useRef(false)
+  useEffect(() => {
+    if (isLoading || prefilledRef.current) return
+    prefilledRef.current = true
+    if (!profile.firstName && user?.name && activeUserId === user.id) {
+      updateProfile({ firstName: user.name })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, profile.firstName, user, activeUserId])
 
   const field = (key: keyof typeof profile) => (profile[key] as string) || ''
   const set = (key: keyof typeof profile) => (val: string) => updateProfile({ [key]: val })
@@ -168,14 +182,14 @@ export default function OnboardingPage() {
             <InputField label="Allergies" value={field('allergies')} onChange={set('allergies')} placeholder="Pénicilline, arachides..." />
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-1">
-                Traitements en cours <span className="text-gray-400 font-normal">(optionnel)</span>
+                Traitements / médicaments <span className="text-gray-400 font-normal">(optionnel)</span>
               </label>
-              <textarea
+              <p className="text-xs text-gray-400 mb-2">
+                Ajoutez-les maintenant ou plus tard depuis l&apos;espace aidant.
+              </p>
+              <TreatmentsEditor
                 value={field('treatments')}
-                onChange={e => updateProfile({ treatments: e.target.value })}
-                placeholder="Médicament A le matin, Médicament B le soir..."
-                rows={3}
-                className="w-full border border-gray-200 rounded-2xl p-4 text-gray-800 text-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white resize-none"
+                onChange={raw => updateProfile({ treatments: raw })}
               />
             </div>
           </>
