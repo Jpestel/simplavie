@@ -27,6 +27,10 @@ export default function SuperAdminUserPage() {
   const [data, setData] = useState<UserDetail | null>(null)
   const [fetching, setFetching] = useState(true)
   const [saving, setSaving] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmText, setConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!loading && !isSuperAdmin) router.replace('/')
@@ -77,6 +81,20 @@ export default function SuperAdminUserPage() {
     const name = data?.config?.user_name || data?.profile?.display_name || data?.email || ''
     impersonate(userId, name)
     router.push('/')
+  }
+
+  const handleDelete = async () => {
+    setDeleteError(null)
+    setDeleting(true)
+    try {
+      const res = await saFetch(`/api/superadmin/users/${userId}`, { method: 'DELETE' })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(d.error || 'Suppression impossible.')
+      router.push('/superadmin')
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : 'Suppression impossible.')
+      setDeleting(false)
+    }
   }
 
   if (loading || !isSuperAdmin) return null
@@ -160,6 +178,52 @@ export default function SuperAdminUserPage() {
                     >🗑️</button>
                   </div>
                 ))}
+              </div>
+            )}
+          </section>
+
+          <section className="bg-white rounded-2xl p-6 shadow-sm mt-6 border-2 border-red-100">
+            <h2 className="text-lg font-semibold text-red-600 mb-1">Zone de danger</h2>
+            <p className="text-sm text-gray-400 mb-4">
+              La suppression du compte est <strong>définitive</strong> et efface toutes les données associées
+              (profil, modules, routines, care, finances, agenda, rappels, services, aidants liés).
+            </p>
+
+            {!confirmDelete ? (
+              <button
+                onClick={() => { setConfirmDelete(true); setDeleteError(null) }}
+                className="px-4 py-2.5 rounded-2xl bg-red-50 hover:bg-red-100 text-red-600 font-semibold text-sm active:scale-95 transition-all"
+              >
+                🗑️ Supprimer ce compte
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600">
+                  Pour confirmer, saisissez l&apos;email du compte : <strong className="text-gray-800">{data?.email}</strong>
+                </p>
+                <input
+                  value={confirmText}
+                  onChange={e => setConfirmText(e.target.value)}
+                  placeholder={data?.email ?? ''}
+                  className="w-full border-2 border-gray-200 rounded-2xl px-4 py-3 text-gray-800 focus:outline-none focus:border-red-300"
+                />
+                {deleteError && <p className="text-red-500 text-sm font-medium">{deleteError}</p>}
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleting || confirmText.trim() !== data?.email}
+                    className="flex-1 px-4 py-3 rounded-2xl bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-sm active:scale-95 transition-all"
+                  >
+                    {deleting ? 'Suppression...' : 'Supprimer définitivement'}
+                  </button>
+                  <button
+                    onClick={() => { setConfirmDelete(false); setConfirmText(''); setDeleteError(null) }}
+                    disabled={deleting}
+                    className="px-4 py-3 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-sm active:scale-95 transition-all"
+                  >
+                    Annuler
+                  </button>
+                </div>
               </div>
             )}
           </section>

@@ -63,3 +63,28 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ us
 
   return NextResponse.json({ ok: true, id: user.id })
 }
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
+  const check = await verifySuperAdmin(req)
+  if ('error' in check) return NextResponse.json({ error: check.error }, { status: 401 })
+
+  const { userId } = await params
+
+  // Garde-fous : pas d'auto-suppression, pas de suppression d'un Super Admin.
+  if (userId === check.userId) {
+    return NextResponse.json({ error: 'Vous ne pouvez pas supprimer votre propre compte.' }, { status: 400 })
+  }
+
+  const target = await prisma.user.findUnique({ where: { id: userId }, select: { globalRole: true } })
+  if (!target) return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 })
+  if (target.globalRole === 'superadmin') {
+    return NextResponse.json({ error: 'Impossible de supprimer un compte Super Admin.' }, { status: 403 })
+  }
+
+  // Toutes les relations sont en onDelete: Cascade → profil, config, modules,
+  // routines, care, finances, agenda, rappels, services et assignations d'admins
+  // sont supprimés automatiquement.
+  await prisma.user.delete({ where: { id: userId } })
+
+  return NextResponse.json({ ok: true })
+}
