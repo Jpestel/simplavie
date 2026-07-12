@@ -38,7 +38,12 @@ export default function ProfilPage() {
 
   const percent = completionPercent(profile)
   const items = completionItems(profile)
-  const doneOf = (key: string) => items.find(i => i.key === key)?.done ?? false
+  const itemMap = Object.fromEntries(items.map(i => [i.key, i]))
+  const sectionStatus = (keys: string[]): 'done' | 'todo' | 'optional' => {
+    const required = keys.map(k => itemMap[k]).filter(i => i && !i.optional)
+    if (required.length === 0) return 'optional'
+    return required.every(i => i.done) ? 'done' : 'todo'
+  }
 
   const addContact = () => {
     if (!newContact.name) return
@@ -49,12 +54,12 @@ export default function ProfilPage() {
   }
 
   const sections = [
-    { id: 'identity', icon: '👤', title: 'Identité', done: doneOf('identity') && doneOf('birth') && doneOf('address') },
-    { id: 'contact', icon: '📱', title: 'Coordonnées', done: doneOf('contact') && doneOf('email') },
-    { id: 'medical', icon: '🏥', title: 'Médical', done: doneOf('bloodType') && doneOf('allergies') && doneOf('treatments') },
-    { id: 'pros', icon: '🩺', title: 'Professionnels de santé', done: doneOf('healthPros') },
-    { id: 'admin', icon: '📋', title: 'Administratif', done: doneOf('admin') },
-    { id: 'contacts', icon: '👨‍👩‍👧', title: 'Proches', done: doneOf('contacts') },
+    { id: 'identity', icon: '👤', title: 'Identité', keys: ['identity', 'birth', 'address'] },
+    { id: 'contact', icon: '📱', title: 'Coordonnées', keys: ['contact', 'email'] },
+    { id: 'medical', icon: '🏥', title: 'Médical', keys: ['bloodType', 'allergies', 'treatments'] },
+    { id: 'pros', icon: '🩺', title: 'Professionnels de santé', keys: ['healthPros'] },
+    { id: 'admin', icon: '📋', title: 'Administratif', keys: ['admin'] },
+    { id: 'contacts', icon: '👨‍👩‍👧', title: 'Proches', keys: ['contacts'] },
   ]
 
   if (isLoading) {
@@ -81,7 +86,14 @@ export default function ProfilPage() {
       </div>
 
       <div className="space-y-3">
-        {sections.map(sec => (
+        {sections.map(sec => {
+          const status = sectionStatus(sec.keys)
+          const badge = status === 'done'
+            ? { cls: 'bg-green-100 text-green-600', text: '✓ Rempli' }
+            : status === 'optional'
+              ? { cls: 'bg-gray-100 text-gray-400', text: 'Facultatif' }
+              : { cls: 'bg-orange-100 text-orange-600', text: 'À compléter' }
+          return (
           <section key={sec.id} className="bg-white rounded-2xl shadow-sm overflow-hidden">
             <button
               onClick={() => setOpen(open === sec.id ? null : sec.id)}
@@ -89,8 +101,8 @@ export default function ProfilPage() {
             >
               <span className="text-2xl">{sec.icon}</span>
               <span className="flex-1 font-semibold text-gray-800">{sec.title}</span>
-              <span className={`text-xs font-semibold px-2 py-1 rounded-full ${sec.done ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
-                {sec.done ? '✓ Rempli' : 'À compléter'}
+              <span className={`text-xs font-semibold px-2 py-1 rounded-full ${badge.cls}`}>
+                {badge.text}
               </span>
               <span className={`text-gray-300 transition-transform ${open === sec.id ? 'rotate-90' : ''}`}>›</span>
             </button>
@@ -186,7 +198,8 @@ export default function ProfilPage() {
               </div>
             )}
           </section>
-        ))}
+          )
+        })}
       </div>
     </main>
   )
