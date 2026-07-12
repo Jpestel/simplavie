@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
+import { notifySuperAdminsNewAccount } from '@/lib/notifications'
 
 export async function POST(req: NextRequest) {
   const { email, password, name } = await req.json()
@@ -20,6 +21,12 @@ export async function POST(req: NextRequest) {
   // Crée profile vide + config par défaut
   await prisma.userProfile.create({ data: { id: user.id } })
   await prisma.appConfig.create({ data: { id: user.id } })
+
+  // Prévient les Super Admins qu'un nouveau compte attend l'activation de ses
+  // modules (pas pour le tout premier compte, qui est lui-même Super Admin).
+  if (globalRole === 'user') {
+    await notifySuperAdminsNewAccount({ email: user.email, name: user.name })
+  }
 
   return NextResponse.json({ id: user.id, email: user.email, globalRole })
 }
