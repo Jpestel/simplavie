@@ -43,6 +43,7 @@ function toBody(p: UserProfile) {
     bloodType: p.bloodType ?? null,
     allergies: p.allergies ?? null,
     treatments: p.treatments ?? null,
+    healthPros: p.healthPros ?? [],
     contacts: p.contacts,
     profileCompleted: p.profileCompleted,
   }
@@ -72,6 +73,7 @@ function fromRow(row: Record<string, unknown>): UserProfile {
     bloodType: (row.bloodType as string) ?? undefined,
     allergies: (row.allergies as string) ?? undefined,
     treatments: (row.treatments as string) ?? undefined,
+    healthPros: (row.healthPros as UserProfile['healthPros']) ?? [],
     contacts: (row.contacts as UserProfile['contacts']) ?? [],
     profileCompleted: (row.profileCompleted as boolean) ?? false,
     createdAt: (row.createdAt as string) ?? new Date().toISOString(),

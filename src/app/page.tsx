@@ -7,6 +7,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { loadCareData } from '@/lib/careService'
 import { loadEvents } from '@/lib/agendaService'
+import ProfileProgress from '@/components/ProfileProgress'
+import { completionPercent } from '@/lib/profileCompletion'
 
 function isTodayReminder(r: { recurrence: string; week_days: number[] | null; month_day: number | null; specific_date: string | null; date_start?: string | null; date_end?: string | null }): boolean {
   const now = new Date()
@@ -36,23 +38,17 @@ export default function HomePage() {
   }
 
   useEffect(() => {
-    if (!profileLoading && profile.profileCompleted) {
-      router.prefetch('/onboarding')
-    }
-  }, [profileLoading, profile.profileCompleted, router])
-
-  useEffect(() => {
     if (authLoading || configLoading || profileLoading || !user) return
     // En mode impersonation : afficher l'interface de l'utilisateur ciblé
     if (impersonatedUserId) return
     if (isSuperAdmin || (isAdmin && !hasOwnAccount)) return
-    if (!profile.profileCompleted) { router.push('/onboarding'); return }
-    // Si le profil est complété mais aucun module activé → page d'attente
+    // Plus d'onboarding imposé : le profil se complète au choix via /profil.
+    // Tant qu'aucun module n'est activé → page d'attente.
     if (config.modules.every(m => !m.enabled)) router.push('/waiting')
-  }, [authLoading, configLoading, profileLoading, user, isSuperAdmin, isAdmin, hasOwnAccount, impersonatedUserId, profile.profileCompleted, config.modules, router])
+  }, [authLoading, configLoading, profileLoading, user, isSuperAdmin, isAdmin, hasOwnAccount, impersonatedUserId, config.modules, router])
 
   useEffect(() => {
-    if (!profileLoading && profile.profileCompleted && activeUserId) {
+    if (!profileLoading && activeUserId) {
       loadCareData(activeUserId).then(care => {
         const today = new Date().toISOString().slice(0, 10)
         const alerts = (care.appointments || []).filter(a => a.date === today && a.status !== 'planned')
@@ -64,7 +60,7 @@ export default function HomePage() {
   }, [profileLoading, profile.profileCompleted, activeUserId])
 
   useEffect(() => {
-    if (!profileLoading && profile.profileCompleted && activeUserId) {
+    if (!profileLoading && activeUserId) {
       const today    = new Date().toISOString().slice(0, 10)
       const tomorrow = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10) })()
       loadEvents(activeUserId).then(events => {
@@ -80,7 +76,7 @@ export default function HomePage() {
   }, [profileLoading, profile.profileCompleted, activeUserId])
 
   useEffect(() => {
-    if (!profileLoading && profile.profileCompleted && activeUserId) {
+    if (!profileLoading && activeUserId) {
       const todayStr = new Date().toISOString().slice(0, 10)
       Promise.all([
         fetch('/api/reminders?userId=' + activeUserId).then(r => r.json()),
@@ -115,7 +111,7 @@ export default function HomePage() {
   }
 
   // Sans impersonation : règles normales
-  if (!impersonatedUserId && (!user || isSuperAdmin || (isAdmin && !hasOwnAccount) || !profile.profileCompleted)) return null
+  if (!impersonatedUserId && (!user || isSuperAdmin || (isAdmin && !hasOwnAccount))) return null
 
   const activeModules = config.modules.filter(m => m.enabled).sort((a, b) => a.order - b.order)
 
@@ -126,6 +122,12 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen p-6 max-w-2xl mx-auto">
+      {!impersonatedUserId && (
+        <div className="flex justify-end mb-4">
+          <ProfileProgress percent={completionPercent(profile)} />
+        </div>
+      )}
+
       {impersonatedUserId && (
         <div className="flex items-center justify-between bg-amber-50 border-2 border-amber-300 rounded-2xl px-4 py-3 mb-6">
           <div>

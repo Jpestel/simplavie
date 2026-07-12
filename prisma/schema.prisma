@@ -66,6 +66,7 @@ model UserProfile {
   allergies            String?  @db.Text
   treatments           String?  @db.Text
   contacts             Json?
+  healthPros           Json?    @map("health_pros")
   calendarToken        String?  @map("calendar_token")
   profileCompleted     Boolean  @default(false) @map("profile_completed")
   createdAt            DateTime @default(now()) @map("created_at")

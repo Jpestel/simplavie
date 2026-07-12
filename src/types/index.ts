@@ -59,6 +59,14 @@ export type Treatment = {
   notes?: string
 }
 
+export type HealthPro = {
+  id: string
+  specialty: string     // clé de spécialité (voir MEDICAL_SPECIALTIES) ou libre si 'autre'
+  customSpecialty?: string
+  name?: string
+  phone?: string
+}
+
 export type UserProfile = {
   // Identité
   firstName: string
@@ -86,6 +94,8 @@ export type UserProfile = {
   bloodType?: string
   allergies?: string
   treatments?: string
+  // Professionnels de santé
+  healthPros?: HealthPro[]
   // Contacts proches
   contacts: Contact[]
   // Meta

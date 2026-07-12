@@ -1,7 +1,10 @@
 'use client'
 import BackBar from '@/components/BackBar'
 import TreatmentsEditor from '@/components/TreatmentsEditor'
+import HealthProsEditor from '@/components/HealthProsEditor'
+import BloodTypeSelect from '@/components/BloodTypeSelect'
 import { useProfile } from '@/lib/profileContext'
+import { getHealthPros } from '@/lib/healthPros'
 import { useRouter } from 'next/navigation'
 import { Contact } from '@/types'
 import { useState } from 'react'
@@ -79,15 +82,18 @@ export default function AdminProfilePage() {
       {/* Médical */}
       <section className="bg-white rounded-2xl p-6 shadow-sm mb-4 space-y-3">
         <h2 className="text-lg font-semibold text-gray-700 mb-2">🏥 Médical</h2>
-        <Field label="Médecin traitant" value={f('doctorName')} onChange={s('doctorName')} />
-        <Field label="Téléphone médecin" value={f('doctorPhone')} onChange={s('doctorPhone')} type="tel" />
-        <Field label="Pharmacie" value={f('pharmacyName')} onChange={s('pharmacyName')} />
-        <Field label="Téléphone pharmacie" value={f('pharmacyPhone')} onChange={s('pharmacyPhone')} type="tel" />
-        <Field label="Groupe sanguin" value={f('bloodType')} onChange={s('bloodType')} />
+        <div>
+          <label className="block text-sm text-gray-500 mb-1">Groupe sanguin</label>
+          <BloodTypeSelect value={f('bloodType')} onChange={s('bloodType')} />
+        </div>
         <Field label="Allergies" value={f('allergies')} onChange={s('allergies')} />
         <div>
           <label className="block text-sm text-gray-500 mb-1">Traitements / médicaments</label>
           <TreatmentsEditor value={f('treatments')} onChange={raw => updateProfile({ treatments: raw })} />
+        </div>
+        <div>
+          <label className="block text-sm text-gray-500 mb-1">Professionnels de santé</label>
+          <HealthProsEditor value={getHealthPros(profile)} onChange={list => updateProfile({ healthPros: list })} />
         </div>
       </section>
 
@@ -133,15 +139,6 @@ export default function AdminProfilePage() {
         )}
       </section>
 
-      {/* Reset onboarding button */}
-      <section className="bg-white rounded-2xl p-6 shadow-sm mb-8">
-        <h2 className="text-lg font-semibold text-gray-700 mb-2">Relancer l&apos;assistant</h2>
-        <p className="text-sm text-gray-500 mb-3">Refaire le parcours d&apos;inscription depuis le début.</p>
-        <button onClick={() => { updateProfile({ profileCompleted: false }); router.push('/onboarding') }}
-          className="w-full py-3 rounded-xl border border-red-200 text-red-500 hover:bg-red-50">
-          Relancer l&apos;assistant d&apos;inscription
-        </button>
-      </section>
       <BackBar />
     </main>
   )
