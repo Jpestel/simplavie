@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useProfile } from '@/lib/profileContext'
 import { Contact } from '@/types'
@@ -30,6 +30,10 @@ export default function ProfilPage() {
   const { profile, updateProfile, isLoading } = useProfile()
   const router = useRouter()
   const [open, setOpen] = useState<string | null>('identity')
+  useEffect(() => {
+    const s = new URLSearchParams(window.location.search).get('section')
+    if (s) setOpen(s)
+  }, [])
   const [newContact, setNewContact] = useState<Partial<Contact>>({ relation: '' })
   const [showContactForm, setShowContactForm] = useState(false)
 

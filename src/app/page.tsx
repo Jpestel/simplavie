@@ -7,8 +7,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { loadCareData } from '@/lib/careService'
 import { loadEvents } from '@/lib/agendaService'
-import ProfileProgress from '@/components/ProfileProgress'
-import { completionPercent } from '@/lib/profileCompletion'
+import { missingPrerequisites } from '@/lib/modulePrerequisites'
 
 function isTodayReminder(r: { recurrence: string; week_days: number[] | null; month_day: number | null; specific_date: string | null; date_start?: string | null; date_end?: string | null }): boolean {
   const now = new Date()
@@ -122,12 +121,6 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen p-6 max-w-2xl mx-auto">
-      {!impersonatedUserId && (
-        <div className="flex justify-end mb-4">
-          <ProfileProgress percent={completionPercent(profile)} />
-        </div>
-      )}
-
       {impersonatedUserId && (
         <div className="flex items-center justify-between bg-amber-50 border-2 border-amber-300 rounded-2xl px-4 py-3 mb-6">
           <div>
@@ -197,7 +190,9 @@ export default function HomePage() {
         </div>
       ) : (
         <div className="grid gap-4">
-          {activeModules.map(module => (
+          {activeModules.map(module => {
+            const locked = missingPrerequisites(module.id, profile).length > 0
+            return (
             <Link
               key={module.id}
               href={`/modules/${module.id}`}
@@ -205,12 +200,16 @@ export default function HomePage() {
               style={{ borderColor: `${config.primaryColor}20` }}
             >
               <span className="text-5xl">{module.icon}</span>
-              <div>
+              <div className="flex-1">
                 <div className="text-2xl font-bold text-gray-800">{module.label}</div>
                 <div className="text-gray-500 mt-1">{module.description}</div>
               </div>
+              {locked && (
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-orange-100 text-orange-600 shrink-0">🔒 À compléter</span>
+              )}
             </Link>
-          ))}
+            )
+          })}
         </div>
       )}
 
