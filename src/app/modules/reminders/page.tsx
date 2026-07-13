@@ -1,7 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/lib/authContext'
-import BackBar from '@/components/BackBar'
 
 type Reminder = {
   id: string
@@ -105,7 +104,7 @@ export default function RemindersPage() {
   const allDone = occurrences.length > 0 && pending.length === 0
 
   return (
-    <main className="min-h-screen p-6 max-w-2xl mx-auto pb-28">
+    <main className="min-h-screen p-6 max-w-2xl mx-auto pb-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Rappels du jour</h1>
         <p className="text-gray-500 mt-1 capitalize">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
@@ -160,8 +159,6 @@ export default function RemindersPage() {
           )}
         </>
       )}
-
-      <BackBar />
     </main>
   )
 }

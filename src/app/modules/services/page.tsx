@@ -1,5 +1,4 @@
 'use client'
-import BackBar from '@/components/BackBar'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/authContext'
 import Link from 'next/link'
@@ -47,7 +46,7 @@ export default function ServicesPage() {
   )
 
   return (
-    <main className="min-h-screen p-6 max-w-2xl mx-auto pb-28">
+    <main className="min-h-screen p-6 max-w-2xl mx-auto pb-8">
       {/* Header */}
       <div className="flex items-center gap-4 mb-8">
         <Link

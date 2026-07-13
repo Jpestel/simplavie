@@ -1,7 +1,6 @@
 'use client'
 import { useProfile } from '@/lib/profileContext'
 import { useRouter } from 'next/navigation'
-import BackBar from '@/components/BackBar'
 
 export default function ContactsPage() {
   const { profile } = useProfile()
@@ -12,7 +11,7 @@ export default function ContactsPage() {
   const getPhone = (c: typeof profile.contacts[0]) => c.mobile || c.phone || ''
 
   return (
-    <main className="min-h-screen p-6 pb-28 max-w-2xl mx-auto">
+    <main className="min-h-screen p-6 pb-8 max-w-2xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-800">Contacts</h1>
         <p className="text-gray-400">Appuie sur un contact pour appeler</p>
@@ -92,7 +91,6 @@ export default function ContactsPage() {
           })}
         </div>
       )}
-      <BackBar />
     </main>
   )
 }

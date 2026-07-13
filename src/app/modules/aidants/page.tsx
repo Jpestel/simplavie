@@ -5,7 +5,6 @@ import { CareData, CareAppointment } from '@/types'
 import { loadCareData, EMPTY_CARE_DATA } from '@/lib/careService'
 import { loadAlertMessages } from '@/lib/alertMessagesService'
 import { useAuth } from '@/lib/authContext'
-import BackBar from '@/components/BackBar'
 
 const DAYS_FULL = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
 const DAYS_SHORT = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
@@ -131,7 +130,7 @@ export default function AidantsPage() {
   const isCurrentPeriod = offset === 0
 
   return (
-    <main className="min-h-screen p-6 pb-28 max-w-6xl mx-auto">
+    <main className="min-h-screen p-6 pb-8 max-w-6xl mx-auto">
       <div className="mb-5">
         <h1 className="text-2xl font-bold text-gray-800">Mes aidants</h1>
         <p className="text-gray-400">{DAYS_FULL[new Date().getDay()]} {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}</p>
@@ -394,8 +393,6 @@ export default function AidantsPage() {
           </div>
         )
       })()}
-
-      <BackBar />
     </main>
   )
 }

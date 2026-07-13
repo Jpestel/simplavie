@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react'
 import { AgendaEvent, AgendaCategory } from '@/types'
 import { loadEvents, saveEvents } from '@/lib/agendaService'
 import { useAuth } from '@/lib/authContext'
-import BackBar from '@/components/BackBar'
 
 type CatInfo = { label: string; icon: string; bg: string; text: string; border: string; dot: string }
 
@@ -323,8 +322,6 @@ export default function AgendaPage() {
           </div>
         </div>
       )}
-
-      <BackBar />
     </main>
   )
 }

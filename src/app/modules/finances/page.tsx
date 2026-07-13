@@ -1,7 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/authContext'
-import BackBar from '@/components/BackBar'
 import { loadFinanceData, saveFinanceData, DEFAULT_FINANCE } from '@/lib/financeService'
 import { computeBudgetSummary, localISO } from '@/lib/financeUtils'
 import type { FinanceData, FinanceTransaction, FinanceEvent } from '@/types'
@@ -138,7 +137,7 @@ export default function FinancesPage() {
   const recentTx = data.transactions.slice(0, 8)
 
   return (
-    <main className="min-h-screen p-6 pb-28 max-w-2xl mx-auto">
+    <main className="min-h-screen p-6 pb-8 max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold text-gray-800 mb-6">💶 Finances</h1>
 
       {/* ── Carte principale ── */}
@@ -442,8 +441,6 @@ export default function FinancesPage() {
           </div>
         </div>
       )}
-
-      <BackBar />
     </main>
   )
 }

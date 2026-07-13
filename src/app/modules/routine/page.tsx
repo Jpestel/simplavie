@@ -3,7 +3,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { RoutineStep } from '@/types'
 import { useConfig } from '@/lib/configContext'
 import { useAuth } from '@/lib/authContext'
-import BackBar from '@/components/BackBar'
 import {
   loadSteps, loadCompletions, toggleCompletion,
   loadCancellations, toggleCancellation,
@@ -208,7 +207,7 @@ export default function RoutinePage() {
   )
 
   return (
-    <main className="min-h-screen p-6 pb-28 max-w-2xl mx-auto">
+    <main className="min-h-screen p-6 pb-8 max-w-2xl mx-auto">
       <div className="mb-5">
         <h1 className="text-2xl font-bold text-gray-800">Ma journée</h1>
       </div>
@@ -452,8 +451,6 @@ export default function RoutinePage() {
           </div>
         </div>
       )}
-
-      <BackBar />
     </main>
   )
 }
