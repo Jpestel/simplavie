@@ -2,6 +2,7 @@
 import TreatmentsEditor from '@/components/TreatmentsEditor'
 import HealthProsEditor from '@/components/HealthProsEditor'
 import BloodTypeSelect from '@/components/BloodTypeSelect'
+import AddressAutocomplete from '@/components/AddressAutocomplete'
 import { useProfile } from '@/lib/profileContext'
 import { getHealthPros } from '@/lib/healthPros'
 import { useRouter } from 'next/navigation'
@@ -50,7 +51,14 @@ export default function AdminProfilePage() {
         <Field label="Prénom" value={f('firstName')} onChange={s('firstName')} />
         <Field label="Nom" value={f('lastName')} onChange={s('lastName')} />
         <Field label="Date de naissance" value={f('birthDate')} onChange={s('birthDate')} type="date" />
-        <Field label="Adresse" value={f('address')} onChange={s('address')} />
+        <div>
+          <label className="block text-sm text-gray-500 mb-1">Adresse</label>
+          <AddressAutocomplete
+            value={f('address')}
+            onChange={s('address')}
+            onSelect={a => updateProfile({ address: a.address, postalCode: a.postcode, city: a.city })}
+          />
+        </div>
         <Field label="Code postal" value={f('postalCode')} onChange={s('postalCode')} />
         <Field label="Ville" value={f('city')} onChange={s('city')} />
       </section>

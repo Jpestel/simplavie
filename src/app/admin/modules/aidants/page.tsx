@@ -5,6 +5,7 @@ import { CareData, Caregiver, CareAppointment } from '@/types'
 import { loadCareData, saveCareData, EMPTY_CARE_DATA } from '@/lib/careService'
 import { loadAlertMessages, saveAlertMessages } from '@/lib/alertMessagesService'
 import { useAuth } from '@/lib/authContext'
+import AddressAutocomplete from '@/components/AddressAutocomplete'
 
 const DAYS_SHORT = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
 
@@ -377,7 +378,13 @@ export default function AidantsAdminPage() {
           <div><label className="block text-sm text-gray-500 mb-1">Nom de la société</label><input className={input} value={care.company.name} onChange={e => save({ ...care, company: { ...care.company, name: e.target.value } })} placeholder="Nom de la société..." /></div>
           <div><label className="block text-sm text-gray-500 mb-1">Téléphone fixe</label><input className={input} type="tel" value={care.company.phone || ''} onChange={e => save({ ...care, company: { ...care.company, phone: e.target.value } })} /></div>
           <div><label className="block text-sm text-gray-500 mb-1">Mobile</label><input className={input} type="tel" value={care.company.mobile || ''} onChange={e => save({ ...care, company: { ...care.company, mobile: e.target.value } })} /></div>
-          <div><label className="block text-sm text-gray-500 mb-1">Adresse</label><input className={input} value={care.company.address || ''} onChange={e => save({ ...care, company: { ...care.company, address: e.target.value } })} /></div>
+          <div><label className="block text-sm text-gray-500 mb-1">Adresse</label>
+            <AddressAutocomplete
+              value={care.company.address || ''}
+              onChange={v => save({ ...care, company: { ...care.company, address: v } })}
+              onSelect={a => save({ ...care, company: { ...care.company, address: a.address, city: a.city } })}
+              className={input}
+            /></div>
           <div><label className="block text-sm text-gray-500 mb-1">Ville</label><input className={input} value={care.company.city || ''} onChange={e => save({ ...care, company: { ...care.company, city: e.target.value } })} /></div>
           <div><label className="block text-sm text-gray-500 mb-1">E-mail</label><input className={input} type="email" value={care.company.email || ''} onChange={e => save({ ...care, company: { ...care.company, email: e.target.value } })} placeholder="contact@societe.fr" /></div>
         </section>
