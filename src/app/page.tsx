@@ -197,7 +197,19 @@ export default function HomePage() {
         </div>
       )}
 
-      <div className="max-w-2xl mx-auto mt-8 flex flex-col sm:flex-row gap-3">
+      <Link
+        href="/aide"
+        className="max-w-2xl mx-auto mt-6 flex items-center gap-4 bg-white rounded-2xl p-5 shadow-sm border-2 border-indigo-100 hover:shadow-md active:scale-95 transition-all"
+      >
+        <div className="w-12 h-12 shrink-0 rounded-2xl bg-indigo-100 flex items-center justify-center text-2xl">💡</div>
+        <div className="flex-1">
+          <div className="text-lg font-bold text-gray-800">Aide</div>
+          <div className="text-gray-500 text-sm">Comprendre à quoi sert chaque partie</div>
+        </div>
+        <span className="text-gray-300 text-xl">›</span>
+      </Link>
+
+      <div className="max-w-2xl mx-auto mt-6 flex flex-col sm:flex-row gap-3">
         <Link
           href="/admin"
           className="flex-1 flex items-center justify-center gap-3 bg-indigo-50 hover:bg-indigo-100 active:scale-95 transition-all rounded-2xl py-4 text-indigo-600 font-bold text-lg border-2 border-indigo-200"
