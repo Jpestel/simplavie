@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { loadCareData } from '@/lib/careService'
 import { loadEvents } from '@/lib/agendaService'
 import { missingPrerequisites } from '@/lib/modulePrerequisites'
+import ModuleCard from '@/components/ModuleCard'
 
 function isTodayReminder(r: { recurrence: string; week_days: number[] | null; month_day: number | null; specific_date: string | null; date_start?: string | null; date_end?: string | null }): boolean {
   const now = new Date()
@@ -120,9 +121,9 @@ export default function HomePage() {
   }
 
   return (
-    <main className="min-h-screen p-6 max-w-2xl mx-auto">
+    <main className="min-h-screen p-6 max-w-5xl mx-auto">
       {impersonatedUserId && (
-        <div className="flex items-center justify-between bg-amber-50 border-2 border-amber-300 rounded-2xl px-4 py-3 mb-6">
+        <div className="max-w-2xl mx-auto flex items-center justify-between bg-amber-50 border-2 border-amber-300 rounded-2xl px-4 py-3 mb-6">
           <div>
             <p className="text-amber-800 font-semibold text-sm">👁️ Mode aperçu</p>
             <p className="text-amber-600 text-xs">Vous visualisez le compte de <strong>{impersonatedUserName || 'cet utilisateur'}</strong></p>
@@ -136,98 +137,82 @@ export default function HomePage() {
         </div>
       )}
 
-      <div className="text-center mb-10">
-        <h1 className="text-4xl font-bold text-gray-800 mb-2">
+      <div className="text-center mb-6 md:mb-8">
+        <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-1">
           Bonjour {impersonatedUserId ? (impersonatedUserName || config.userName) : (profile.firstName || config.userName)} 👋
         </h1>
-        <p className="text-xl text-gray-500">
+        <p className="text-lg md:text-xl text-gray-500">
           {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
         </p>
       </div>
 
-      {careAlert && (
-        <div
-          onClick={() => router.push('/modules/aidants')}
-          className="bg-orange-50 border-2 border-orange-300 rounded-2xl p-4 mb-6 cursor-pointer active:scale-95 transition-all"
-        >
-          <p className="text-orange-700 font-semibold text-center">{careAlert}</p>
-          <p className="text-orange-500 text-sm text-center mt-1">Appuie pour voir les détails →</p>
-        </div>
-      )}
-
-      {reminderAlert && (
-        <div
-          onClick={() => router.push('/modules/reminders')}
-          className="bg-purple-50 border-2 border-purple-300 rounded-2xl p-4 mb-6 cursor-pointer active:scale-95 transition-all"
-        >
-          <p className="text-purple-700 font-semibold text-center">🔔 {reminderAlert.count} rappel(s) aujourd&apos;hui</p>
-          <p className="text-purple-500 text-sm text-center mt-1">{reminderAlert.first}{reminderAlert.count > 1 ? ` et ${reminderAlert.count - 1} autre(s)` : ''} → Voir</p>
-        </div>
-      )}
-
-      {agendaAlert && (
-        <div
-          onClick={() => router.push('/modules/agenda')}
-          className={`border-2 rounded-2xl p-4 mb-6 cursor-pointer active:scale-95 transition-all ${
-            agendaAlert.tomorrow
-              ? 'bg-indigo-50 border-indigo-200'
-              : 'bg-red-50 border-red-300'
-          }`}
-        >
-          <p className={`font-semibold text-center ${agendaAlert.tomorrow ? 'text-indigo-700' : 'text-red-700'}`}>
-            📅 {agendaAlert.tomorrow ? 'Demain' : "Aujourd'hui"} : {agendaAlert.count} rendez-vous
-          </p>
-          <p className={`text-sm text-center mt-1 ${agendaAlert.tomorrow ? 'text-indigo-500' : 'text-red-500'}`}>
-            {agendaAlert.first}{agendaAlert.count > 1 ? ` et ${agendaAlert.count - 1} autre(s)` : ''} → Voir
-          </p>
+      {(careAlert || reminderAlert || agendaAlert) && (
+        <div className="max-w-2xl mx-auto space-y-3 mb-6">
+          {careAlert && (
+            <div
+              onClick={() => router.push('/modules/aidants')}
+              className="bg-orange-50 border-2 border-orange-300 rounded-2xl p-4 cursor-pointer active:scale-95 transition-all"
+            >
+              <p className="text-orange-700 font-semibold text-center">{careAlert}</p>
+              <p className="text-orange-500 text-sm text-center mt-1">Appuie pour voir les détails →</p>
+            </div>
+          )}
+          {reminderAlert && (
+            <div
+              onClick={() => router.push('/modules/reminders')}
+              className="bg-purple-50 border-2 border-purple-300 rounded-2xl p-4 cursor-pointer active:scale-95 transition-all"
+            >
+              <p className="text-purple-700 font-semibold text-center">🔔 {reminderAlert.count} rappel(s) aujourd&apos;hui</p>
+              <p className="text-purple-500 text-sm text-center mt-1">{reminderAlert.first}{reminderAlert.count > 1 ? ` et ${reminderAlert.count - 1} autre(s)` : ''} → Voir</p>
+            </div>
+          )}
+          {agendaAlert && (
+            <div
+              onClick={() => router.push('/modules/agenda')}
+              className={`border-2 rounded-2xl p-4 cursor-pointer active:scale-95 transition-all ${
+                agendaAlert.tomorrow ? 'bg-indigo-50 border-indigo-200' : 'bg-red-50 border-red-300'
+              }`}
+            >
+              <p className={`font-semibold text-center ${agendaAlert.tomorrow ? 'text-indigo-700' : 'text-red-700'}`}>
+                📅 {agendaAlert.tomorrow ? 'Demain' : "Aujourd'hui"} : {agendaAlert.count} rendez-vous
+              </p>
+              <p className={`text-sm text-center mt-1 ${agendaAlert.tomorrow ? 'text-indigo-500' : 'text-red-500'}`}>
+                {agendaAlert.first}{agendaAlert.count > 1 ? ` et ${agendaAlert.count - 1} autre(s)` : ''} → Voir
+              </p>
+            </div>
+          )}
         </div>
       )}
 
       {activeModules.length === 0 ? (
-        <div className="text-center text-gray-400 mt-20">
+        <div className="text-center text-gray-400 mt-16">
           <p className="text-xl">Aucun module activé</p>
           <p className="mt-2">Tu peux activer des modules depuis l&apos;espace configuration ⚙️</p>
         </div>
       ) : (
-        <div className="grid gap-4">
-          {activeModules.map(module => {
-            const locked = missingPrerequisites(module.id, profile).length > 0
-            return (
-            <Link
-              key={module.id}
-              href={`/modules/${module.id}`}
-              className="flex items-center gap-6 bg-white rounded-3xl p-6 shadow-sm border-2 border-gray-100 hover:shadow-md transition-all active:scale-95"
-              style={{ borderColor: `${config.primaryColor}20` }}
-            >
-              <span className="text-5xl">{module.icon}</span>
-              <div className="flex-1">
-                <div className="text-2xl font-bold text-gray-800">{module.label}</div>
-                <div className="text-gray-500 mt-1">{module.description}</div>
-              </div>
-              {locked && (
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-orange-100 text-orange-600 shrink-0">🔒 À compléter</span>
-              )}
-            </Link>
-            )
-          })}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
+          {activeModules.map(module => (
+            <ModuleCard key={module.id} module={module} locked={missingPrerequisites(module.id, profile).length > 0} />
+          ))}
         </div>
       )}
 
-      <Link
-        href="/admin"
-        className="mt-10 flex items-center justify-center gap-3 w-full bg-indigo-50 hover:bg-indigo-100 active:scale-95 transition-all rounded-2xl py-5 text-indigo-600 font-bold text-lg border-2 border-indigo-200"
-      >
-        <span className="text-2xl">⚙️</span>
-        <span>Espace configuration</span>
-      </Link>
-
-      <button
-        onClick={handleSignOut}
-        className="mt-3 flex items-center justify-center gap-3 w-full bg-red-50 hover:bg-red-100 active:scale-95 transition-all rounded-2xl py-4 text-red-500 font-semibold text-base border border-red-200"
-      >
-        <span>🔒</span>
-        <span>Se déconnecter</span>
-      </button>
+      <div className="max-w-2xl mx-auto mt-8 flex flex-col sm:flex-row gap-3">
+        <Link
+          href="/admin"
+          className="flex-1 flex items-center justify-center gap-3 bg-indigo-50 hover:bg-indigo-100 active:scale-95 transition-all rounded-2xl py-4 text-indigo-600 font-bold text-lg border-2 border-indigo-200"
+        >
+          <span className="text-2xl">⚙️</span>
+          <span>Espace configuration</span>
+        </Link>
+        <button
+          onClick={handleSignOut}
+          className="flex items-center justify-center gap-3 sm:w-auto px-6 bg-red-50 hover:bg-red-100 active:scale-95 transition-all rounded-2xl py-4 text-red-500 font-semibold text-base border border-red-200"
+        >
+          <span>🔒</span>
+          <span>Se déconnecter</span>
+        </button>
+      </div>
     </main>
   )
 }
