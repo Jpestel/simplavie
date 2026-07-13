@@ -13,15 +13,6 @@ type ConfigContextType = {
 
 const ConfigContext = createContext<ConfigContextType | null>(null)
 
-function toBody(c: AppConfig) {
-  return {
-    userName: c.userName,
-    primaryColor: c.primaryColor,
-    adminPassword: c.adminPassword,
-    modules: c.modules,
-  }
-}
-
 function mergeModules(saved: AppConfig['modules']): AppConfig['modules'] {
   // Ajoute les nouveaux modules par défaut manquants dans la config sauvegardée
   const savedIds = new Set(saved.map(m => m.id))
@@ -83,13 +74,21 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   const updateConfig = (updates: Partial<AppConfig>) => {
     const next = { ...config, ...updates }
     setConfig(next)
-    if (activeUserId) {
-      fetch(`/api/config?userId=${activeUserId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(toBody(next)),
-      }).then()
-    }
+    if (!activeUserId) return
+    // On n'envoie QUE les champs réellement modifiés et persistés en base, pour
+    // ne JAMAIS écraser `modules` par erreur (ex. depuis l'état par défaut pas
+    // encore chargé). backgroundColor n'est pas stocké côté serveur.
+    const body: Record<string, unknown> = {}
+    if (updates.userName !== undefined) body.userName = updates.userName
+    if (updates.primaryColor !== undefined) body.primaryColor = updates.primaryColor
+    if (updates.adminPassword !== undefined) body.adminPassword = updates.adminPassword
+    if (updates.modules !== undefined) body.modules = updates.modules
+    if (Object.keys(body).length === 0) return
+    fetch(`/api/config?userId=${activeUserId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).then()
   }
 
   const reloadConfig = async () => {
