@@ -69,7 +69,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   return (
     <>
       {showSuperBanner && (
-        <div className="fixed top-12 left-0 right-0 z-50 bg-violet-600 text-white text-center text-sm py-2 px-4 font-medium flex items-center justify-center gap-3">
+        <div className="bg-violet-600 text-white text-center text-sm py-2 px-4 font-medium flex items-center justify-center gap-3">
           <span>🛡️ Mode Super Admin — Compte de <strong>{impersonatedUserName}</strong></span>
           <button
             onClick={() => { impersonate(null); router.push('/superadmin') }}
@@ -80,13 +80,11 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         </div>
       )}
       {showAdminBanner && (
-        <div className="fixed top-12 left-0 right-0 z-50 bg-indigo-600 text-white text-center text-sm py-2 px-4 font-medium">
+        <div className="bg-indigo-600 text-white text-center text-sm py-2 px-4 font-medium">
           Vous gérez le compte de <strong>{profile.firstName} {profile.lastName}</strong>
         </div>
       )}
-      <div className={(showSuperBanner || showAdminBanner) ? 'pt-9' : ''}>
-        {children}
-      </div>
+      {children}
     </>
   )
 }

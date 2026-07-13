@@ -26,11 +26,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <ProfileProvider>
               <BackgroundApplier />
               <TopBar />
-              <div className="pt-12">
-                <AuthGate>
-                  {children}
-                </AuthGate>
-              </div>
+              <AuthGate>
+                {children}
+              </AuthGate>
             </ProfileProvider>
           </ConfigProvider>
         </AuthProvider>
