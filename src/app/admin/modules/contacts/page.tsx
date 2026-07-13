@@ -1,5 +1,4 @@
 'use client'
-import BackBar from '@/components/BackBar'
 import { useProfile } from '@/lib/profileContext'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
@@ -38,7 +37,7 @@ export default function ContactsAdminPage() {
   }
 
   return (
-    <main className="min-h-screen p-6 max-w-2xl mx-auto pb-28">
+    <main className="min-h-screen p-6 max-w-2xl mx-auto pb-8">
       <div className="flex items-center gap-4 mb-8">
         <button onClick={() => router.back()} className="flex items-center justify-center w-10 h-10 rounded-2xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all text-gray-600 font-bold text-lg">←</button>
         <h1 className="text-2xl font-bold text-gray-800">Contacts d&apos;urgence</h1>
@@ -87,7 +86,6 @@ export default function ContactsAdminPage() {
           </Link>.
         </p>
       </section>
-      <BackBar />
     </main>
   )
 }

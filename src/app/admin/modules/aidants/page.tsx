@@ -1,5 +1,4 @@
 'use client'
-import BackBar from '@/components/BackBar'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { CareData, Caregiver, CareAppointment } from '@/types'
@@ -164,7 +163,7 @@ export default function AidantsAdminPage() {
   if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="text-xl text-gray-400">Chargement...</div></div>
 
   return (
-    <main className="min-h-screen p-6 max-w-2xl mx-auto pb-28">
+    <main className="min-h-screen p-6 max-w-2xl mx-auto pb-8">
       <div className="flex items-center gap-4 mb-6">
         <button onClick={() => router.back()} className="flex items-center justify-center w-10 h-10 rounded-2xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all text-gray-600 font-bold text-lg">←</button>
         <h1 className="text-2xl font-bold text-gray-800">Mes aidants</h1>
@@ -339,8 +338,8 @@ export default function AidantsAdminPage() {
 
           {/* Add appointment modal */}
           {showApptForm && editAppt && (
-            <div className="fixed inset-0 bg-black/40 flex items-end justify-center z-50 p-4">
-              <div className="bg-white rounded-3xl p-6 w-full max-w-lg space-y-3">
+            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 overflow-y-auto">
+              <div className="bg-white rounded-3xl p-6 w-full max-w-lg space-y-3 max-h-[90vh] overflow-y-auto my-auto">
                 <h3 className="text-lg font-bold text-gray-800">Ajouter un passage</h3>
                 <div><label className="block text-sm text-gray-500 mb-1">Date</label>
                   <input type="date" className={input} value={editAppt.date || ''} onChange={e => setEditAppt(p => ({ ...p, date: e.target.value }))} /></div>
@@ -455,7 +454,6 @@ export default function AidantsAdminPage() {
           )}
         </section>
       )}
-      <BackBar />
     </main>
   )
 }

@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/authContext'
-import BackBar from '@/components/BackBar'
+import Link from 'next/link'
 import { loadFinanceData, saveFinanceData, DEFAULT_FINANCE } from '@/lib/financeService'
 import { localISO } from '@/lib/financeUtils'
 import type { FinanceData, FinanceEvent } from '@/types'
@@ -151,8 +151,11 @@ export default function FinancesAdminPage() {
   const outEvents = data.events.filter(e => e.flow === 'out')
 
   return (
-    <main className="min-h-screen p-6 pb-28 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">💶 Configuration Finances</h1>
+    <main className="min-h-screen p-6 pb-8 max-w-2xl mx-auto">
+      <div className="flex items-center gap-4 mb-6">
+        <Link href="/admin/dashboard" className="flex items-center justify-center w-10 h-10 shrink-0 rounded-2xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all text-gray-600 font-bold text-lg">←</Link>
+        <h1 className="text-2xl font-bold text-gray-800">💶 Configuration Finances</h1>
+      </div>
 
       {/* Solde actuel */}
       <section className="mb-6">
@@ -350,8 +353,6 @@ export default function FinancesAdminPage() {
           </div>
         </div>
       )}
-
-      <BackBar label="Sauvegarder" href="/admin/dashboard" />
     </main>
   )
 }

@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/authContext'
-import BackBar from '@/components/BackBar'
 
 type Recurrence = 'daily' | 'weekly' | 'monthly' | 'once' | 'period'
 
@@ -133,7 +132,7 @@ export default function RemindersAdminPage() {
   if (loading) return <div className="flex items-center justify-center min-h-screen"><p className="text-gray-400 text-xl">Chargement...</p></div>
 
   return (
-    <main className="min-h-screen p-6 max-w-2xl mx-auto pb-28">
+    <main className="min-h-screen p-6 max-w-2xl mx-auto pb-8">
       <div className="flex items-center gap-4 mb-6">
         <button onClick={() => router.back()} className="flex items-center justify-center w-10 h-10 rounded-2xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all text-gray-600 font-bold text-lg">←</button>
         <h1 className="text-2xl font-bold text-gray-800">Rappels</h1>
@@ -336,8 +335,6 @@ export default function RemindersAdminPage() {
           + Ajouter un rappel
         </button>
       )}
-
-      <BackBar />
     </main>
   )
 }

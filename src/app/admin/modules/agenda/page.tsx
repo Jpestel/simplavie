@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { AgendaEvent, AgendaCategory } from '@/types'
 import { loadEvents, saveEvents } from '@/lib/agendaService'
 import { useAuth } from '@/lib/authContext'
-import BackBar from '@/components/BackBar'
+import Link from 'next/link'
 
 type CatInfo = { label: string; icon: string; bg: string; text: string; border: string }
 
@@ -87,10 +87,13 @@ export default function AdminAgendaPage() {
   )
 
   return (
-    <main className="min-h-screen p-6 pb-36 max-w-2xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Agenda</h1>
-        <p className="text-sm text-indigo-600 font-semibold mt-0.5">Vue aidant — vous pouvez ajouter ou supprimer des rendez-vous</p>
+    <main className="min-h-screen p-6 pb-8 max-w-2xl mx-auto">
+      <div className="flex items-center gap-4 mb-6">
+        <Link href="/admin" className="flex items-center justify-center w-10 h-10 shrink-0 rounded-2xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all text-gray-600 font-bold text-lg">←</Link>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Agenda</h1>
+          <p className="text-sm text-indigo-600 font-semibold mt-0.5">Vue aidant — vous pouvez ajouter ou supprimer des rendez-vous</p>
+        </div>
       </div>
 
       {upcoming.length === 0 ? (
@@ -195,8 +198,6 @@ export default function AdminAgendaPage() {
           </div>
         </div>
       )}
-
-      <BackBar href="/admin" />
     </main>
   )
 }
