@@ -1,10 +1,25 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { CareData, CareAppointment } from '@/types'
+import { CareData, CareAppointment, AgendaEvent } from '@/types'
 import { loadCareData, EMPTY_CARE_DATA } from '@/lib/careService'
+import { loadEvents } from '@/lib/agendaService'
 import { loadAlertMessages } from '@/lib/alertMessagesService'
 import { useAuth } from '@/lib/authContext'
+
+// Couleurs/icônes de l'agenda personnel (pour le distinguer des interventions).
+const AGENDA_CAT: Record<string, { label: string; bg: string; text: string; icon: string }> = {
+  medical: { label: 'Santé', bg: 'bg-rose-50 border-rose-200', text: 'text-rose-700', icon: '🩺' },
+  admin: { label: 'Démarche', bg: 'bg-amber-50 border-amber-200', text: 'text-amber-700', icon: '📋' },
+  family: { label: 'Famille', bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700', icon: '👨‍👩‍👧' },
+  other: { label: 'Sortie', bg: 'bg-sky-50 border-sky-200', text: 'text-sky-700', icon: '📅' },
+}
+
+function timeToMin(t?: string): number | null {
+  if (!t) return null
+  const [h, m] = t.split(':').map(Number)
+  return Number.isNaN(h) ? null : h * 60 + (m || 0)
+}
 
 const DAYS_FULL = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
 const DAYS_SHORT = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
@@ -83,6 +98,7 @@ export default function AidantsPage() {
   const router = useRouter()
   const { activeUserId } = useAuth()
   const [care, setCare] = useState<CareData>(EMPTY_CARE_DATA)
+  const [events, setEvents] = useState<AgendaEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<View>('semaine')
   const [offset, setOffset] = useState(0)
@@ -95,6 +111,7 @@ export default function AidantsPage() {
   useEffect(() => {
     if (!activeUserId) return
     loadCareData(activeUserId).then(d => { setCare(d); setLoading(false) })
+    loadEvents(activeUserId).then(setEvents)
     loadAlertMessages(activeUserId).then(setAlertMessages)
   }, [activeUserId])
 
@@ -113,21 +130,57 @@ export default function AidantsPage() {
   const todayAppts = getAppt(today)
   const hasAlert = todayAppts.some(a => a.status === 'modified' || a.status === 'cancelled')
 
-  const getCaregiverName = (appt: CareAppointment) => {
-    if (appt.caregiverId) {
-      const cg = care.caregivers.find(c => c.id === appt.caregiverId)
-      if (cg) return cg.name
-    }
-    return appt.caregiverName || 'Intervenant'
+  const getEvents = (date: string): AgendaEvent[] =>
+    events.filter(e => e.date === date).sort((a, b) => (a.time ?? '').localeCompare(b.time ?? ''))
+
+  // Retrouve la fiche intervenant liée à un passage (par id, sinon par nom).
+  const getCaregiver = (appt: CareAppointment) => {
+    if (appt.caregiverId) return care.caregivers.find(c => c.id === appt.caregiverId)
+    if (appt.caregiverName) return care.caregivers.find(c => c.name.toLowerCase() === appt.caregiverName!.toLowerCase())
+    return undefined
+  }
+
+  const getCaregiverName = (appt: CareAppointment) => getCaregiver(appt)?.name ?? appt.caregiverName ?? 'Intervenant'
+
+  // Fenêtre horaire d'un passage (fin par défaut : +1h).
+  const apptWindow = (a: CareAppointment): [number, number] | null => {
+    const s = timeToMin(a.time)
+    if (s === null) return null
+    const e = timeToMin(a.endTime)
+    return [s, e !== null ? e : s + 60]
+  }
+  // Un rendez-vous perso tombe-t-il pendant un passage (le même jour) ?
+  const eventDuringAppt = (ev: AgendaEvent, appts: CareAppointment[]): boolean => {
+    const t = timeToMin(ev.time)
+    if (t === null) return false
+    return appts.some(a => {
+      if (a.status === 'cancelled') return false
+      const w = apptWindow(a)
+      return w !== null && t >= w[0] && t < w[1]
+    })
+  }
+  const apptHasEvent = (a: CareAppointment, evs: AgendaEvent[]): boolean => {
+    if (a.status === 'cancelled') return false
+    const w = apptWindow(a)
+    if (w === null) return false
+    return evs.some(ev => { const t = timeToMin(ev.time); return t !== null && t >= w[0] && t < w[1] })
   }
 
   const anchor = getAnchor(view, offset)
   const allDates = getDates(view, anchor)
-  const datesWithAppts = view === 'mois' || view === 'annee'
-    ? allDates.filter(d => getAppt(d).length > 0)
+  const datesWithItems = view === 'mois' || view === 'annee'
+    ? allDates.filter(d => getAppt(d).length > 0 || getEvents(d).length > 0)
     : allDates
   const periodLabel = getPeriodLabel(view, anchor)
   const isCurrentPeriod = offset === 0
+
+  // Chevauchements à venir : sortie/RDV pendant un passage d'intervenant.
+  const upcomingOverlaps = allDates
+    .filter(d => d >= today)
+    .flatMap(d => {
+      const appts = getAppt(d)
+      return getEvents(d).filter(ev => eventDuringAppt(ev, appts)).map(ev => ({ date: d, ev }))
+    })
 
   return (
     <main className="min-h-screen p-6 pb-8 max-w-6xl mx-auto">
@@ -136,7 +189,7 @@ export default function AidantsPage() {
         <p className="text-gray-400">{DAYS_FULL[new Date().getDay()]} {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}</p>
       </div>
 
-      {!hasCompany && (care.appointments || []).length === 0 && care.caregivers.length === 0 ? (
+      {!hasCompany && (care.appointments || []).length === 0 && care.caregivers.length === 0 && events.length === 0 ? (
         <div className="text-center mt-20 text-gray-400">
           <div className="text-5xl mb-4">🤝</div>
           <p className="text-xl">Ce module n&apos;est pas encore configuré</p>
@@ -155,6 +208,17 @@ export default function AidantsPage() {
                   {a.modifiedNote && <p className="text-sm mt-1">{a.modifiedNote}</p>}
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Chevauchements : sortie/RDV pendant un passage */}
+          {upcomingOverlaps.length > 0 && (
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-3xl p-5 mb-4">
+              <h2 className="text-lg font-bold text-amber-800 mb-1">🚶 {upcomingOverlaps.length} sortie(s) pendant un passage</h2>
+              <p className="text-amber-700 text-sm">
+                Vous avez un rendez-vous ou une sortie <strong>en même temps</strong> qu&apos;un intervenant.
+                Vérifiez si vous avez besoin de lui à ces moments — sinon, prévenez la société.
+              </p>
             </div>
           )}
 
@@ -193,44 +257,79 @@ export default function AidantsPage() {
                 </button>
               </div>
 
+              {/* Légende */}
+              <div className="flex items-center gap-4 text-xs text-gray-500 px-1">
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-indigo-400" /> Intervenant</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-sky-400" /> Votre agenda</span>
+              </div>
+
               <div className="bg-white rounded-3xl shadow-sm border-2 border-gray-100 overflow-hidden">
-                {datesWithAppts.length === 0 ? (
+                {datesWithItems.length === 0 ? (
                   <div className="p-8 text-center text-gray-400">
                     <div className="text-4xl mb-2">📭</div>
-                    <p>Aucune intervention sur cette période</p>
+                    <p>Aucune intervention ni rendez-vous sur cette période</p>
                   </div>
                 ) : (
-                  datesWithAppts.map((date) => {
+                  datesWithItems.map((date) => {
                     const appts = getAppt(date)
+                    const evs = getEvents(date)
                     const isToday = date === today
                     const d = new Date(date + 'T00:00:00')
+                    const rows = [
+                      ...appts.map(a => ({ t: a.time ?? '', kind: 'care' as const, a })),
+                      ...evs.map(e => ({ t: e.time ?? '', kind: 'event' as const, e })),
+                    ].sort((x, y) => x.t.localeCompare(y.t))
                     return (
                       <div key={date} className={`flex gap-3 p-4 border-b border-gray-50 last:border-0 ${isToday ? 'bg-indigo-50' : ''}`}>
                         <div className="w-16 shrink-0">
                           <div className={`text-sm font-bold ${isToday ? 'text-indigo-600' : 'text-gray-500'}`}>{DAYS_SHORT[d.getDay()]}</div>
-                          <div className={`text-xs ${isToday ? 'text-indigo-400' : 'text-gray-400'}`}>{d.getDate()} {MONTHS[d.getMonth()].slice(0,3)}.</div>
+                          <div className={`text-xs ${isToday ? 'text-indigo-400' : 'text-gray-400'}`}>{d.getDate()} {MONTHS[d.getMonth()].slice(0, 3)}.</div>
                         </div>
-                        <div className="flex-1 space-y-1">
-                          {appts.length === 0 ? (
+                        <div className="flex-1 space-y-1.5">
+                          {rows.length === 0 ? (
                             <span className="text-gray-300 text-sm">—</span>
-                          ) : appts.map(a => (
-                            <div key={a.id} className={`flex items-center gap-2 ${a.status === 'cancelled' ? 'opacity-40' : ''}`}>
-                              <div className="flex-1 flex items-center gap-2 flex-wrap">
-                                <span className={`text-sm font-semibold ${a.status === 'cancelled' ? 'line-through text-gray-400' : isToday ? 'text-indigo-600' : 'text-gray-700'}`}>
-                                  {a.time}{a.endTime ? ` → ${a.endTime}` : ''}
-                                </span>
-                                <span className={`text-sm ${a.status === 'cancelled' ? 'line-through text-gray-400' : 'text-gray-500'}`}>{getCaregiverName(a)}</span>
-                                {a.status === 'modified' && <span className="text-xs text-orange-500">⚠️</span>}
-                                {a.status === 'cancelled' && <span className="text-xs text-red-400">✕</span>}
+                          ) : rows.map(r => {
+                            if (r.kind === 'care') {
+                              const a = r.a
+                              const cg = getCaregiver(a)
+                              const overlap = apptHasEvent(a, evs)
+                              return (
+                                <div key={`c-${a.id}`} className={a.status === 'cancelled' ? 'opacity-40' : ''}>
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 flex items-center gap-2 flex-wrap">
+                                      <span className={`text-sm font-semibold ${a.status === 'cancelled' ? 'line-through text-gray-400' : isToday ? 'text-indigo-600' : 'text-gray-700'}`}>
+                                        {a.time}{a.endTime ? ` → ${a.endTime}` : ''}
+                                      </span>
+                                      <span className={`text-sm ${a.status === 'cancelled' ? 'line-through text-gray-400' : 'text-gray-500'}`}>{getCaregiverName(a)}</span>
+                                      {a.status === 'modified' && <span className="text-xs text-orange-500">⚠️</span>}
+                                      {a.status === 'cancelled' && <span className="text-xs text-red-400">✕</span>}
+                                    </div>
+                                    {cg && (cg.mobile || cg.phone) && a.status !== 'cancelled' && (
+                                      <a href={`tel:${cg.mobile || cg.phone}`} aria-label={`Appeler ${cg.name}`}
+                                        className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl bg-green-50 border border-green-200 text-green-600 active:scale-95 transition-all">📞</a>
+                                    )}
+                                    <button onClick={() => setAlertAppt(a)} aria-label="Signaler une absence"
+                                      className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl bg-orange-50 border border-orange-200 text-orange-500 hover:bg-orange-100 active:scale-95 transition-all">🔔</button>
+                                  </div>
+                                  {overlap && <div className="text-xs text-amber-600 font-semibold mt-0.5">🚶 Vous avez une sortie à cette heure</div>}
+                                </div>
+                              )
+                            }
+                            const e = r.e
+                            const cat = AGENDA_CAT[e.category ?? 'other']
+                            const overlap = eventDuringAppt(e, appts)
+                            return (
+                              <div key={`e-${e.id}`} className={`rounded-xl border px-3 py-2 ${cat.bg}`}>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span>{cat.icon}</span>
+                                  {e.time && <span className="text-sm font-semibold text-gray-700">{e.time}</span>}
+                                  <span className="text-sm font-medium text-gray-800">{e.title}</span>
+                                  <span className={`text-[10px] font-bold uppercase tracking-wide ${cat.text}`}>{cat.label}</span>
+                                </div>
+                                {overlap && <div className="text-xs text-amber-700 font-semibold mt-1">⚠️ Un intervenant est prévu à cette heure — avez-vous besoin de lui&nbsp;?</div>}
                               </div>
-                              <button
-                                onClick={() => setAlertAppt(a)}
-                                className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-orange-50 border border-orange-200 text-orange-500 font-semibold text-sm hover:bg-orange-100 active:scale-95 transition-all"
-                              >
-                                <span>🔔</span>
-                              </button>
-                            </div>
-                          ))}
+                            )
+                          })}
                         </div>
                       </div>
                     )
