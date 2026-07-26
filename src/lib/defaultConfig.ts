@@ -45,7 +45,7 @@ export const DEFAULT_MODULES: Module[] = [
     id: 'aidants',
     name: 'aidants',
     label: 'Mes aidants',
-    description: 'Société, intervenants et planning',
+    description: 'Visualisez le planning des intervenants',
     icon: '🤝',
     enabled: false,
     locked: true,
