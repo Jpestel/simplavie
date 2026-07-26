@@ -1,10 +1,10 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { AgendaEvent, AgendaCategoryDef } from '@/types'
+import { AgendaEvent } from '@/types'
 import { loadEvents, saveEvents } from '@/lib/agendaService'
 import { useAuth } from '@/lib/authContext'
 import { useConfig } from '@/lib/configContext'
-import { allCategories, visibleCategories, findCategory, colorOf, AGENDA_COLORS, genCategoryId } from '@/lib/agendaCategories'
+import { allCategories, visibleCategories, findCategory, colorOf } from '@/lib/agendaCategories'
 import Link from 'next/link'
 
 const MONTHS_SHORT = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc']
@@ -37,13 +37,12 @@ function countdownStyle(d: number) {
 
 export default function AdminAgendaPage() {
   const { activeUserId } = useAuth()
-  const { config, updateConfig } = useConfig()
+  const { config } = useConfig()
   const [events, setEvents]     = useState<AgendaEvent[]>([])
   const [loading, setLoading]   = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showPast, setShowPast] = useState(false)
-  const [tab, setTab] = useState<'events' | 'categories'>('events')
 
   const today = new Date().toISOString().slice(0, 10)
   const [fTitle, setFTitle] = useState('')
@@ -51,7 +50,7 @@ export default function AdminAgendaPage() {
   const [fTime,  setFTime]  = useState('')
   const [fCat,   setFCat]   = useState<string>('medical')
 
-  // Catégories configurées pour CET utilisateur (toutes, activées ou non).
+  // Catégories définies par le Super Admin pour cet utilisateur (lecture seule ici).
   const cats = allCategories(config.agendaCategories)
   const formCats = visibleCategories(config.agendaCategories)
 
@@ -105,21 +104,6 @@ export default function AdminAgendaPage() {
     await saveEvents(activeUserId, next)
   }
 
-  // ── Gestion des catégories ──
-  const saveCats = (next: AgendaCategoryDef[]) => updateConfig({ agendaCategories: next })
-  const updateCat = (id: string, patch: Partial<AgendaCategoryDef>) =>
-    saveCats(cats.map(c => (c.id === id ? { ...c, ...patch } : c)))
-  const addCat = () =>
-    saveCats([...cats, { id: genCategoryId(), label: 'Nouvelle catégorie', icon: '📌', color: 'blue', enabled: true }])
-  const removeCat = (id: string) => {
-    const used = events.filter(e => e.category === id).length
-    const msg = used > 0
-      ? `Supprimer cette catégorie ?\n${used} rendez-vous l'utilise(nt) — ils resteront visibles avec un affichage neutre.`
-      : 'Supprimer cette catégorie ?'
-    if (!confirm(msg)) return
-    saveCats(cats.filter(c => c.id !== id))
-  }
-
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen">
       <div className="text-2xl text-gray-400">Chargement...</div>
@@ -156,23 +140,11 @@ export default function AdminAgendaPage() {
         <Link href="/admin" className="flex items-center justify-center w-10 h-10 shrink-0 rounded-2xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all text-gray-600 font-bold text-lg">←</Link>
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Agenda</h1>
-          <p className="text-sm text-indigo-600 font-semibold mt-0.5">Vue aidant — rendez-vous et catégories</p>
+          <p className="text-sm text-indigo-600 font-semibold mt-0.5">Vue aidant — vous pouvez ajouter, modifier ou supprimer des rendez-vous</p>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="grid grid-cols-2 gap-1 mb-6 bg-gray-100 rounded-2xl p-1">
-        {([['events', '📅 Rendez-vous'], ['categories', '🏷️ Catégories']] as const).map(([key, label]) => (
-          <button key={key} onClick={() => setTab(key)}
-            className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${tab === key ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* ── ÉVÉNEMENTS ── */}
-      {tab === 'events' && (
-        <>
+      <>
           {upcoming.length === 0 ? (
             <div className="text-center mt-16 text-gray-400">
               <div className="text-5xl mb-4">📅</div>
@@ -202,76 +174,9 @@ export default function AdminAgendaPage() {
             </div>
           )}
         </>
-      )}
-
-      {/* ── CATÉGORIES ── */}
-      {tab === 'categories' && (
-        <div className="space-y-4">
-          <p className="text-sm text-gray-500">
-            Créez les catégories adaptées à cet utilisateur. Seules les catégories <strong>activées</strong> lui
-            seront proposées lorsqu&apos;il ajoute un rendez-vous.
-          </p>
-
-          <div className="space-y-3">
-            {cats.map(cat => {
-              const col = colorOf(cat.color)
-              return (
-                <div key={cat.id} className={`rounded-2xl border-2 p-4 space-y-3 ${cat.enabled ? `${col.bg} ${col.border}` : 'bg-white border-gray-200 opacity-70'}`}>
-                  <div className="flex items-center gap-2">
-                    <input
-                      value={cat.icon}
-                      onChange={e => updateCat(cat.id, { icon: e.target.value.slice(0, 2) })}
-                      aria-label="Icône"
-                      className="w-14 text-center text-2xl border border-gray-200 rounded-xl py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                    />
-                    <input
-                      value={cat.label}
-                      onChange={e => updateCat(cat.id, { label: e.target.value })}
-                      aria-label="Nom de la catégorie"
-                      placeholder="Nom de la catégorie"
-                      className="flex-1 border border-gray-200 rounded-xl p-3 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                    />
-                    <button onClick={() => removeCat(cat.id)} aria-label="Supprimer la catégorie"
-                      className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-400 hover:text-red-500 hover:bg-red-50 active:scale-95 transition-all">🗑️</button>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    {AGENDA_COLORS.map(c => (
-                      <button
-                        key={c.key}
-                        onClick={() => updateCat(cat.id, { color: c.key })}
-                        aria-label={c.label}
-                        title={c.label}
-                        className={`w-8 h-8 rounded-full ${c.dot} transition-all active:scale-90 ${cat.color === c.key ? 'ring-4 ring-offset-1 ring-gray-400' : 'opacity-60 hover:opacity-100'}`}
-                      />
-                    ))}
-                  </div>
-
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={cat.enabled !== false}
-                      onChange={e => updateCat(cat.id, { enabled: e.target.checked })}
-                      className="w-5 h-5 accent-indigo-500"
-                    />
-                    <span className="text-sm font-medium text-gray-700">
-                      {cat.enabled !== false ? 'Visible par l’utilisateur' : 'Masquée pour cet utilisateur'}
-                    </span>
-                  </label>
-                </div>
-              )
-            })}
-          </div>
-
-          <button onClick={addCat}
-            className="w-full py-3.5 rounded-2xl border-2 border-dashed border-indigo-300 text-indigo-600 font-semibold hover:bg-indigo-50 active:scale-95 transition-all">
-            + Ajouter une catégorie
-          </button>
-        </div>
-      )}
 
       {/* FAB */}
-      {tab === 'events' && !showForm && (
+      {!showForm && (
         <button
           onClick={openCreate}
           aria-label="Ajouter un rendez-vous"

@@ -5,12 +5,14 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { saFetch } from '@/lib/superadminFetch'
 import BackBar from '@/components/BackBar'
+import { AgendaCategoryDef } from '@/types'
+import { allCategories, colorOf, AGENDA_COLORS, genCategoryId } from '@/lib/agendaCategories'
 
 type Module = { id: string; label: string; icon: string; enabled: boolean; order: number; name: string; description: string; locked?: boolean }
 type Admin = { id: string; display_name: string | null; email: string; permission: 'read' | 'write' }
 type UserDetail = {
   profile: { display_name: string | null; global_role: string | null } | null
-  config: { user_name: string; modules: Module[] } | null
+  config: { user_name: string; modules: Module[]; agendaCategories?: AgendaCategoryDef[] } | null
   admins: Admin[]
   email: string
 }
@@ -57,6 +59,25 @@ export default function SuperAdminUserPage() {
     })
     setData(d => d && d.config ? { ...d, config: { ...d.config, modules: updated } } : d)
     setSaving(null)
+  }
+
+  // ── Catégories d'agenda (réservé au Super Admin) ──
+  const agendaCats = allCategories(data?.config?.agendaCategories)
+
+  const saveCats = async (next: AgendaCategoryDef[]) => {
+    setData(d => (d && d.config ? { ...d, config: { ...d.config, agendaCategories: next } } : d))
+    await saFetch(`/api/superadmin/users/${userId}/agenda-categories`, {
+      method: 'PATCH',
+      body: JSON.stringify({ agendaCategories: next }),
+    })
+  }
+  const updateCat = (id: string, patch: Partial<AgendaCategoryDef>) =>
+    saveCats(agendaCats.map(c => (c.id === id ? { ...c, ...patch } : c)))
+  const addCat = () =>
+    saveCats([...agendaCats, { id: genCategoryId(), label: 'Nouvelle catégorie', icon: '📌', color: 'blue', enabled: true }])
+  const removeCat = (id: string) => {
+    if (!confirm('Supprimer cette catégorie ?\nLes rendez-vous qui l\'utilisent resteront visibles avec un affichage neutre.')) return
+    saveCats(agendaCats.filter(c => c.id !== id))
   }
 
   const changePermission = async (adminId: string, permission: 'read' | 'write') => {
@@ -143,6 +164,70 @@ export default function SuperAdminUserPage() {
                 </div>
               ))}
             </div>
+          </section>
+
+          <section className="bg-white rounded-2xl p-6 shadow-sm mb-6">
+            <h2 className="text-lg font-semibold text-gray-700 mb-1">🏷️ Catégories d&apos;agenda</h2>
+            <p className="text-sm text-gray-400 mb-4">
+              Définissez les catégories de rendez-vous de cet utilisateur. Seules les catégories
+              <strong> visibles</strong> lui seront proposées dans son agenda.
+            </p>
+
+            <div className="space-y-3">
+              {agendaCats.map(cat => {
+                const col = colorOf(cat.color)
+                return (
+                  <div key={cat.id} className={`rounded-2xl border-2 p-4 space-y-3 ${cat.enabled !== false ? `${col.bg} ${col.border}` : 'bg-white border-gray-200 opacity-70'}`}>
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={cat.icon}
+                        onChange={e => updateCat(cat.id, { icon: e.target.value.slice(0, 2) })}
+                        aria-label="Icône"
+                        className="w-14 text-center text-2xl border border-gray-200 rounded-xl py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                      />
+                      <input
+                        value={cat.label}
+                        onChange={e => updateCat(cat.id, { label: e.target.value })}
+                        aria-label="Nom de la catégorie"
+                        placeholder="Nom de la catégorie"
+                        className="flex-1 border border-gray-200 rounded-xl p-3 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                      />
+                      <button onClick={() => removeCat(cat.id)} aria-label="Supprimer la catégorie"
+                        className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-400 hover:text-red-500 hover:bg-red-50 active:scale-95 transition-all">🗑️</button>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      {AGENDA_COLORS.map(c => (
+                        <button
+                          key={c.key}
+                          onClick={() => updateCat(cat.id, { color: c.key })}
+                          aria-label={c.label}
+                          title={c.label}
+                          className={`w-8 h-8 rounded-full ${c.dot} transition-all active:scale-90 ${cat.color === c.key ? 'ring-4 ring-offset-1 ring-gray-400' : 'opacity-60 hover:opacity-100'}`}
+                        />
+                      ))}
+                    </div>
+
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={cat.enabled !== false}
+                        onChange={e => updateCat(cat.id, { enabled: e.target.checked })}
+                        className="w-5 h-5 accent-indigo-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">
+                        {cat.enabled !== false ? 'Visible par l’utilisateur' : 'Masquée pour cet utilisateur'}
+                      </span>
+                    </label>
+                  </div>
+                )
+              })}
+            </div>
+
+            <button onClick={addCat}
+              className="mt-3 w-full py-3.5 rounded-2xl border-2 border-dashed border-indigo-300 text-indigo-600 font-semibold hover:bg-indigo-50 active:scale-95 transition-all">
+              + Ajouter une catégorie
+            </button>
           </section>
 
           <section className="bg-white rounded-2xl p-6 shadow-sm">

@@ -84,7 +84,8 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
     if (updates.primaryColor !== undefined) body.primaryColor = updates.primaryColor
     if (updates.adminPassword !== undefined) body.adminPassword = updates.adminPassword
     if (updates.modules !== undefined) body.modules = updates.modules
-    if (updates.agendaCategories !== undefined) body.agendaCategories = updates.agendaCategories
+    // agendaCategories est volontairement absent : ces catégories ne sont
+    // modifiables que par le Super Admin (API dédiée).
     if (Object.keys(body).length === 0) return
     fetch(`/api/config?userId=${activeUserId}`, {
       method: 'PATCH',
