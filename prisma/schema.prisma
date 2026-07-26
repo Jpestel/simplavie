@@ -86,6 +86,7 @@ model AppConfig {
   adminPassword String   @default("1234") @map("admin_password")
   modules       Json     @default("[]")
   agendaCategories Json? @map("agenda_categories")
+  agendaHiddenCategories Json? @map("agenda_hidden_categories")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [id], references: [id], onDelete: Cascade)

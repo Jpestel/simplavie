@@ -29,6 +29,7 @@ function fromRow(row: Record<string, unknown>): AppConfig {
     adminPassword: (row.adminPassword as string) ?? DEFAULT_CONFIG.adminPassword,
     modules: mergeModules(savedModules),
     agendaCategories: (row.agendaCategories as AppConfig['agendaCategories']) ?? undefined,
+    agendaHiddenCategories: (row.agendaHiddenCategories as AppConfig['agendaHiddenCategories']) ?? undefined,
   }
 }
 
@@ -85,7 +86,9 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
     if (updates.adminPassword !== undefined) body.adminPassword = updates.adminPassword
     if (updates.modules !== undefined) body.modules = updates.modules
     // agendaCategories est volontairement absent : ces catégories ne sont
-    // modifiables que par le Super Admin (API dédiée).
+    // modifiables que par le Super Admin (API dédiée). En revanche l'utilisateur
+    // choisit librement celles qu'il affiche.
+    if (updates.agendaHiddenCategories !== undefined) body.agendaHiddenCategories = updates.agendaHiddenCategories
     if (Object.keys(body).length === 0) return
     fetch(`/api/config?userId=${activeUserId}`, {
       method: 'PATCH',

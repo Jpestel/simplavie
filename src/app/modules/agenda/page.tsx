@@ -4,7 +4,7 @@ import { AgendaEvent } from '@/types'
 import { loadEvents, saveEvents } from '@/lib/agendaService'
 import { useAuth } from '@/lib/authContext'
 import { useConfig } from '@/lib/configContext'
-import { visibleCategories, findCategory, colorOf } from '@/lib/agendaCategories'
+import { userVisibleCategories, findCategory, colorOf } from '@/lib/agendaCategories'
 
 const MONTHS_FR   = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const MONTHS_SHORT = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc']
@@ -61,7 +61,10 @@ export default function AgendaPage() {
   const today = new Date().toISOString().slice(0, 10)
   const todayDate = new Date(today + 'T00:00:00')
 
-  const cats = visibleCategories(config.agendaCategories)
+  const hiddenCats = config.agendaHiddenCategories ?? []
+  const cats = userVisibleCategories(config.agendaCategories, hiddenCats)
+  // Un rendez-vous d'une catégorie masquée n'est pas affiché (mais reste enregistré).
+  const isHidden = (e: AgendaEvent) => hiddenCats.length > 0 && !!e.category && hiddenCats.includes(e.category)
 
   const [viewYear,    setViewYear]    = useState(todayDate.getFullYear())
   const [viewMonth,   setViewMonth]   = useState(todayDate.getMonth())
@@ -77,11 +80,14 @@ export default function AgendaPage() {
     loadEvents(activeUserId).then(e => { setEvents(e); setLoading(false) })
   }, [activeUserId])
 
-  const upcoming = [...events]
+  const shownEvents = events.filter(e => !isHidden(e))
+  const hiddenCount = events.length - shownEvents.length
+
+  const upcoming = [...shownEvents]
     .filter(e => e.date >= today)
     .sort((a, b) => a.date.localeCompare(b.date) || (a.time ?? '').localeCompare(b.time ?? ''))
 
-  const past = [...events]
+  const past = [...shownEvents]
     .filter(e => e.date < today)
     .sort((a, b) => b.date.localeCompare(a.date) || (b.time ?? '').localeCompare(a.time ?? ''))
 
@@ -134,7 +140,7 @@ export default function AgendaPage() {
   const cells = getMonthGrid(viewYear, viewMonth)
   const monthPrefix = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-`
   const eventsByDay: Record<number, AgendaEvent[]> = {}
-  events.forEach(e => {
+  shownEvents.forEach(e => {
     if (e.date.startsWith(monthPrefix)) {
       const d = parseInt(e.date.slice(8))
       if (!eventsByDay[d]) eventsByDay[d] = []
@@ -203,6 +209,12 @@ export default function AgendaPage() {
           >📅 Mois</button>
         </div>
       </div>
+
+      {hiddenCount > 0 && (
+        <p className="mb-4 text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5">
+          🏷️ {hiddenCount} rendez-vous masqué(s) par vos catégories affichées.
+        </p>
+      )}
 
       {/* ── List view ── */}
       {view === 'list' && (

@@ -53,6 +53,19 @@ export function visibleCategories(cats?: AgendaCategoryDef[] | null): AgendaCate
   return list.length > 0 ? list : DEFAULT_AGENDA_CATEGORIES
 }
 
+// Catégories réellement affichées à l'utilisateur : autorisées par le Super
+// Admin ET non masquées par l'utilisateur lui-même. Si l'utilisateur a tout
+// masqué, on retombe sur les catégories autorisées pour ne pas bloquer l'ajout.
+export function userVisibleCategories(
+  cats?: AgendaCategoryDef[] | null,
+  hidden?: string[] | null,
+): AgendaCategoryDef[] {
+  const allowed = visibleCategories(cats)
+  if (!Array.isArray(hidden) || hidden.length === 0) return allowed
+  const kept = allowed.filter(c => !hidden.includes(c.id))
+  return kept.length > 0 ? kept : allowed
+}
+
 // Retrouve la catégorie d'un rendez-vous. Si elle a été supprimée entre-temps,
 // on renvoie une catégorie neutre pour ne jamais casser l'affichage.
 export function findCategory(cats: AgendaCategoryDef[], id?: string): AgendaCategoryDef {

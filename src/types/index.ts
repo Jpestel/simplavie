@@ -31,7 +31,8 @@ export type AppConfig = {
   backgroundColor: string // hex color for page background
   adminPassword: string  // simple 4-digit PIN
   modules: Module[]
-  agendaCategories?: AgendaCategoryDef[]
+  agendaCategories?: AgendaCategoryDef[]      // défini par le Super Admin
+  agendaHiddenCategories?: string[]           // masquées par l'utilisateur lui-même
 }
 
 export type DayRoutine = {

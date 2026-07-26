@@ -4,7 +4,7 @@ import { AgendaEvent } from '@/types'
 import { loadEvents, saveEvents } from '@/lib/agendaService'
 import { useAuth } from '@/lib/authContext'
 import { useConfig } from '@/lib/configContext'
-import { allCategories, visibleCategories, findCategory, colorOf } from '@/lib/agendaCategories'
+import { allCategories, visibleCategories, userVisibleCategories, findCategory, colorOf } from '@/lib/agendaCategories'
 import Link from 'next/link'
 
 const MONTHS_SHORT = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc']
@@ -37,7 +37,7 @@ function countdownStyle(d: number) {
 
 export default function AdminAgendaPage() {
   const { activeUserId } = useAuth()
-  const { config } = useConfig()
+  const { config, updateConfig } = useConfig()
   const [events, setEvents]     = useState<AgendaEvent[]>([])
   const [loading, setLoading]   = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -50,9 +50,17 @@ export default function AdminAgendaPage() {
   const [fTime,  setFTime]  = useState('')
   const [fCat,   setFCat]   = useState<string>('medical')
 
-  // Catégories définies par le Super Admin pour cet utilisateur (lecture seule ici).
+  // Catégories définies par le Super Admin (non modifiables ici) ...
   const cats = allCategories(config.agendaCategories)
-  const formCats = visibleCategories(config.agendaCategories)
+  const allowedCats = visibleCategories(config.agendaCategories)
+  // ... et parmi elles, celles que l'utilisateur choisit d'afficher.
+  const hidden = config.agendaHiddenCategories ?? []
+  const formCats = userVisibleCategories(config.agendaCategories, hidden)
+
+  const toggleCategoryVisibility = (id: string) => {
+    const next = hidden.includes(id) ? hidden.filter(h => h !== id) : [...hidden, id]
+    updateConfig({ agendaHiddenCategories: next })
+  }
 
   useEffect(() => {
     if (!activeUserId) return
@@ -143,6 +151,37 @@ export default function AdminAgendaPage() {
           <p className="text-sm text-indigo-600 font-semibold mt-0.5">Vue aidant — vous pouvez ajouter, modifier ou supprimer des rendez-vous</p>
         </div>
       </div>
+
+      {/* Choix des catégories affichées (parmi celles autorisées par le Super Admin) */}
+      <section className="bg-white rounded-2xl p-5 shadow-sm mb-6">
+        <h2 className="text-base font-semibold text-gray-700 mb-1">🏷️ Catégories affichées</h2>
+        <p className="text-sm text-gray-400 mb-3">
+          Choisissez les catégories à utiliser dans l&apos;agenda. Les autres seront masquées.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {allowedCats.map(cat => {
+            const col = colorOf(cat.color)
+            const on = !hidden.includes(cat.id)
+            return (
+              <button
+                key={cat.id}
+                onClick={() => toggleCategoryVisibility(cat.id)}
+                aria-pressed={on}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border-2 font-semibold text-sm active:scale-95 transition-all ${
+                  on ? `${col.bg} ${col.text} ${col.border}` : 'bg-white border-gray-200 text-gray-400'
+                }`}
+              >
+                <span>{on ? '☑' : '☐'}</span>
+                <span className="text-lg">{cat.icon}</span>
+                <span>{cat.label}</span>
+              </button>
+            )
+          })}
+        </div>
+        <p className="text-xs text-gray-400 mt-3">
+          Ces catégories sont définies par l&apos;administrateur de SimplaVie.
+        </p>
+      </section>
 
       <>
           {upcoming.length === 0 ? (
