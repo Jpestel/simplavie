@@ -85,6 +85,7 @@ model AppConfig {
   primaryColor  String   @default("#6366f1") @map("primary_color")
   adminPassword String   @default("1234") @map("admin_password")
   modules       Json     @default("[]")
+  agendaCategories Json? @map("agenda_categories")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [id], references: [id], onDelete: Cascade)

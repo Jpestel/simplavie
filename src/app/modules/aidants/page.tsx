@@ -6,14 +6,8 @@ import { loadCareData, EMPTY_CARE_DATA } from '@/lib/careService'
 import { loadEvents } from '@/lib/agendaService'
 import { loadAlertMessages } from '@/lib/alertMessagesService'
 import { useAuth } from '@/lib/authContext'
-
-// Couleurs/icônes de l'agenda personnel (pour le distinguer des interventions).
-const AGENDA_CAT: Record<string, { label: string; bg: string; text: string; icon: string }> = {
-  medical: { label: 'Santé', bg: 'bg-rose-50 border-rose-200', text: 'text-rose-700', icon: '🩺' },
-  admin: { label: 'Démarche', bg: 'bg-amber-50 border-amber-200', text: 'text-amber-700', icon: '📋' },
-  family: { label: 'Famille', bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700', icon: '👨‍👩‍👧' },
-  other: { label: 'Sortie', bg: 'bg-sky-50 border-sky-200', text: 'text-sky-700', icon: '📅' },
-}
+import { useConfig } from '@/lib/configContext'
+import { allCategories, findCategory, colorOf } from '@/lib/agendaCategories'
 
 function timeToMin(t?: string): number | null {
   if (!t) return null
@@ -97,6 +91,7 @@ const VIEWS: { key: View; label: string }[] = [
 export default function AidantsPage() {
   const router = useRouter()
   const { activeUserId } = useAuth()
+  const { config } = useConfig()
   const [care, setCare] = useState<CareData>(EMPTY_CARE_DATA)
   const [events, setEvents] = useState<AgendaEvent[]>([])
   const [loading, setLoading] = useState(true)
@@ -129,6 +124,8 @@ export default function AidantsPage() {
 
   const todayAppts = getAppt(today)
   const hasAlert = todayAppts.some(a => a.status === 'modified' || a.status === 'cancelled')
+
+  const agendaCats = allCategories(config.agendaCategories)
 
   const getEvents = (date: string): AgendaEvent[] =>
     events.filter(e => e.date === date).sort((a, b) => (a.time ?? '').localeCompare(b.time ?? ''))
@@ -316,15 +313,16 @@ export default function AidantsPage() {
                               )
                             }
                             const e = r.e
-                            const cat = AGENDA_CAT[e.category ?? 'other']
+                            const cat = findCategory(agendaCats, e.category)
+                            const col = colorOf(cat.color)
                             const overlap = eventDuringAppt(e, appts)
                             return (
-                              <div key={`e-${e.id}`} className={`rounded-xl border px-3 py-2 ${cat.bg}`}>
+                              <div key={`e-${e.id}`} className={`rounded-xl border px-3 py-2 ${col.bg} ${col.border}`}>
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span>{cat.icon}</span>
                                   {e.time && <span className="text-sm font-semibold text-gray-700">{e.time}</span>}
                                   <span className="text-sm font-medium text-gray-800">{e.title}</span>
-                                  <span className={`text-[10px] font-bold uppercase tracking-wide ${cat.text}`}>{cat.label}</span>
+                                  <span className={`text-[10px] font-bold uppercase tracking-wide ${col.text}`}>{cat.label}</span>
                                 </div>
                                 {overlap && <div className="text-xs text-amber-700 font-semibold mt-1">⚠️ Un intervenant est prévu à cette heure — avez-vous besoin de lui&nbsp;?</div>}
                               </div>

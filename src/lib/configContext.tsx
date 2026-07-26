@@ -28,6 +28,7 @@ function fromRow(row: Record<string, unknown>): AppConfig {
     backgroundColor: DEFAULT_CONFIG.backgroundColor,
     adminPassword: (row.adminPassword as string) ?? DEFAULT_CONFIG.adminPassword,
     modules: mergeModules(savedModules),
+    agendaCategories: (row.agendaCategories as AppConfig['agendaCategories']) ?? undefined,
   }
 }
 
@@ -83,6 +84,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
     if (updates.primaryColor !== undefined) body.primaryColor = updates.primaryColor
     if (updates.adminPassword !== undefined) body.adminPassword = updates.adminPassword
     if (updates.modules !== undefined) body.modules = updates.modules
+    if (updates.agendaCategories !== undefined) body.agendaCategories = updates.agendaCategories
     if (Object.keys(body).length === 0) return
     fetch(`/api/config?userId=${activeUserId}`, {
       method: 'PATCH',

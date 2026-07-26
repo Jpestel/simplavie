@@ -31,6 +31,7 @@ export type AppConfig = {
   backgroundColor: string // hex color for page background
   adminPassword: string  // simple 4-digit PIN
   modules: Module[]
+  agendaCategories?: AgendaCategoryDef[]
 }
 
 export type DayRoutine = {
@@ -125,13 +126,22 @@ export type CareAppointment = {
 
 export type AgendaCategory = 'medical' | 'admin' | 'family' | 'other'
 
+// Catégorie d'agenda personnalisable par l'aidant, pour chaque utilisateur.
+export type AgendaCategoryDef = {
+  id: string
+  label: string
+  icon: string
+  color: string    // clé de la palette (voir lib/agendaCategories)
+  enabled: boolean // affichée ou non sur le compte de cet utilisateur
+}
+
 export type AgendaEvent = {
   id: string
   date: string    // YYYY-MM-DD
   time?: string   // HH:MM
   title: string
   notes?: string
-  category?: AgendaCategory
+  category?: string   // id d'une AgendaCategoryDef
 }
 
 export type CareData = {
