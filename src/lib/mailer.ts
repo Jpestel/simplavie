@@ -5,7 +5,12 @@
 //   SMTP_PORT=587
 //   SMTP_USER=<identifiant SMTP fourni par le prestataire>
 //   SMTP_PASS=<clé SMTP fournie par le prestataire>
-//   MAIL_FROM=SimplaVie <contact@pastech.fr>
+//   MAIL_FROM=SimplaVie <noreply@pastech.fr>
+//   MAIL_REPLY_TO=<adresse réellement relevée>   (facultatif)
+//
+// MAIL_FROM n'a pas besoin de correspondre à une boîte existante : il suffit
+// que le domaine soit authentifié chez le prestataire. MAIL_REPLY_TO sert
+// justement à ce qu'une réponse arrive quelque part.
 //
 // Changer de prestataire (Brevo, IONOS, autre) ne demande que de modifier ces
 // variables : aucun code à retoucher.
@@ -64,8 +69,12 @@ export async function sendMail(opts: {
   const to = Array.isArray(opts.to) ? opts.to : [opts.to]
   if (to.length === 0) return { ok: false, reason: 'aucun destinataire' }
 
+  // L'expéditeur peut être une adresse sans boîte (noreply@) : on redirige
+  // alors les réponses vers une adresse réellement relevée.
+  const replyTo = process.env.MAIL_REPLY_TO || undefined
+
   try {
-    await t.sendMail({ from, to, subject: opts.subject, html: opts.html, text: opts.text })
+    await t.sendMail({ from, to, replyTo, subject: opts.subject, html: opts.html, text: opts.text })
     console.log('[mailer] envoyé —', opts.subject, '→', to.join(', '))
     return { ok: true }
   } catch (e) {
