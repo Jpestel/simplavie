@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireSession, isDenied, deny } from '@/lib/apiAuth'
 import Anthropic from '@anthropic-ai/sdk'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 export async function POST(req: NextRequest) {
+  const auth = await requireSession(req)
+  if (isDenied(auth)) return deny(auth)
+
   try {
     const formData = await req.formData()
     const file = formData.get('pdf') as File

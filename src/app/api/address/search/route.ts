@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireSession, isDenied, deny } from '@/lib/apiAuth'
 
 // Autocomplétion d'adresses via la Base Adresse Nationale (BAN), l'API
 // officielle et gratuite de l'État (api-adresse.data.gouv.fr). Passée par le
@@ -8,6 +9,9 @@ type BanFeature = {
 }
 
 export async function GET(req: NextRequest) {
+  const auth = await requireSession(req)
+  if (isDenied(auth)) return deny(auth)
+
   const q = (req.nextUrl.searchParams.get('q') ?? '').trim()
   if (q.length < 3) return NextResponse.json({ results: [] })
 

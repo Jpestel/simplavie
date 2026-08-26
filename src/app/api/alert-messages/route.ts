@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireSession, requireAccess, isDenied, deny } from '@/lib/apiAuth'
 
 const DEFAULT_MESSAGES = [
   "L'intervenant(e) n'est pas arrivé(e) à l'heure prévue.",
@@ -10,6 +11,12 @@ const DEFAULT_MESSAGES = [
 
 export async function GET(req: NextRequest) {
   const userId = req.nextUrl.searchParams.get('userId')
+  // Sans userId : liste globale par défaut, lisible par tout compte connecté.
+  const auth = userId
+    ? await requireAccess(req, userId, 'read')
+    : await requireSession(req)
+  if (isDenied(auth)) return deny(auth)
+
   const id = userId ?? 'default'
   const row = await prisma.alertMessage.findUnique({ where: { id } })
   if (!row) {
@@ -24,6 +31,19 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const userId = req.nextUrl.searchParams.get('userId')
+
+  if (userId) {
+    const auth = await requireAccess(req, userId, 'write')
+    if (isDenied(auth)) return deny(auth)
+  } else {
+    // Écrire la liste globale 'default' est réservé au superadmin.
+    const auth = await requireSession(req)
+    if (isDenied(auth)) return deny(auth)
+    if (auth.globalRole !== 'superadmin') {
+      return deny({ error: 'Accès refusé', status: 403 })
+    }
+  }
+
   const id = userId ?? 'default'
   const messages = await req.json()
   await prisma.alertMessage.upsert({

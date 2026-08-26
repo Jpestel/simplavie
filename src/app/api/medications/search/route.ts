@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireSession, isDenied, deny } from '@/lib/apiAuth'
 import { promises as fs } from 'fs'
 import path from 'path'
 
@@ -24,6 +25,9 @@ async function ensureLoaded(): Promise<void> {
 }
 
 export async function GET(req: NextRequest) {
+  const auth = await requireSession(req)
+  if (isDenied(auth)) return deny(auth)
+
   const q = (req.nextUrl.searchParams.get('q') ?? '').trim()
   if (q.length < 2) return NextResponse.json({ results: [] })
 
