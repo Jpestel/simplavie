@@ -15,7 +15,7 @@ export type AdminAssignment = {
   permission: 'read' | 'write' | 'admin'
 }
 
-// Type simplifié pour l'utilisateur (remplace User de Supabase)
+// Type simplifié pour l'utilisateur connecté
 export type AuthUser = {
   id: string
   email: string

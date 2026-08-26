@@ -163,7 +163,7 @@ export default function RoutinePage() {
     setSteps(prev => sortSteps([...prev, newStep]))
     const { error } = await addExtra(newStep, date, activeUserId)
     if (error) {
-      alert(`Erreur lors de l'enregistrement : ${error}\n\nVérifiez que la table routine_extras existe dans Supabase.`)
+      alert("L'enregistrement n'a pas fonctionné. Réessayez dans un instant.")
       setSteps(prev => prev.filter(s => s.id !== newStep.id))
       return
     }
