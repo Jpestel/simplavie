@@ -7,32 +7,53 @@ import { missingPrerequisites, ITEM_SECTION } from '@/lib/modulePrerequisites'
 
 // Barrière de prérequis : avant d'accéder à un module, on vérifie que les
 // éléments de profil requis sont renseignés. Sinon on invite à les compléter.
+// Les réglages d'un module (/modules/<id>/reglages) échappent à la barrière :
+// c'est souvent là qu'on va justement corriger ce qui manque.
 export default function ModulesLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const { profile, isLoading } = useProfile()
   const { config } = useConfig()
 
   const moduleId = pathname.split('/')[2] ?? ''
-  const missing = missingPrerequisites(moduleId, profile)
+  const isSettings = pathname.endsWith('/reglages')
+  const configuredLabel = config.modules.find(m => m.id === moduleId)?.label
+  const moduleLabel = configuredLabel ?? 'ce module'
+  const missing = isSettings ? [] : missingPrerequisites(moduleId, profile)
 
   if (isLoading) return null
   if (missing.length === 0) {
     return (
       <>
-        <div className="max-w-2xl mx-auto w-full px-6 pt-1">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 rounded-2xl bg-white border-2 border-gray-200 px-4 py-2.5 text-gray-700 font-semibold hover:bg-gray-50 active:scale-95 transition-all shadow-sm"
-          >
-            <span className="text-lg leading-none">←</span> Retour
-          </Link>
+        <div className="max-w-2xl mx-auto w-full px-6 pt-1 flex items-center justify-between gap-3">
+          {isSettings ? (
+            <Link
+              href={`/modules/${moduleId}`}
+              className="inline-flex items-center gap-2 rounded-2xl bg-white border-2 border-gray-200 px-4 py-2.5 text-gray-700 font-semibold hover:bg-gray-50 active:scale-95 transition-all shadow-sm"
+            >
+              <span className="text-lg leading-none">←</span> {configuredLabel ?? 'Retour'}
+            </Link>
+          ) : (
+            <>
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 rounded-2xl bg-white border-2 border-gray-200 px-4 py-2.5 text-gray-700 font-semibold hover:bg-gray-50 active:scale-95 transition-all shadow-sm"
+              >
+                <span className="text-lg leading-none">←</span> Retour
+              </Link>
+              <Link
+                href={`/modules/${moduleId}/reglages`}
+                className="inline-flex items-center gap-2 rounded-2xl bg-indigo-50 border-2 border-indigo-200 px-4 py-2.5 text-indigo-600 font-semibold hover:bg-indigo-100 active:scale-95 transition-all shadow-sm"
+              >
+                <span className="text-lg leading-none">⚙️</span> Réglages
+              </Link>
+            </>
+          )}
         </div>
         {children}
       </>
     )
   }
 
-  const moduleLabel = config.modules.find(m => m.id === moduleId)?.label ?? 'ce module'
   const firstSection = ITEM_SECTION[missing[0].key] ?? ''
 
   return (

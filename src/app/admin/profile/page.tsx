@@ -6,8 +6,7 @@ import AddressAutocomplete from '@/components/AddressAutocomplete'
 import { useProfile } from '@/lib/profileContext'
 import { getHealthPros } from '@/lib/healthPros'
 import { useRouter } from 'next/navigation'
-import { Contact } from '@/types'
-import { useState } from 'react'
+import Link from 'next/link'
 
 function Field({ label, value, onChange, type = 'text', placeholder = '' }: {
   label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string
@@ -24,19 +23,9 @@ function Field({ label, value, onChange, type = 'text', placeholder = '' }: {
 export default function AdminProfilePage() {
   const { profile, updateProfile } = useProfile()
   const router = useRouter()
-  const [newContact, setNewContact] = useState<Partial<Contact>>({ relation: '' })
-  const [showForm, setShowForm] = useState(false)
 
   const f = (key: keyof typeof profile) => (profile[key] as string) || ''
   const s = (key: keyof typeof profile) => (val: string) => updateProfile({ [key]: val })
-
-  const addContact = () => {
-    if (!newContact.name) return
-    const c: Contact = { id: Date.now().toString(), name: newContact.name || '', relation: newContact.relation || '', ...newContact }
-    updateProfile({ contacts: [...profile.contacts, c] })
-    setNewContact({ relation: '' })
-    setShowForm(false)
-  }
 
   return (
     <main className="min-h-screen p-6 max-w-2xl mx-auto pb-8">
@@ -104,46 +93,20 @@ export default function AdminProfilePage() {
         </div>
       </section>
 
-      {/* Contacts */}
+      {/* Contacts : gérés dans le module Contacts, pour n'avoir qu'un seul endroit */}
       <section className="bg-white rounded-2xl p-6 shadow-sm mb-4">
-        <h2 className="text-lg font-semibold text-gray-700 mb-4">👨‍👩‍👧 Proches</h2>
-        <div className="space-y-3 mb-4">
-          {profile.contacts.map(c => (
-            <div key={c.id} className="flex justify-between items-start p-3 rounded-xl bg-gray-50">
-              <div>
-                <div className="font-medium text-gray-700">{c.name} <span className="text-indigo-400 text-sm">({c.relation})</span></div>
-                {c.mobile && <div className="text-sm text-gray-500">📱 {c.mobile}</div>}
-                {c.phone && <div className="text-sm text-gray-500">📞 {c.phone}</div>}
-                {c.email && <div className="text-sm text-gray-500">✉️ {c.email}</div>}
-              </div>
-              <button onClick={() => updateProfile({ contacts: profile.contacts.filter(x => x.id !== c.id) })}
-                className="text-red-400 hover:text-red-600 ml-2">✕</button>
-            </div>
-          ))}
-        </div>
-        {showForm ? (
-          <div className="space-y-2 bg-indigo-50 rounded-xl p-4">
-            <input placeholder="Nom *" value={newContact.name || ''} onChange={e => setNewContact(p => ({ ...p, name: e.target.value }))}
-              className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
-            <input placeholder="Relation" value={newContact.relation || ''} onChange={e => setNewContact(p => ({ ...p, relation: e.target.value }))}
-              className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
-            <input placeholder="Mobile" type="tel" value={newContact.mobile || ''} onChange={e => setNewContact(p => ({ ...p, mobile: e.target.value }))}
-              className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
-            <input placeholder="E-mail" type="email" value={newContact.email || ''} onChange={e => setNewContact(p => ({ ...p, email: e.target.value }))}
-              className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
-            <div className="flex gap-2">
-              <button onClick={() => { setShowForm(false); setNewContact({ relation: '' }) }}
-                className="flex-1 py-2 rounded-xl border border-gray-300 text-gray-600">Annuler</button>
-              <button onClick={addContact} disabled={!newContact.name}
-                className="flex-1 py-2 rounded-xl bg-green-500 hover:bg-green-600 text-white font-semibold disabled:opacity-40">Ajouter</button>
-            </div>
-          </div>
-        ) : (
-          <button onClick={() => setShowForm(true)}
-            className="w-full py-3 rounded-xl border-2 border-dashed border-green-300 text-green-600 hover:bg-green-50">
-            + Ajouter un proche
-          </button>
-        )}
+        <h2 className="text-lg font-semibold text-gray-700 mb-2">👨‍👩‍👧 Proches</h2>
+        <p className="text-sm text-gray-400 mb-4">
+          {profile.contacts.length === 0
+            ? 'Aucun contact enregistré.'
+            : `${profile.contacts.length} contact${profile.contacts.length > 1 ? 's' : ''} enregistré${profile.contacts.length > 1 ? 's' : ''} : ${profile.contacts.map(c => c.name).join(', ')}.`}
+        </p>
+        <Link
+          href="/modules/contacts/reglages"
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-semibold active:scale-95 transition-all"
+        >
+          <span>📞</span> Gérer les contacts
+        </Link>
       </section>
     </main>
   )

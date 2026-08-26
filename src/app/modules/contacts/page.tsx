@@ -1,10 +1,9 @@
 'use client'
 import { useProfile } from '@/lib/profileContext'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 export default function ContactsPage() {
   const { profile } = useProfile()
-  const router = useRouter()
 
   const contacts = profile.contacts
 
@@ -20,8 +19,13 @@ export default function ContactsPage() {
       {contacts.length === 0 ? (
         <div className="text-center mt-20 text-gray-400">
           <div className="text-5xl mb-4">📞</div>
-          <p className="text-xl">Aucun contact enregistré</p>
-          <p className="mt-2 text-sm">Tu peux en ajouter depuis l&apos;espace configuration ⚙️</p>
+          <p className="text-xl mb-6">Aucun contact enregistré</p>
+          <Link
+            href="/modules/contacts/reglages"
+            className="inline-flex items-center gap-2 rounded-2xl bg-indigo-500 hover:bg-indigo-600 px-6 py-4 text-white font-bold text-lg active:scale-95 transition-all"
+          >
+            + Ajouter un contact
+          </Link>
         </div>
       ) : (
         <div className="space-y-4">

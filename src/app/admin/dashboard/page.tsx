@@ -104,28 +104,15 @@ export default function AdminDashboard() {
             <Link href="/admin/profile" className="flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-gray-50 text-gray-700">
               <span>👤</span><span className="text-sm font-medium truncate">Profil</span>
             </Link>
-            {[
-              { id: 'routine',   href: '/admin/modules/routine',   icon: '📋', label: 'Routine' },
-              { id: 'contacts',  href: '/admin/modules/contacts',  icon: '📞', label: 'Contacts' },
-              { id: 'aidants',   href: '/admin/modules/aidants',   icon: '🤝', label: 'Aidants' },
-              { id: 'reminders', href: '/admin/modules/reminders', icon: '🔔', label: 'Rappels' },
-              { id: 'services',  href: '/admin/modules/services',  icon: '🔗', label: 'Services' },
-              { id: 'agenda',    href: '/admin/modules/agenda',    icon: '📅', label: 'Agenda' },
-              { id: 'finances',  href: '/admin/modules/finances',  icon: '💶', label: 'Finances' },
-            ].filter(item => {
-              const m = config.modules.find(m => m.id === item.id)
-              return m && m.enabled && !m.locked
-            }).map(item => (
-              <Link key={item.id} href={item.href} className="flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-gray-50 text-gray-700">
-                <span>{item.icon}</span><span className="text-sm font-medium truncate">{item.label}</span>
-              </Link>
-            ))}
             {hasOwnAccount && (
               <Link href="/admin/invite" className="flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-gray-50 text-gray-700">
                 <span>👥</span><span className="text-sm font-medium truncate">Admins</span>
               </Link>
             )}
           </div>
+          <p className="text-xs text-gray-400 mt-3 pt-3 border-t border-gray-100">
+            Les réglages d&apos;un module se trouvent maintenant dans le module lui-même, avec le bouton ⚙️ Réglages.
+          </p>
         </section>
       </div>
 
