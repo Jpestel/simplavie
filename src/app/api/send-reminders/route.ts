@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { Resend } from 'resend'
+import { sendMail } from '@/lib/mailer'
 
 function todayMatches(reminder: {
   recurrence: string
@@ -49,8 +49,8 @@ export async function GET(req: NextRequest) {
     byUser[r.userId].push(r)
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY)
   let sent = 0
+  const failures: string[] = []
 
   for (const [, userReminders] of Object.entries(byUser)) {
     // Trier par heure
@@ -81,16 +81,26 @@ export async function GET(req: NextRequest) {
       </div>
     `
 
-    await resend.emails.send({
-      from: 'SimplaVie <onboarding@resend.dev>',
+    const result = await sendMail({
       to: allEmails,
       subject: `📅 Rappels du jour — ${sorted.length} rappel(s)`,
       html,
       text: `Rappels du jour\n${dateLabel}\n\n${lines}\n\n— SimplaVie`,
     })
 
-    sent += allEmails.length
+    if (result.ok) {
+      sent += allEmails.length
+    } else {
+      failures.push(result.reason)
+    }
   }
 
-  return NextResponse.json({ sent, reminders: todaysReminders.length })
+  // Les échecs remontent dans la réponse : le déclencheur (cron) peut ainsi
+  // les journaliser au lieu de croire que tout est parti.
+  return NextResponse.json({
+    sent,
+    failed: failures.length,
+    reminders: todaysReminders.length,
+    ...(failures.length > 0 ? { errors: [...new Set(failures)] } : {}),
+  })
 }

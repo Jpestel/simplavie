@@ -1,4 +1,4 @@
-import { Resend } from 'resend'
+import { sendMail } from '@/lib/mailer'
 import { prisma } from '@/lib/prisma'
 
 function escapeHtml(s: string): string {
@@ -22,13 +22,10 @@ export async function notifySuperAdminsNewAccount(newUser: { email: string; name
     if (to.length === 0) return
 
     const base = (process.env.NEXTAUTH_URL ?? '').replace(/\/$/, '')
-    const from = process.env.RESEND_FROM ?? 'SimplaVie <onboarding@resend.dev>'
     const name = newUser.name ? escapeHtml(newUser.name) : '—'
     const email = escapeHtml(newUser.email)
 
-    const resend = new Resend(process.env.RESEND_API_KEY)
-    await resend.emails.send({
-      from,
+    await sendMail({
       to,
       subject: 'Nouveau compte SimplaVie à activer',
       html: `

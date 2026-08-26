@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { Resend } from 'resend'
+import { sendMail } from '@/lib/mailer'
 import { prisma } from '@/lib/prisma'
 import { createResetToken } from '@/lib/passwordReset'
 
@@ -18,12 +18,9 @@ export async function POST(req: NextRequest) {
     const token = createResetToken(user)
     const base = (process.env.NEXTAUTH_URL ?? '').replace(/\/$/, '')
     const link = `${base}/reset-password/${token}`
-    const from = process.env.RESEND_FROM ?? 'SimplaVie <onboarding@resend.dev>'
 
     try {
-      const resend = new Resend(process.env.RESEND_API_KEY)
-      await resend.emails.send({
-        from,
+      await sendMail({
         to: user.email,
         subject: 'Réinitialisation de votre mot de passe SimplaVie',
         html: `
