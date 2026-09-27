@@ -40,6 +40,7 @@ model User {
   mailEquipements      MailEquipement[]
   mailTemplates        MailTemplate[]
   mailDrafts           MailDraft[]
+  bugReports           BugReport[]
 
   @@map("users")
 }
@@ -350,4 +351,19 @@ model MailDraft {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("mail_drafts")
+}
+
+// ─── Signalement de bug ───────────────────────────────────────────────────────
+
+model BugReport {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  message   String   @db.Text
+  page      String?
+  status    String   @default("open")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("bug_reports")
 }

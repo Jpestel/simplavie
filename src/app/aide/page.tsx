@@ -55,6 +55,19 @@ export default function AidePage() {
           </div>
         ))}
       </div>
+
+      <Link
+        href="/bug-report"
+        className="mt-6 flex items-center gap-4 bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:border-orange-200 hover:bg-orange-50 active:scale-95 transition-all"
+      >
+        <div className="w-14 h-14 shrink-0 rounded-2xl bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-3xl shadow">
+          🐛
+        </div>
+        <div>
+          <div className="text-xl font-bold text-gray-800">Signaler un bug</div>
+          <div className="text-gray-600 mt-1 leading-relaxed">Quelque chose ne marche pas comme prévu ? Dites-le en quelques mots.</div>
+        </div>
+      </Link>
     </main>
   )
 }

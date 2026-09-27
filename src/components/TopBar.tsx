@@ -1,6 +1,6 @@
 'use client'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/authContext'
 import Logo from '@/components/Logo'
 
@@ -9,6 +9,7 @@ import Logo from '@/components/Logo'
 export default function TopBar() {
   const { isSuperAdmin, isAdmin, hasOwnAccount, adminAssignments, adminTarget, setAdminTarget, user } = useAuth()
   const router = useRouter()
+  const pathname = usePathname()
 
   const isDualRole = isAdmin && hasOwnAccount
   const isViewingOwnAccount = !adminTarget || adminTarget === user?.id
@@ -18,6 +19,16 @@ export default function TopBar() {
       <Logo />
 
       <div className="flex items-center gap-2">
+        {user && (
+          <Link
+            href={`/bug-report?from=${encodeURIComponent(pathname || '')}`}
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-600 font-semibold active:scale-95 transition-all"
+          >
+            <span>🐛</span>
+            <span className="hidden sm:inline">Signaler un bug</span>
+          </Link>
+        )}
+
         {isSuperAdmin && (
           <Link
             href="/superadmin"
