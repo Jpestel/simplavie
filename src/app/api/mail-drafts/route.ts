@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { userId, label, subject, body: draftBody, recipients } = body
+  const { userId, label, subject, body: draftBody, recipients, cc } = body
   if (!userId || !draftBody || !Array.isArray(recipients) || recipients.length === 0) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   if (isDenied(auth)) return deny(auth)
 
   const draft = await prisma.mailDraft.create({
-    data: { userId, label: label || 'Mail', subject: subject ?? '', body: draftBody, recipients },
+    data: { userId, label: label || 'Mail', subject: subject ?? '', body: draftBody, recipients, cc: Array.isArray(cc) ? cc : [] },
   })
   return NextResponse.json(draft)
 }

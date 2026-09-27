@@ -344,6 +344,7 @@ model MailDraft {
   subject    String
   body       String   @db.Text
   recipients Json
+  cc         Json?
   createdAt  DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

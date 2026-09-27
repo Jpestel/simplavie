@@ -12,7 +12,7 @@ type Responsable = { id: string; nom: string; prenom: string | null; email: stri
 type Aidant = { id: string; prenom: string }
 type Equipement = { id: string; label: string }
 type Template = { id: string; label: string; subject: string; body: string }
-type Draft = { id: string; label: string; subject: string; body: string; recipients: string[]; createdAt: string }
+type Draft = { id: string; label: string; subject: string; body: string; recipients: string[]; cc?: string[]; createdAt: string }
 
 type Step = 'template' | 'champs' | 'destinataires' | 'apercu' | 'brouillons' | 'brouillon-apercu'
 
@@ -35,6 +35,7 @@ export default function MailsPage() {
   const [showCustomEquipement, setShowCustomEquipement] = useState(false)
   const [values, setValues] = useState<Record<string, string>>({})
   const [selectedResp, setSelectedResp] = useState<string[]>([])
+  const [selectedCcContacts, setSelectedCcContacts] = useState<string[]>([])
   const [copied, setCopied] = useState(false)
   const [savingDraft, setSavingDraft] = useState(false)
   const [justSaved, setJustSaved] = useState(false)
@@ -79,6 +80,7 @@ export default function MailsPage() {
     const today = new Date().toISOString().slice(0, 10)
     const now = new Date().toTimeString().slice(0, 5)
     setValues({ date: today, heure: now })
+    setSelectedCcContacts([])
     const tTokens = extractTokens(t.subject, t.body)
     setStep(tTokens.some(x => x !== 'prenom') ? 'champs' : 'destinataires')
   }
@@ -94,6 +96,20 @@ export default function MailsPage() {
   const toggleResp = (id: string) => {
     setSelectedResp(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
+
+  const toggleCcContact = (id: string) => {
+    setSelectedCcContacts(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  // Contacts (module Contacts) ayant un e-mail, proposés en copie.
+  const contactsWithEmail = (profile.contacts || []).filter(c => c.email && c.email.trim())
+
+  // Quentin est toujours mis en copie de ses propres mails (si son e-mail est
+  // renseigné dans son profil), en plus des proches qu'il choisit.
+  const ccEmails = [
+    ...(profile.email && profile.email.trim() ? [profile.email.trim()] : []),
+    ...contactsWithEmail.filter(c => selectedCcContacts.includes(c.id)).map(c => c.email!.trim()),
+  ]
 
   const equipementNames = [
     ...equipements.filter(e => selectedEquipements.includes(e.id)).map(e => e.label),
@@ -127,11 +143,13 @@ export default function MailsPage() {
     setShowCustomEquipement(false)
     setValues({})
     setSelectedResp([])
+    setSelectedCcContacts([])
     setCopied(false)
   }
 
   const copyText = () => {
-    navigator.clipboard.writeText(`Objet : ${finalSubject}\n\n${finalBody}`)
+    const ccLine = ccEmails.length > 0 ? `Copie : ${ccEmails.join(', ')}\n` : ''
+    navigator.clipboard.writeText(`Objet : ${finalSubject}\n${ccLine}\n${finalBody}`)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -148,6 +166,7 @@ export default function MailsPage() {
         subject: finalSubject,
         body: finalBody,
         recipients: recipientEmails,
+        cc: ccEmails,
       }),
     })
     await loadDrafts()
@@ -175,7 +194,9 @@ export default function MailsPage() {
 
   const copyDraftText = () => {
     if (!selectedDraft) return
-    navigator.clipboard.writeText(`Objet : ${selectedDraft.subject}\n\n${selectedDraft.body}`)
+    const cc = selectedDraft.cc || []
+    const ccLine = cc.length > 0 ? `Copie : ${cc.join(', ')}\n` : ''
+    navigator.clipboard.writeText(`Objet : ${selectedDraft.subject}\n${ccLine}\n${selectedDraft.body}`)
     setDraftCopied(true)
     setTimeout(() => setDraftCopied(false), 2000)
   }
@@ -375,6 +396,24 @@ export default function MailsPage() {
             </div>
           </section>
 
+          {contactsWithEmail.length > 0 && (
+            <section>
+              <h2 className="text-base font-semibold text-gray-700 mb-1">Mettre quelqu&apos;un en copie ?</h2>
+              <p className="text-sm text-gray-400 mb-3">Optionnel — ex : papa, maman.</p>
+              <div className="flex flex-wrap gap-2">
+                {contactsWithEmail.map(c => (
+                  <button
+                    key={c.id}
+                    onClick={() => toggleCcContact(c.id)}
+                    className={`px-5 py-3 rounded-2xl font-semibold text-lg border-2 active:scale-95 transition-all ${selectedCcContacts.includes(c.id) ? 'bg-indigo-500 border-indigo-500 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-200'}`}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
           <div className="flex gap-3 pt-2">
             <button onClick={() => setStep(tokens.some(t => t !== 'prenom') ? 'champs' : 'template')} className="flex-1 py-4 rounded-2xl border-2 border-gray-300 text-gray-600 font-semibold text-lg active:scale-95 transition-all">← Retour</button>
             <button
@@ -393,13 +432,14 @@ export default function MailsPage() {
         <div className="space-y-6">
           <section className="bg-white rounded-2xl p-5 shadow-sm border-2 border-gray-100">
             <p className="text-xs text-gray-400 mb-1">À : {responsables.filter(r => selectedResp.includes(r.id)).map(r => r.email).join(', ')}</p>
+            {ccEmails.length > 0 && <p className="text-xs text-gray-400 mb-1">Copie : {ccEmails.join(', ')}</p>}
             <p className="font-bold text-gray-800 mb-3">{finalSubject}</p>
             <p className="text-gray-600 whitespace-pre-wrap">{finalBody}</p>
           </section>
 
           <div className="space-y-3">
             <a
-              href={buildMailtoUrl(recipientEmails, finalSubject, finalBody)}
+              href={buildMailtoUrl(recipientEmails, finalSubject, finalBody, ccEmails)}
               className="block w-full text-center py-4 rounded-2xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-lg active:scale-95 transition-all"
             >
               📧 Envoyer par mail
@@ -464,13 +504,14 @@ export default function MailsPage() {
         <div className="space-y-6">
           <section className="bg-white rounded-2xl p-5 shadow-sm border-2 border-gray-100">
             <p className="text-xs text-gray-400 mb-1">À : {selectedDraft.recipients.join(', ')}</p>
+            {(selectedDraft.cc || []).length > 0 && <p className="text-xs text-gray-400 mb-1">Copie : {(selectedDraft.cc || []).join(', ')}</p>}
             <p className="font-bold text-gray-800 mb-3">{selectedDraft.subject}</p>
             <p className="text-gray-600 whitespace-pre-wrap">{selectedDraft.body}</p>
           </section>
 
           <div className="space-y-3">
             <a
-              href={buildMailtoUrl(selectedDraft.recipients, selectedDraft.subject, selectedDraft.body)}
+              href={buildMailtoUrl(selectedDraft.recipients, selectedDraft.subject, selectedDraft.body, selectedDraft.cc || [])}
               className="block w-full text-center py-4 rounded-2xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-lg active:scale-95 transition-all"
             >
               📧 Envoyer par mail
