@@ -71,6 +71,16 @@ export const DEFAULT_MODULES: Module[] = [
     locked: true,
     order: 6,
   },
+  {
+    id: 'mails',
+    name: 'mails',
+    label: 'Écrire un mail',
+    description: "Signaler une difficulté ou un point positif à l'agence",
+    icon: '✉️',
+    enabled: false,
+    locked: true,
+    order: 7,
+  },
 ]
 
 export const DEFAULT_CONFIG: AppConfig = {

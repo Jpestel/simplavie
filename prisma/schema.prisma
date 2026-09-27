@@ -34,6 +34,10 @@ model User {
   reminders            Reminder[]
   reminderCompletions  ReminderCompletion[]
   services             Service[]
+  mailSettings         MailSettings?
+  mailResponsables     MailResponsable[]
+  mailAidants          MailAidant[]
+  mailTemplates        MailTemplate[]
 
   @@map("users")
 }
@@ -266,4 +270,54 @@ model AlertMessage {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("alert_messages")
+}
+
+// ─── Mails aux responsables ─────────────────────────────────────────────────
+
+model MailSettings {
+  id          String   @id
+  agencyName  String?  @map("agency_name")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [id], references: [id], onDelete: Cascade)
+
+  @@map("mail_settings")
+}
+
+model MailResponsable {
+  id     String  @id @default(uuid())
+  userId String  @map("user_id")
+  nom    String
+  prenom String?
+  email  String
+  order  Int     @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("mail_responsables")
+}
+
+model MailAidant {
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+  prenom String
+  order  Int    @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("mail_aidants")
+}
+
+model MailTemplate {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  label     String
+  subject   String
+  body      String   @db.Text
+  order     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("mail_templates")
 }
