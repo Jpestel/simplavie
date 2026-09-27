@@ -12,8 +12,9 @@ type Responsable = { id: string; nom: string; prenom: string | null; email: stri
 type Aidant = { id: string; prenom: string }
 type Equipement = { id: string; label: string }
 type Template = { id: string; label: string; subject: string; body: string }
+type Draft = { id: string; label: string; subject: string; body: string; recipients: string[]; createdAt: string }
 
-type Step = 'template' | 'champs' | 'destinataires' | 'apercu'
+type Step = 'template' | 'champs' | 'destinataires' | 'apercu' | 'brouillons' | 'brouillon-apercu'
 
 export default function MailsPage() {
   const { activeUserId } = useAuth()
@@ -24,6 +25,7 @@ export default function MailsPage() {
   const [aidants, setAidants] = useState<Aidant[]>([])
   const [equipements, setEquipements] = useState<Equipement[]>([])
   const [templates, setTemplates] = useState<Template[]>([])
+  const [drafts, setDrafts] = useState<Draft[]>([])
 
   const [step, setStep] = useState<Step>('template')
   const [template, setTemplate] = useState<Template | null>(null)
@@ -34,6 +36,16 @@ export default function MailsPage() {
   const [values, setValues] = useState<Record<string, string>>({})
   const [selectedResp, setSelectedResp] = useState<string[]>([])
   const [copied, setCopied] = useState(false)
+  const [savingDraft, setSavingDraft] = useState(false)
+  const [justSaved, setJustSaved] = useState(false)
+  const [selectedDraft, setSelectedDraft] = useState<Draft | null>(null)
+  const [draftCopied, setDraftCopied] = useState(false)
+
+  const loadDrafts = async () => {
+    if (!activeUserId) return
+    const d = await fetch(`/api/mail-drafts?userId=${activeUserId}`).then(r => r.json())
+    setDrafts(Array.isArray(d) ? d : [])
+  }
 
   useEffect(() => {
     if (!activeUserId) return
@@ -42,11 +54,13 @@ export default function MailsPage() {
       fetch(`/api/mail-aidants?userId=${activeUserId}`).then(r => r.json()),
       fetch(`/api/mail-equipements?userId=${activeUserId}`).then(r => r.json()),
       fetch(`/api/mail-templates?userId=${activeUserId}`).then(r => r.json()),
-    ]).then(([resp, aid, equip, tpl]) => {
+      fetch(`/api/mail-drafts?userId=${activeUserId}`).then(r => r.json()),
+    ]).then(([resp, aid, equip, tpl, dr]) => {
       setResponsables(Array.isArray(resp) ? resp : [])
       setAidants(Array.isArray(aid) ? aid : [])
       setEquipements(Array.isArray(equip) ? equip : [])
       setTemplates(Array.isArray(tpl) ? tpl : [])
+      setDrafts(Array.isArray(dr) ? dr : [])
       setLoading(false)
     })
   }, [activeUserId])
@@ -122,6 +136,50 @@ export default function MailsPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const saveDraftForLater = async () => {
+    if (!activeUserId || !template) return
+    setSavingDraft(true)
+    await fetch('/api/mail-drafts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: activeUserId,
+        label: template.label,
+        subject: finalSubject,
+        body: finalBody,
+        recipients: recipientEmails,
+      }),
+    })
+    await loadDrafts()
+    setSavingDraft(false)
+    reset()
+    setJustSaved(true)
+    setTimeout(() => setJustSaved(false), 5000)
+  }
+
+  const openDraft = (d: Draft) => {
+    setSelectedDraft(d)
+    setDraftCopied(false)
+    setStep('brouillon-apercu')
+  }
+
+  const deleteDraft = async (d: Draft) => {
+    if (!confirm(`Supprimer ce mail enregistré ("${d.label}") ?`)) return
+    await fetch('/api/mail-drafts?id=' + d.id, { method: 'DELETE' })
+    setDrafts(prev => prev.filter(x => x.id !== d.id))
+    if (selectedDraft?.id === d.id) {
+      setSelectedDraft(null)
+      setStep('brouillons')
+    }
+  }
+
+  const copyDraftText = () => {
+    if (!selectedDraft) return
+    navigator.clipboard.writeText(`Objet : ${selectedDraft.subject}\n\n${selectedDraft.body}`)
+    setDraftCopied(true)
+    setTimeout(() => setDraftCopied(false), 2000)
+  }
+
   if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="text-xl text-gray-400">Chargement...</div></div>
 
   if (responsables.length === 0) {
@@ -159,6 +217,20 @@ export default function MailsPage() {
       {/* ── STEP: TEMPLATE ── */}
       {step === 'template' && (
         <div className="space-y-3">
+          {justSaved && (
+            <div className="bg-green-50 border-2 border-green-200 text-green-700 rounded-2xl p-4 font-semibold mb-2">
+              ✓ Mail enregistré. Tu pourras l&apos;envoyer plus tard depuis « Mails enregistrés ».
+            </div>
+          )}
+          {drafts.length > 0 && (
+            <button
+              onClick={() => setStep('brouillons')}
+              className="w-full flex items-center justify-between bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-4 mb-2 text-indigo-700 font-semibold active:scale-95 transition-all"
+            >
+              <span>📥 Mails enregistrés</span>
+              <span className="bg-indigo-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm">{drafts.length}</span>
+            </button>
+          )}
           <p className="text-gray-500 mb-2">De quoi veux-tu parler ?</p>
           {templates.map(t => (
             <button
@@ -338,12 +410,86 @@ export default function MailsPage() {
             >
               {copied ? '✓ Copié !' : '📋 Copier le texte'}
             </button>
+            <button
+              onClick={saveDraftForLater}
+              disabled={savingDraft}
+              className="w-full py-4 rounded-2xl border-2 border-gray-300 text-gray-600 font-bold text-lg active:scale-95 transition-all hover:bg-gray-50 disabled:opacity-40"
+            >
+              {savingDraft ? '...' : '💾 Enregistrer pour plus tard'}
+            </button>
           </div>
 
           <div className="flex gap-3 pt-2">
             <button onClick={() => setStep('destinataires')} className="flex-1 py-4 rounded-2xl border-2 border-gray-300 text-gray-600 font-semibold text-lg active:scale-95 transition-all">← Retour</button>
             <button onClick={reset} className="flex-1 py-4 rounded-2xl border-2 border-gray-300 text-gray-600 font-semibold text-lg active:scale-95 transition-all">Nouveau mail</button>
           </div>
+        </div>
+      )}
+
+      {/* ── STEP: BROUILLONS (liste) ── */}
+      {step === 'brouillons' && (
+        <div className="space-y-3">
+          <p className="text-gray-500 mb-2">Mails enregistrés, à envoyer quand tu veux :</p>
+          {drafts.map(d => (
+            <div key={d.id} className="bg-white rounded-2xl p-4 shadow-sm border-2 border-gray-100">
+              <div className="mb-3">
+                <p className="font-bold text-gray-800">{d.label}</p>
+                <p className="text-sm text-gray-500 truncate">{d.subject}</p>
+                <p className="text-xs text-gray-400 mt-1">{new Date(d.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => openDraft(d)}
+                  className="flex-1 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-semibold active:scale-95 transition-all"
+                >
+                  Ouvrir
+                </button>
+                <button
+                  onClick={() => deleteDraft(d)}
+                  className="w-12 py-3 rounded-xl border-2 border-red-200 text-red-500 hover:bg-red-50 font-bold active:scale-95 transition-all"
+                >
+                  🗑️
+                </button>
+              </div>
+            </div>
+          ))}
+          {drafts.length === 0 && <p className="text-center text-gray-400 text-sm py-6">Aucun mail enregistré.</p>}
+
+          <button onClick={() => setStep('template')} className="w-full py-4 rounded-2xl border-2 border-gray-300 text-gray-600 font-semibold text-lg active:scale-95 transition-all">← Retour</button>
+        </div>
+      )}
+
+      {/* ── STEP: BROUILLON APERÇU ── */}
+      {step === 'brouillon-apercu' && selectedDraft && (
+        <div className="space-y-6">
+          <section className="bg-white rounded-2xl p-5 shadow-sm border-2 border-gray-100">
+            <p className="text-xs text-gray-400 mb-1">À : {selectedDraft.recipients.join(', ')}</p>
+            <p className="font-bold text-gray-800 mb-3">{selectedDraft.subject}</p>
+            <p className="text-gray-600 whitespace-pre-wrap">{selectedDraft.body}</p>
+          </section>
+
+          <div className="space-y-3">
+            <a
+              href={buildMailtoUrl(selectedDraft.recipients, selectedDraft.subject, selectedDraft.body)}
+              className="block w-full text-center py-4 rounded-2xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-lg active:scale-95 transition-all"
+            >
+              📧 Envoyer par mail
+            </a>
+            <button
+              onClick={copyDraftText}
+              className="w-full py-4 rounded-2xl border-2 border-indigo-300 text-indigo-600 font-bold text-lg active:scale-95 transition-all hover:bg-indigo-50"
+            >
+              {draftCopied ? '✓ Copié !' : '📋 Copier le texte'}
+            </button>
+            <button
+              onClick={() => deleteDraft(selectedDraft)}
+              className="w-full py-4 rounded-2xl border-2 border-red-200 text-red-500 hover:bg-red-50 font-bold text-lg active:scale-95 transition-all"
+            >
+              🗑️ Supprimer ce mail enregistré
+            </button>
+          </div>
+
+          <button onClick={() => setStep('brouillons')} className="w-full py-4 rounded-2xl border-2 border-gray-300 text-gray-600 font-semibold text-lg active:scale-95 transition-all">← Retour</button>
         </div>
       )}
     </main>

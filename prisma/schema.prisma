@@ -39,6 +39,7 @@ model User {
   mailAidants          MailAidant[]
   mailEquipements      MailEquipement[]
   mailTemplates        MailTemplate[]
+  mailDrafts           MailDraft[]
 
   @@map("users")
 }
@@ -332,4 +333,20 @@ model MailTemplate {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("mail_templates")
+}
+
+// Mail déjà rédigé (sujet/corps déjà remplis) mis de côté pour être envoyé
+// plus tard, sans repasser par l'assistant de rédaction.
+model MailDraft {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  label      String
+  subject    String
+  body       String   @db.Text
+  recipients Json
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("mail_drafts")
 }
