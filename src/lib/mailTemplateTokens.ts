@@ -23,6 +23,16 @@ export function isCaregiverToken(token: string): boolean {
   return token === 'aidant' || token === 'aidants'
 }
 
+export function isEquipmentToken(token: string): boolean {
+  return token === 'equipement' || token === 'equipements'
+}
+
+// Ajoutée automatiquement en bas de chaque mail généré (pas dans les modèles
+// eux-mêmes) : le destinataire doit comprendre que le style factuel vient de
+// l'outil, mais que le contenu reste choisi par la personne elle-même.
+export const MAIL_DISCLAIMER =
+  "Ce mail a été rédigé avec l'aide d'un outil adapté à mon handicap, ce qui explique son style très factuel — le contenu reste choisi par moi-même."
+
 export function tokenLabel(token: string): string {
   if (token === 'date') return 'Date'
   if (token === 'heure') return 'Heure'
@@ -55,11 +65,12 @@ export function fillTemplate(text: string, values: Record<string, string>): stri
 }
 
 export function buildMailtoUrl(to: string[], subject: string, body: string): string {
-  const params = new URLSearchParams()
-  params.set('subject', subject)
-  params.set('body', body)
+  // On n'utilise PAS URLSearchParams : son toString() encode les espaces en
+  // "+" (format formulaire), que les clients mail n'interprètent pas dans une
+  // URL mailto:. encodeURIComponent encode l'espace en %20, correct ici.
+  const query = `subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
   // La virgule entre destinataires ne doit pas être encodée (séparateur du
   // schéma mailto:), donc on encode chaque adresse séparément.
   const recipients = to.map(a => encodeURIComponent(a)).join(',')
-  return `mailto:${recipients}?${params.toString()}`
+  return `mailto:${recipients}?${query}`
 }

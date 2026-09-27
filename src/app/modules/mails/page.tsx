@@ -4,12 +4,13 @@ import Link from 'next/link'
 import { useAuth } from '@/lib/authContext'
 import { useProfile } from '@/lib/profileContext'
 import {
-  extractTokens, isCaregiverToken, tokenLabel, formatDateFr, formatHeureFr,
-  joinNames, fillTemplate, buildMailtoUrl,
+  extractTokens, isCaregiverToken, isEquipmentToken, tokenLabel, formatDateFr, formatHeureFr,
+  joinNames, fillTemplate, buildMailtoUrl, MAIL_DISCLAIMER,
 } from '@/lib/mailTemplateTokens'
 
 type Responsable = { id: string; nom: string; prenom: string | null; email: string }
 type Aidant = { id: string; prenom: string }
+type Equipement = { id: string; label: string }
 type Template = { id: string; label: string; subject: string; body: string }
 
 type Step = 'template' | 'champs' | 'destinataires' | 'apercu'
@@ -21,11 +22,15 @@ export default function MailsPage() {
 
   const [responsables, setResponsables] = useState<Responsable[]>([])
   const [aidants, setAidants] = useState<Aidant[]>([])
+  const [equipements, setEquipements] = useState<Equipement[]>([])
   const [templates, setTemplates] = useState<Template[]>([])
 
   const [step, setStep] = useState<Step>('template')
   const [template, setTemplate] = useState<Template | null>(null)
   const [selectedAidants, setSelectedAidants] = useState<string[]>([])
+  const [selectedEquipements, setSelectedEquipements] = useState<string[]>([])
+  const [customEquipement, setCustomEquipement] = useState('')
+  const [showCustomEquipement, setShowCustomEquipement] = useState(false)
   const [values, setValues] = useState<Record<string, string>>({})
   const [selectedResp, setSelectedResp] = useState<string[]>([])
   const [copied, setCopied] = useState(false)
@@ -35,10 +40,12 @@ export default function MailsPage() {
     Promise.all([
       fetch(`/api/mail-responsables?userId=${activeUserId}`).then(r => r.json()),
       fetch(`/api/mail-aidants?userId=${activeUserId}`).then(r => r.json()),
+      fetch(`/api/mail-equipements?userId=${activeUserId}`).then(r => r.json()),
       fetch(`/api/mail-templates?userId=${activeUserId}`).then(r => r.json()),
-    ]).then(([resp, aid, tpl]) => {
+    ]).then(([resp, aid, equip, tpl]) => {
       setResponsables(Array.isArray(resp) ? resp : [])
       setAidants(Array.isArray(aid) ? aid : [])
+      setEquipements(Array.isArray(equip) ? equip : [])
       setTemplates(Array.isArray(tpl) ? tpl : [])
       setLoading(false)
     })
@@ -46,27 +53,41 @@ export default function MailsPage() {
 
   const tokens = useMemo(() => template ? extractTokens(template.subject, template.body) : [], [template])
   const caregiverTokenUsed = tokens.some(isCaregiverToken)
-  const freeTokens = tokens.filter(t => !isCaregiverToken(t) && t !== 'prenom')
+  const equipmentTokenUsed = tokens.some(isEquipmentToken)
+  const freeTokens = tokens.filter(t => !isCaregiverToken(t) && !isEquipmentToken(t) && t !== 'prenom')
 
   const startTemplate = (t: Template) => {
     setTemplate(t)
     setSelectedAidants([])
+    setSelectedEquipements([])
+    setCustomEquipement('')
+    setShowCustomEquipement(false)
     const today = new Date().toISOString().slice(0, 10)
     const now = new Date().toTimeString().slice(0, 5)
     setValues({ date: today, heure: now })
-    setStep(extractTokens(t.subject, t.body).some(isCaregiverToken) || extractTokens(t.subject, t.body).some(x => !isCaregiverToken(x) && x !== 'prenom')
-      ? 'champs' : 'destinataires')
+    const tTokens = extractTokens(t.subject, t.body)
+    setStep(tTokens.some(x => x !== 'prenom') ? 'champs' : 'destinataires')
   }
 
   const toggleAidant = (id: string) => {
     setSelectedAidants(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
 
+  const toggleEquipement = (id: string) => {
+    setSelectedEquipements(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
   const toggleResp = (id: string) => {
     setSelectedResp(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
 
-  const canGoToDestinataires = !caregiverTokenUsed || selectedAidants.length > 0
+  const equipementNames = [
+    ...equipements.filter(e => selectedEquipements.includes(e.id)).map(e => e.label),
+    ...(customEquipement.trim() ? [customEquipement.trim()] : []),
+  ]
+
+  const canGoToDestinataires = (!caregiverTokenUsed || selectedAidants.length > 0)
+    && (!equipmentTokenUsed || equipementNames.length > 0)
 
   const finalValues: Record<string, string> = {
     ...values,
@@ -75,16 +96,21 @@ export default function MailsPage() {
     prenom: profile.firstName || '',
     aidant: joinNames(aidants.filter(a => selectedAidants.includes(a.id)).map(a => a.prenom)),
     aidants: joinNames(aidants.filter(a => selectedAidants.includes(a.id)).map(a => a.prenom)),
+    equipement: joinNames(equipementNames),
+    equipements: joinNames(equipementNames),
   }
 
   const finalSubject = template ? fillTemplate(template.subject, finalValues) : ''
-  const finalBody = template ? fillTemplate(template.body, finalValues) : ''
+  const finalBody = template ? `${fillTemplate(template.body, finalValues)}\n\n${MAIL_DISCLAIMER}` : ''
   const recipientEmails = responsables.filter(r => selectedResp.includes(r.id)).map(r => r.email)
 
   const reset = () => {
     setStep('template')
     setTemplate(null)
     setSelectedAidants([])
+    setSelectedEquipements([])
+    setCustomEquipement('')
+    setShowCustomEquipement(false)
     setValues({})
     setSelectedResp([])
     setCopied(false)
@@ -169,6 +195,41 @@ export default function MailsPage() {
             </section>
           )}
 
+          {equipmentTokenUsed && (
+            <section>
+              <h2 className="text-base font-semibold text-gray-700 mb-3">Quel équipement ?</h2>
+              <div className="flex flex-wrap gap-2">
+                {equipements.map(e => (
+                  <button
+                    key={e.id}
+                    onClick={() => toggleEquipement(e.id)}
+                    className={`px-5 py-3 rounded-2xl font-semibold text-lg border-2 active:scale-95 transition-all ${selectedEquipements.includes(e.id) ? 'bg-indigo-500 border-indigo-500 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-200'}`}
+                  >
+                    {e.label}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setShowCustomEquipement(v => !v)}
+                  className={`px-5 py-3 rounded-2xl font-semibold text-lg border-2 border-dashed active:scale-95 transition-all ${showCustomEquipement ? 'bg-indigo-50 border-indigo-400 text-indigo-600' : 'bg-white border-gray-300 text-gray-500 hover:border-indigo-200'}`}
+                >
+                  + Autre
+                </button>
+              </div>
+              {showCustomEquipement && (
+                <input
+                  type="text"
+                  value={customEquipement}
+                  onChange={e => setCustomEquipement(e.target.value)}
+                  placeholder="ex: Fauteuil roulant électrique"
+                  className="w-full mt-3 border-2 border-gray-200 rounded-2xl p-4 text-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                />
+              )}
+              {equipements.length === 0 && !showCustomEquipement && (
+                <p className="text-sm text-gray-400 mt-2">Aucun équipement configuré — ajoute-en un dans les réglages, ou choisis « + Autre ».</p>
+              )}
+            </section>
+          )}
+
           {tokens.includes('date') && (
             <section>
               <h2 className="text-base font-semibold text-gray-700 mb-2">Quel jour ?</h2>
@@ -243,7 +304,7 @@ export default function MailsPage() {
           </section>
 
           <div className="flex gap-3 pt-2">
-            <button onClick={() => setStep(tokens.length > 0 ? 'champs' : 'template')} className="flex-1 py-4 rounded-2xl border-2 border-gray-300 text-gray-600 font-semibold text-lg active:scale-95 transition-all">← Retour</button>
+            <button onClick={() => setStep(tokens.some(t => t !== 'prenom') ? 'champs' : 'template')} className="flex-1 py-4 rounded-2xl border-2 border-gray-300 text-gray-600 font-semibold text-lg active:scale-95 transition-all">← Retour</button>
             <button
               onClick={() => setStep('apercu')}
               disabled={selectedResp.length === 0}

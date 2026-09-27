@@ -37,6 +37,7 @@ model User {
   mailSettings         MailSettings?
   mailResponsables     MailResponsable[]
   mailAidants          MailAidant[]
+  mailEquipements      MailEquipement[]
   mailTemplates        MailTemplate[]
 
   @@map("users")
@@ -306,6 +307,17 @@ model MailAidant {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("mail_aidants")
+}
+
+model MailEquipement {
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+  label  String
+  order  Int    @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("mail_equipements")
 }
 
 model MailTemplate {

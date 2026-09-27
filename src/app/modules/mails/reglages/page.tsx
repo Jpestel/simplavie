@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/authContext'
 
 type Responsable = { id: string; nom: string; prenom: string | null; email: string; order: number }
 type Aidant = { id: string; prenom: string; order: number }
+type Equipement = { id: string; label: string; order: number }
 type Template = { id: string; label: string; subject: string; body: string; order: number }
 
 const DEFAULT_TEMPLATES: { label: string; subject: string; body: string }[] = [
@@ -44,7 +45,7 @@ const input = 'w-full border-2 border-gray-200 rounded-xl p-3 text-gray-700 focu
 export default function MailsReglagesPage() {
   const { activeUserId } = useAuth()
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'agence' | 'aidants' | 'modeles'>('agence')
+  const [activeTab, setActiveTab] = useState<'agence' | 'aidants' | 'equipements' | 'modeles'>('agence')
 
   const [agencyName, setAgencyName] = useState('')
   const [savingAgency, setSavingAgency] = useState(false)
@@ -57,6 +58,9 @@ export default function MailsReglagesPage() {
   const [aidants, setAidants] = useState<Aidant[]>([])
   const [aidantForm, setAidantForm] = useState('')
 
+  const [equipements, setEquipements] = useState<Equipement[]>([])
+  const [equipementForm, setEquipementForm] = useState('')
+
   const [templates, setTemplates] = useState<Template[]>([])
   const [tplForm, setTplForm] = useState<Partial<Template> | null>(null)
   const [tplEditingId, setTplEditingId] = useState<string | null>(null)
@@ -64,15 +68,17 @@ export default function MailsReglagesPage() {
 
   const load = async () => {
     if (!activeUserId) return
-    const [settings, resp, aid, tpl] = await Promise.all([
+    const [settings, resp, aid, equip, tpl] = await Promise.all([
       fetch(`/api/mail-settings?userId=${activeUserId}`).then(r => r.json()),
       fetch(`/api/mail-responsables?userId=${activeUserId}`).then(r => r.json()),
       fetch(`/api/mail-aidants?userId=${activeUserId}`).then(r => r.json()),
+      fetch(`/api/mail-equipements?userId=${activeUserId}`).then(r => r.json()),
       fetch(`/api/mail-templates?userId=${activeUserId}`).then(r => r.json()),
     ])
     setAgencyName(settings?.agencyName ?? '')
     setResponsables(Array.isArray(resp) ? resp : [])
     setAidants(Array.isArray(aid) ? aid : [])
+    setEquipements(Array.isArray(equip) ? equip : [])
     setTemplates(Array.isArray(tpl) ? tpl : [])
     setLoading(false)
   }
@@ -142,6 +148,24 @@ export default function MailsReglagesPage() {
     setAidants(prev => prev.filter(x => x.id !== a.id))
   }
 
+  // ── Équipements ──
+  const addEquipement = async () => {
+    if (!activeUserId || !equipementForm.trim()) return
+    await fetch('/api/mail-equipements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: activeUserId, label: equipementForm.trim(), order: equipements.length }),
+    })
+    setEquipementForm('')
+    await load()
+  }
+
+  const deleteEquipement = async (e: Equipement) => {
+    if (!confirm(`Supprimer ${e.label} ?`)) return
+    await fetch('/api/mail-equipements?id=' + e.id, { method: 'DELETE' })
+    setEquipements(prev => prev.filter(x => x.id !== e.id))
+  }
+
   // ── Modèles ──
   const seedDefaults = async () => {
     if (!activeUserId) return
@@ -195,12 +219,12 @@ export default function MailsReglagesPage() {
     <main className="min-h-screen p-6 max-w-2xl mx-auto pb-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800">✉️ Réglages des mails</h1>
-        <p className="text-sm text-gray-400">Agence, responsables, aidants et modèles de mails</p>
+        <p className="text-sm text-gray-400">Agence, responsables, aidants, équipements et modèles de mails</p>
       </div>
 
       {/* Tabs */}
-      <div className="grid grid-cols-3 gap-1 mb-6 bg-gray-100 rounded-2xl p-1">
-        {([['agence', '🏢 Agence'], ['aidants', '🤝 Aidants'], ['modeles', '📝 Modèles']] as const).map(([tab, label]) => (
+      <div className="grid grid-cols-4 gap-1 mb-6 bg-gray-100 rounded-2xl p-1">
+        {([['agence', '🏢 Agence'], ['aidants', '🤝 Aidants'], ['equipements', '🛠️ Équipements'], ['modeles', '📝 Modèles']] as const).map(([tab, label]) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={`py-2.5 rounded-xl text-xs font-semibold transition-all ${activeTab === tab ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>
             {label}
@@ -308,6 +332,40 @@ export default function MailsReglagesPage() {
             ))}
           </div>
           {aidants.length === 0 && <p className="text-center text-gray-400 text-sm py-6">Aucun aidant pour l&apos;instant.</p>}
+        </section>
+      )}
+
+      {/* ── ÉQUIPEMENTS TAB ── */}
+      {activeTab === 'equipements' && (
+        <section>
+          <h2 className="text-base font-semibold text-gray-700 mb-3">Équipements à la maison</h2>
+          <p className="text-sm text-gray-400 mb-4">Ex : lève-malade, fauteuil, verticalisateur… proposés au choix quand un modèle utilise <code className="bg-gray-100 px-1 rounded">{'{{equipement}}'}</code>.</p>
+          <div className="flex gap-3 mb-4">
+            <input
+              type="text"
+              value={equipementForm}
+              onChange={e => setEquipementForm(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') addEquipement() }}
+              placeholder="ex: Lève-malade"
+              className={input}
+            />
+            <button
+              onClick={addEquipement}
+              disabled={!equipementForm.trim()}
+              className="px-5 py-3 rounded-xl bg-green-500 hover:bg-green-600 text-white font-semibold active:scale-95 transition-all disabled:opacity-40"
+            >
+              Ajouter
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {equipements.map(e => (
+              <div key={e.id} className="flex items-center gap-2 bg-white rounded-2xl pl-4 pr-2 py-2 shadow-sm">
+                <span className="font-semibold text-gray-700">{e.label}</span>
+                <button onClick={() => deleteEquipement(e)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-100 text-gray-400 hover:text-red-500 text-sm">✕</button>
+              </div>
+            ))}
+          </div>
+          {equipements.length === 0 && <p className="text-center text-gray-400 text-sm py-6">Aucun équipement pour l&apos;instant.</p>}
         </section>
       )}
 
