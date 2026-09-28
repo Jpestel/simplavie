@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/authContext'
 import { useProfile } from '@/lib/profileContext'
@@ -15,21 +16,22 @@ const TODAY = isoDate(new Date())
 export default function LiaisonPage() {
   const { activeUserId } = useAuth()
   const { profile } = useProfile()
+  const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
 
   const [entries, setEntries] = useState<Entry[]>([])
   const [aidants, setAidants] = useState<Aidant[]>([])
   const [responsables, setResponsables] = useState<Responsable[]>([])
 
-  const [view, setView] = useState<'journal' | 'bilan'>('journal')
+  const [view, setView] = useState<'journal' | 'bilan'>(searchParams.get('tab') === 'bilan' ? 'bilan' : 'journal')
 
-  // ── Formulaire du jour ──
+  // ── Journal du jour ──
   const [entryDate, setEntryDate] = useState(TODAY)
+  const [editingId, setEditingId] = useState<string | 'new' | null>(null)
   const [formRating, setFormRating] = useState<RatingKey | null>(null)
   const [formAidants, setFormAidants] = useState<string[]>([])
   const [formComment, setFormComment] = useState('')
   const [saving, setSaving] = useState(false)
-  const [savedFlash, setSavedFlash] = useState(false)
 
   // ── Bilan hebdomadaire ──
   const [weekOffset, setWeekOffset] = useState(0)
@@ -52,41 +54,62 @@ export default function LiaisonPage() {
 
   useEffect(() => { load() }, [activeUserId])
 
-  useEffect(() => {
-    const e = entries.find(x => x.date === entryDate)
-    setFormRating((e?.rating as RatingKey) ?? null)
-    setFormAidants(e?.aidants ?? [])
-    setFormComment(e?.comment ?? '')
-  }, [entryDate, entries])
+  const dayEntries = entries.filter(e => e.date === entryDate)
+
+  const startAdd = () => {
+    setEditingId('new')
+    setFormRating(null)
+    setFormAidants([])
+    setFormComment('')
+  }
+
+  const startEdit = (e: Entry) => {
+    setEditingId(e.id)
+    setFormRating(e.rating)
+    setFormAidants(e.aidants)
+    setFormComment(e.comment ?? '')
+  }
+
+  const cancelForm = () => setEditingId(null)
+
+  const changeEntryDate = (d: string) => {
+    setEntryDate(d)
+    setEditingId(null)
+  }
 
   const toggleFormAidant = (prenom: string) => {
     setFormAidants(prev => prev.includes(prenom) ? prev.filter(x => x !== prenom) : [...prev, prenom])
   }
 
-  const saveEntry = async () => {
+  const saveForm = async () => {
     if (!activeUserId || !formRating) return
     setSaving(true)
-    const res = await fetch('/api/liaison-entries', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: activeUserId, date: entryDate, rating: formRating, aidants: formAidants, comment: formComment.trim() || null }),
-    })
-    const saved = await res.json()
-    setEntries(prev => [...prev.filter(x => x.date !== entryDate), saved].sort((a, b) => b.date.localeCompare(a.date)))
+    const payload = { rating: formRating, aidants: formAidants, comment: formComment.trim() || null }
+    let saved: Entry
+    if (editingId === 'new') {
+      saved = await fetch('/api/liaison-entries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: activeUserId, date: entryDate, ...payload }),
+      }).then(r => r.json())
+      setEntries(prev => [...prev, saved])
+    } else {
+      saved = await fetch('/api/liaison-entries', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editingId, ...payload }),
+      }).then(r => r.json())
+      setEntries(prev => prev.map(x => x.id === editingId ? saved : x))
+    }
     setSaving(false)
-    setSavedFlash(true)
-    setTimeout(() => setSavedFlash(false), 2500)
+    setEditingId(null)
   }
 
   const deleteEntry = async (e: Entry) => {
-    if (!confirm(`Supprimer l'évaluation du ${formatShortFr(e.date)} ?`)) return
+    if (!confirm(`Supprimer cette évaluation du ${formatShortFr(e.date)} ?`)) return
     await fetch('/api/liaison-entries?id=' + e.id, { method: 'DELETE' })
     setEntries(prev => prev.filter(x => x.id !== e.id))
-    if (e.date === entryDate) {
-      setFormRating(null)
-      setFormAidants([])
-      setFormComment('')
-    }
+    if (editingId === e.id) setEditingId(null)
   }
 
   const toggleResp = (id: string) => {
@@ -108,6 +131,9 @@ export default function LiaisonPage() {
     () => entries.filter(e => days.includes(e.date)).sort((a, b) => a.date.localeCompare(b.date)),
     [entries, days],
   )
+  const daysWithEntry = new Set(weekEntries.map(e => e.date))
+  const missingDays = days.filter(d => !daysWithEntry.has(d))
+  const weekComplete = missingDays.length === 0
   const counts = RATINGS.map(r => ({ ...r, count: weekEntries.filter(e => e.rating === r.key).length }))
 
   const recipientEmails = responsables.filter(r => selectedResp.includes(r.id)).map(r => r.email)
@@ -137,6 +163,67 @@ export default function LiaisonPage() {
 
   if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="text-xl text-gray-400">Chargement...</div></div>
 
+  const ratingForm = (
+    <div className="bg-white rounded-2xl p-5 shadow-sm mb-3 border-2 border-indigo-100">
+      <p className="text-sm text-gray-500 mb-3">Comment ça s&apos;est passé ?</p>
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        {RATINGS.map(r => (
+          <button
+            key={r.key}
+            onClick={() => setFormRating(r.key)}
+            className={`py-4 rounded-2xl font-semibold text-lg border-2 active:scale-95 transition-all ${formRating === r.key ? RATING_COLORS[r.key] : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-200'}`}
+          >
+            <span className="text-2xl block mb-1">{r.emoji}</span>
+            {r.label}
+          </button>
+        ))}
+      </div>
+
+      {aidants.length > 0 && (
+        <div className="mb-4">
+          <p className="text-sm text-gray-500 mb-2">Avec quel(s) aidant(s) ? (optionnel)</p>
+          <div className="flex flex-wrap gap-2">
+            {aidants.map(a => (
+              <button
+                key={a.id}
+                onClick={() => toggleFormAidant(a.prenom)}
+                className={`px-4 py-2 rounded-xl font-semibold text-sm border-2 active:scale-95 transition-all ${formAidants.includes(a.prenom) ? 'bg-indigo-500 border-indigo-500 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-200'}`}
+              >
+                {a.prenom}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mb-4">
+        <p className="text-sm text-gray-500 mb-2">Une précision ? (optionnel)</p>
+        <textarea
+          value={formComment}
+          onChange={e => setFormComment(e.target.value)}
+          placeholder="ex: Sarah m'a bien aidé à me lever"
+          className="w-full min-h-[80px] border-2 border-gray-200 rounded-2xl p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+        />
+      </div>
+
+      <div className="flex gap-3">
+        <button onClick={cancelForm} className="flex-1 py-3 rounded-xl border-2 border-gray-300 text-gray-600 font-semibold active:scale-95 transition-all">Annuler</button>
+        <button
+          onClick={saveForm}
+          disabled={!formRating || saving}
+          className="flex-1 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-semibold active:scale-95 transition-all disabled:opacity-40"
+        >
+          {saving ? '...' : 'Enregistrer'}
+        </button>
+      </div>
+      {aidants.length === 0 && (
+        <p className="text-xs text-gray-400 mt-3 text-center">
+          Astuce : ajoute tes aidants dans <Link href="/modules/mails/reglages" className="underline">les réglages du module Mails</Link> pour pouvoir les sélectionner ici.
+        </p>
+      )}
+    </div>
+  )
+
   return (
     <main className="min-h-screen p-6 max-w-2xl mx-auto pb-8">
       <div className="mb-6">
@@ -156,70 +243,44 @@ export default function LiaisonPage() {
       {/* ── JOURNAL ── */}
       {view === 'journal' && (
         <div className="space-y-6">
-          <section className="bg-white rounded-2xl p-5 shadow-sm border-2 border-gray-100">
+          <section>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-semibold text-gray-700">
                 {entryDate === TODAY ? "Aujourd'hui" : formatDayFr(entryDate)}
               </h2>
               {entryDate !== TODAY && (
-                <button onClick={() => setEntryDate(TODAY)} className="text-xs px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold">
+                <button onClick={() => changeEntryDate(TODAY)} className="text-xs px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold">
                   Revenir à aujourd&apos;hui
                 </button>
               )}
             </div>
 
-            <p className="text-sm text-gray-500 mb-3">Comment ça s&apos;est passé ?</p>
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              {RATINGS.map(r => (
-                <button
-                  key={r.key}
-                  onClick={() => setFormRating(r.key)}
-                  className={`py-4 rounded-2xl font-semibold text-lg border-2 active:scale-95 transition-all ${formRating === r.key ? RATING_COLORS[r.key] : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-200'}`}
-                >
-                  <span className="text-2xl block mb-1">{r.emoji}</span>
-                  {r.label}
-                </button>
-              ))}
-            </div>
-
-            {aidants.length > 0 && (
-              <div className="mb-4">
-                <p className="text-sm text-gray-500 mb-2">Avec quel(s) aidant(s) ? (optionnel)</p>
-                <div className="flex flex-wrap gap-2">
-                  {aidants.map(a => (
-                    <button
-                      key={a.id}
-                      onClick={() => toggleFormAidant(a.prenom)}
-                      className={`px-4 py-2 rounded-xl font-semibold text-sm border-2 active:scale-95 transition-all ${formAidants.includes(a.prenom) ? 'bg-indigo-500 border-indigo-500 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-200'}`}
-                    >
-                      {a.prenom}
-                    </button>
-                  ))}
+            {dayEntries.map(e => (
+              editingId === e.id ? <div key={e.id}>{ratingForm}</div> : (
+                <div key={e.id} className="bg-white rounded-2xl p-4 shadow-sm border-2 border-gray-100 mb-2">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{RATINGS.find(r => r.key === e.rating)!.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-gray-700">{RATINGS.find(r => r.key === e.rating)!.label}</div>
+                      {e.aidants.length > 0 && <div className="text-sm text-gray-500 truncate">{joinNames(e.aidants)}</div>}
+                      {e.comment && <div className="text-xs text-gray-400 truncate mt-0.5">{e.comment}</div>}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button onClick={() => startEdit(e)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-indigo-100 text-gray-500 hover:text-indigo-600 active:scale-95 transition-all text-sm">✏️</button>
+                      <button onClick={() => deleteEntry(e)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-500 active:scale-95 transition-all text-sm">🗑️</button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
+              )
+            ))}
 
-            <div className="mb-4">
-              <p className="text-sm text-gray-500 mb-2">Une précision ? (optionnel)</p>
-              <textarea
-                value={formComment}
-                onChange={e => setFormComment(e.target.value)}
-                placeholder="ex: Sarah m'a bien aidé à me lever"
-                className="w-full min-h-[80px] border-2 border-gray-200 rounded-2xl p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-              />
-            </div>
-
-            <button
-              onClick={saveEntry}
-              disabled={!formRating || saving}
-              className="w-full py-4 rounded-2xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-lg active:scale-95 transition-all disabled:opacity-40"
-            >
-              {saving ? '...' : savedFlash ? '✓ Enregistré !' : 'Enregistrer'}
-            </button>
-            {aidants.length === 0 && (
-              <p className="text-xs text-gray-400 mt-3 text-center">
-                Astuce : ajoute tes aidants dans <Link href="/modules/mails/reglages" className="underline">les réglages du module Mails</Link> pour pouvoir les sélectionner ici.
-              </p>
+            {editingId === 'new' ? ratingForm : (
+              <button
+                onClick={startAdd}
+                className="w-full py-4 rounded-2xl border-2 border-dashed border-indigo-300 text-indigo-600 font-bold active:scale-95 transition-all hover:bg-indigo-50"
+              >
+                + Ajouter une évaluation{dayEntries.length > 0 ? ' (un autre aidant ?)' : ''}
+              </button>
             )}
           </section>
 
@@ -227,25 +288,21 @@ export default function LiaisonPage() {
             <h2 className="text-base font-semibold text-gray-700 mb-3">Historique</h2>
             {entries.length === 0 && <p className="text-center text-gray-400 text-sm py-6">Aucune évaluation pour l&apos;instant.</p>}
             <div className="space-y-2">
-              {entries.map(e => {
-                const info = RATINGS.find(r => r.key === e.rating)!
+              {[...new Set(entries.map(e => e.date))].filter(d => d !== entryDate).sort((a, b) => b.localeCompare(a)).map(date => {
+                const dayList = entries.filter(e => e.date === date)
                 return (
-                  <div key={e.id} className={`bg-white rounded-2xl p-4 shadow-sm border-2 ${e.date === entryDate ? 'border-indigo-300' : 'border-gray-100'}`}>
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{info.emoji}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-gray-700">{formatDayFr(e.date)}</div>
-                        <div className="text-sm text-gray-500 truncate">
-                          {info.label}{e.aidants.length > 0 ? ` — ${joinNames(e.aidants)}` : ''}
-                        </div>
-                        {e.comment && <div className="text-xs text-gray-400 truncate mt-0.5">{e.comment}</div>}
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <button onClick={() => setEntryDate(e.date)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-indigo-100 text-gray-500 hover:text-indigo-600 active:scale-95 transition-all text-sm">✏️</button>
-                        <button onClick={() => deleteEntry(e)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-500 active:scale-95 transition-all text-sm">🗑️</button>
-                      </div>
+                  <button
+                    key={date}
+                    onClick={() => changeEntryDate(date)}
+                    className="w-full text-left bg-white rounded-2xl p-4 shadow-sm border-2 border-gray-100 hover:border-indigo-200 active:scale-95 transition-all"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-gray-700">{formatDayFr(date)}</span>
+                      <span className="flex gap-1">
+                        {dayList.map(e => <span key={e.id}>{RATINGS.find(r => r.key === e.rating)!.emoji}</span>)}
+                      </span>
                     </div>
-                  </div>
+                  </button>
                 )
               })}
             </div>
@@ -277,7 +334,15 @@ export default function LiaisonPage() {
             </div>
           </section>
 
-          {responsables.length === 0 ? (
+          {!weekComplete ? (
+            <div className="bg-orange-50 border-2 border-orange-200 rounded-2xl p-5">
+              <p className="font-semibold text-orange-700 mb-2">Il manque une évaluation pour :</p>
+              <ul className="text-orange-700 text-sm space-y-1 mb-3">
+                {missingDays.map(d => <li key={d}>• {formatDayFr(d)}</li>)}
+              </ul>
+              <p className="text-sm text-orange-600">Le bilan ne peut être envoyé que lorsque chaque jour de la semaine a au moins une évaluation.</p>
+            </div>
+          ) : responsables.length === 0 ? (
             <div className="bg-white rounded-2xl p-6 shadow-sm text-center">
               <p className="text-4xl mb-3">✉️</p>
               <p className="text-gray-600 font-medium mb-2">Aucun responsable configuré</p>
@@ -327,9 +392,7 @@ export default function LiaisonPage() {
                 </section>
               )}
 
-              {weekEntries.length === 0 ? (
-                <p className="text-center text-gray-400 text-sm py-4">Aucune évaluation notée cette semaine — rien à envoyer pour l&apos;instant.</p>
-              ) : selectedResp.length > 0 && (
+              {selectedResp.length > 0 && (
                 <>
                   <section className="bg-white rounded-2xl p-5 shadow-sm border-2 border-gray-100">
                     <p className="text-xs text-gray-400 mb-1">À : {recipientEmails.join(', ')}</p>

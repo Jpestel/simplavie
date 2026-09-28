@@ -6,8 +6,10 @@
 // Réglages facultatifs dans .env.local :
 //   REMINDERS_CRON=0 7 * * *      (par défaut : tous les jours à 7h)
 //   REMINDERS_TZ=Europe/Paris     (par défaut : Europe/Paris)
+//   LIAISON_REMINDER_CRON=0 18 * * 0   (par défaut : dimanche 18h, même fuseau)
 import cron from 'node-cron'
 import { sendDailyReminderDigests } from '@/lib/reminderDigest'
+import { sendWeeklyLiaisonReminders } from '@/lib/liaisonDigest'
 
 // Le module peut être évalué plusieurs fois (rechargement à chaud en dev) :
 // on garde l'état sur globalThis pour ne jamais planifier deux fois.
@@ -43,4 +45,22 @@ export function startReminderScheduler() {
   }, { timezone })
 
   console.log(`[rappels] planificateur démarré — « ${expression} » (${timezone})`)
+
+  const liaisonExpression = process.env.LIAISON_REMINDER_CRON ?? '0 18 * * 0'
+  if (!cron.validate(liaisonExpression)) {
+    console.error('[cahier de liaison] LIAISON_REMINDER_CRON invalide :', liaisonExpression, '— rappel non démarré')
+    return
+  }
+
+  cron.schedule(liaisonExpression, async () => {
+    const startedAt = new Date().toISOString()
+    try {
+      const result = await sendWeeklyLiaisonReminders()
+      console.log('[cahier de liaison]', startedAt, '→', JSON.stringify(result))
+    } catch (e) {
+      console.error('[cahier de liaison]', startedAt, '→ échec inattendu :', e)
+    }
+  }, { timezone })
+
+  console.log(`[cahier de liaison] rappel hebdomadaire démarré — « ${liaisonExpression} » (${timezone})`)
 }

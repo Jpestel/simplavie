@@ -371,9 +371,13 @@ model BugReport {
 
 // ─── Cahier de liaison ────────────────────────────────────────────────────────
 
-// Une évaluation par jour où un aidant est passé. `aidants` est une copie des
-// prénoms au moment de la saisie (pas une référence à MailAidant), pour que
-// l'historique reste stable même si la liste d'aidants change ensuite.
+// Une évaluation par intervention (pas par jour) : plusieurs aidants peuvent
+// passer le même jour à des horaires différents, chacun avec son propre avis
+// (ex. Sarah très bien le matin, Louis mal le soir) — donc pas de contrainte
+// d'unicité sur (userId, date), plusieurs lignes peuvent partager la même
+// date. `aidants` est une copie des prénoms au moment de la saisie (pas une
+// référence à MailAidant), pour que l'historique reste stable même si la
+// liste d'aidants change ensuite.
 model LiaisonEntry {
   id        String   @id @default(uuid())
   userId    String   @map("user_id")
@@ -386,6 +390,6 @@ model LiaisonEntry {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, date])
+  @@index([userId, date])
   @@map("liaison_entries")
 }

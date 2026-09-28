@@ -10,12 +10,13 @@ export async function GET(req: NextRequest) {
 
   const entries = await prisma.liaisonEntry.findMany({
     where: { userId: userId as string },
-    orderBy: { date: 'desc' },
+    orderBy: [{ date: 'desc' }, { createdAt: 'asc' }],
   })
   return NextResponse.json(entries)
 }
 
-// Une entrée par jour : on upsert sur (userId, date).
+// Chaque intervention est sa propre entrée : plusieurs peuvent partager la
+// même date (aidants différents, avis différents), donc toujours un create.
 export async function POST(req: NextRequest) {
   const body = await req.json()
   const { userId, date, rating, aidants, comment } = body
@@ -24,10 +25,29 @@ export async function POST(req: NextRequest) {
   const auth = await requireAccess(req, userId, 'write')
   if (isDenied(auth)) return deny(auth)
 
-  const entry = await prisma.liaisonEntry.upsert({
-    where: { userId_date: { userId, date } },
-    update: { rating, aidants: aidants ?? [], comment: comment || null },
-    create: { userId, date, rating, aidants: aidants ?? [], comment: comment || null },
+  const entry = await prisma.liaisonEntry.create({
+    data: { userId, date, rating, aidants: aidants ?? [], comment: comment || null },
+  })
+  return NextResponse.json(entry)
+}
+
+export async function PATCH(req: NextRequest) {
+  const body = await req.json()
+  const { id, date, rating, aidants, comment } = body
+  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+
+  const existing = await prisma.liaisonEntry.findUnique({ where: { id }, select: { userId: true } })
+  const auth = await requireAccess(req, existing?.userId, 'write')
+  if (isDenied(auth)) return deny(auth)
+
+  const entry = await prisma.liaisonEntry.update({
+    where: { id },
+    data: {
+      ...(date !== undefined ? { date } : {}),
+      ...(rating !== undefined ? { rating } : {}),
+      ...(aidants !== undefined ? { aidants } : {}),
+      ...(comment !== undefined ? { comment: comment || null } : {}),
+    },
   })
   return NextResponse.json(entry)
 }
