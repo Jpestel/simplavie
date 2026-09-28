@@ -81,6 +81,16 @@ export const DEFAULT_MODULES: Module[] = [
     locked: true,
     order: 7,
   },
+  {
+    id: 'liaison',
+    name: 'liaison',
+    label: 'Cahier de liaison',
+    description: 'Noter comment se passent les visites, résumer sa semaine',
+    icon: '📔',
+    enabled: false,
+    locked: true,
+    order: 8,
+  },
 ]
 
 export const DEFAULT_CONFIG: AppConfig = {

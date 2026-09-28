@@ -41,6 +41,7 @@ model User {
   mailTemplates        MailTemplate[]
   mailDrafts           MailDraft[]
   bugReports           BugReport[]
+  liaisonEntries       LiaisonEntry[]
 
   @@map("users")
 }
@@ -366,4 +367,25 @@ model BugReport {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("bug_reports")
+}
+
+// ─── Cahier de liaison ────────────────────────────────────────────────────────
+
+// Une évaluation par jour où un aidant est passé. `aidants` est une copie des
+// prénoms au moment de la saisie (pas une référence à MailAidant), pour que
+// l'historique reste stable même si la liste d'aidants change ensuite.
+model LiaisonEntry {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  date      String
+  rating    String
+  aidants   Json?
+  comment   String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@map("liaison_entries")
 }
