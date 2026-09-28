@@ -33,6 +33,9 @@ export default function MailsPage() {
   const [selectedEquipements, setSelectedEquipements] = useState<string[]>([])
   const [customEquipement, setCustomEquipement] = useState('')
   const [showCustomEquipement, setShowCustomEquipement] = useState(false)
+  const [showAddAidant, setShowAddAidant] = useState(false)
+  const [newAidantName, setNewAidantName] = useState('')
+  const [addingAidant, setAddingAidant] = useState(false)
   const [values, setValues] = useState<Record<string, string>>({})
   const [selectedResp, setSelectedResp] = useState<string[]>([])
   const [selectedCcContacts, setSelectedCcContacts] = useState<string[]>([])
@@ -90,6 +93,21 @@ export default function MailsPage() {
 
   const toggleAidant = (id: string) => {
     setSelectedAidants(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  const addAidantInline = async () => {
+    if (!activeUserId || !newAidantName.trim()) return
+    setAddingAidant(true)
+    const created = await fetch('/api/mail-aidants', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: activeUserId, prenom: newAidantName.trim(), order: aidants.length }),
+    }).then(r => r.json())
+    setAidants(prev => [...prev, created])
+    setSelectedAidants(prev => [...prev, created.id])
+    setNewAidantName('')
+    setShowAddAidant(false)
+    setAddingAidant(false)
   }
 
   const toggleEquipement = (id: string) => {
@@ -286,8 +304,33 @@ export default function MailsPage() {
                     {a.prenom}
                   </button>
                 ))}
+                <button
+                  onClick={() => setShowAddAidant(v => !v)}
+                  className={`px-5 py-3 rounded-2xl font-semibold text-lg border-2 border-dashed active:scale-95 transition-all ${showAddAidant ? 'bg-indigo-50 border-indigo-400 text-indigo-600' : 'bg-white border-gray-300 text-gray-500 hover:border-indigo-200'}`}
+                >
+                  + Ajouter un aidant
+                </button>
               </div>
-              {aidants.length === 0 && <p className="text-sm text-gray-400 mt-2">Aucun aidant configuré — ajoute-en un dans les réglages.</p>}
+              {showAddAidant && (
+                <div className="flex gap-2 mt-3">
+                  <input
+                    type="text"
+                    value={newAidantName}
+                    onChange={e => setNewAidantName(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') addAidantInline() }}
+                    placeholder="ex: Sarah"
+                    autoFocus
+                    className="flex-1 border-2 border-gray-200 rounded-2xl p-3 text-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  />
+                  <button
+                    onClick={addAidantInline}
+                    disabled={!newAidantName.trim() || addingAidant}
+                    className="px-5 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-semibold active:scale-95 transition-all disabled:opacity-40"
+                  >
+                    {addingAidant ? '...' : 'Ajouter'}
+                  </button>
+                </div>
+              )}
             </section>
           )}
 
