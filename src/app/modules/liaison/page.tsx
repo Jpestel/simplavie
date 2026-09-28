@@ -1,7 +1,6 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
-import Link from 'next/link'
 import { useAuth } from '@/lib/authContext'
 import { useProfile } from '@/lib/profileContext'
 import { RATINGS, RATING_COLORS, RatingKey, weekDates, isoDate, formatDayFr, formatShortFr, averageScore, overallRating, formatAverageFr } from '@/lib/liaisonRatings'
@@ -32,6 +31,9 @@ export default function LiaisonPage() {
   const [formAidants, setFormAidants] = useState<string[]>([])
   const [formComment, setFormComment] = useState('')
   const [saving, setSaving] = useState(false)
+  const [showAddAidant, setShowAddAidant] = useState(false)
+  const [newAidantName, setNewAidantName] = useState('')
+  const [addingAidant, setAddingAidant] = useState(false)
 
   // ── Bilan hebdomadaire ──
   const [weekOffset, setWeekOffset] = useState(0)
@@ -39,6 +41,12 @@ export default function LiaisonPage() {
   const [selectedCcContacts, setSelectedCcContacts] = useState<string[]>([])
   const [copied, setCopied] = useState(false)
   const [weekSent, setWeekSent] = useState(false)
+  const [showAddResp, setShowAddResp] = useState(false)
+  const [newRespPrenom, setNewRespPrenom] = useState('')
+  const [newRespNom, setNewRespNom] = useState('')
+  const [newRespEmail, setNewRespEmail] = useState('')
+  const [addingResp, setAddingResp] = useState(false)
+  const [addRespError, setAddRespError] = useState('')
 
   const load = async () => {
     if (!activeUserId) return
@@ -88,6 +96,21 @@ export default function LiaisonPage() {
     setFormAidants(prev => prev.includes(prenom) ? prev.filter(x => x !== prenom) : [...prev, prenom])
   }
 
+  const addAidantInline = async () => {
+    if (!activeUserId || !newAidantName.trim()) return
+    setAddingAidant(true)
+    const created = await fetch('/api/mail-aidants', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: activeUserId, prenom: newAidantName.trim(), order: aidants.length }),
+    }).then(r => r.json())
+    setAidants(prev => [...prev, created])
+    setFormAidants(prev => [...prev, created.prenom])
+    setNewAidantName('')
+    setShowAddAidant(false)
+    setAddingAidant(false)
+  }
+
   const saveForm = async () => {
     if (!activeUserId || !formRating) return
     setSaving(true)
@@ -121,6 +144,28 @@ export default function LiaisonPage() {
 
   const toggleResp = (id: string) => {
     setSelectedResp(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  const addRespInline = async () => {
+    if (!activeUserId) return
+    const nom = newRespNom.trim()
+    const email = newRespEmail.trim()
+    if (!nom) { setAddRespError('Indique au moins un nom.'); return }
+    if (!email) { setAddRespError("L'e-mail est obligatoire pour pouvoir lui écrire."); return }
+    setAddRespError('')
+    setAddingResp(true)
+    const created = await fetch('/api/mail-responsables', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: activeUserId, nom, prenom: newRespPrenom.trim() || null, email, order: responsables.length }),
+    }).then(r => r.json())
+    setResponsables(prev => [...prev, created])
+    setSelectedResp(prev => [...prev, created.id])
+    setNewRespPrenom('')
+    setNewRespNom('')
+    setNewRespEmail('')
+    setShowAddResp(false)
+    setAddingResp(false)
   }
 
   const toggleCcContact = (id: string) => {
@@ -209,22 +254,46 @@ export default function LiaisonPage() {
         ))}
       </div>
 
-      {aidants.length > 0 && (
-        <div className="mb-4">
-          <p className="text-sm text-gray-500 mb-2">Avec quel(s) aidant(s) ? (optionnel)</p>
-          <div className="flex flex-wrap gap-2">
-            {aidants.map(a => (
-              <button
-                key={a.id}
-                onClick={() => toggleFormAidant(a.prenom)}
-                className={`px-4 py-2 rounded-xl font-semibold text-sm border-2 active:scale-95 transition-all ${formAidants.includes(a.prenom) ? 'bg-indigo-500 border-indigo-500 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-200'}`}
-              >
-                {a.prenom}
-              </button>
-            ))}
-          </div>
+      <div className="mb-4">
+        <p className="text-sm text-gray-500 mb-2">Avec quel(s) aidant(s) ? (optionnel)</p>
+        <div className="flex flex-wrap gap-2">
+          {aidants.map(a => (
+            <button
+              key={a.id}
+              onClick={() => toggleFormAidant(a.prenom)}
+              className={`px-4 py-2 rounded-xl font-semibold text-sm border-2 active:scale-95 transition-all ${formAidants.includes(a.prenom) ? 'bg-indigo-500 border-indigo-500 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-200'}`}
+            >
+              {a.prenom}
+            </button>
+          ))}
+          <button
+            onClick={() => setShowAddAidant(v => !v)}
+            className={`px-4 py-2 rounded-xl font-semibold text-sm border-2 border-dashed active:scale-95 transition-all ${showAddAidant ? 'bg-indigo-50 border-indigo-400 text-indigo-600' : 'bg-white border-gray-300 text-gray-500 hover:border-indigo-200'}`}
+          >
+            + Ajouter un aidant
+          </button>
         </div>
-      )}
+        {showAddAidant && (
+          <div className="flex gap-2 mt-3">
+            <input
+              type="text"
+              value={newAidantName}
+              onChange={e => setNewAidantName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') addAidantInline() }}
+              placeholder="ex: Sarah"
+              autoFocus
+              className="flex-1 border-2 border-gray-200 rounded-xl p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            />
+            <button
+              onClick={addAidantInline}
+              disabled={!newAidantName.trim() || addingAidant}
+              className="px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-semibold active:scale-95 transition-all disabled:opacity-40"
+            >
+              {addingAidant ? '...' : 'Ajouter'}
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className="mb-4">
         <p className="text-sm text-gray-500 mb-2">Une précision ? (optionnel)</p>
@@ -246,11 +315,6 @@ export default function LiaisonPage() {
           {saving ? '...' : 'Enregistrer'}
         </button>
       </div>
-      {aidants.length === 0 && (
-        <p className="text-xs text-gray-400 mt-3 text-center">
-          Astuce : ajoute tes aidants dans <Link href="/modules/mails/reglages" className="underline">les réglages du module Mails</Link> pour pouvoir les sélectionner ici.
-        </p>
-      )}
     </div>
   )
 
@@ -391,19 +455,13 @@ export default function LiaisonPage() {
               </ul>
               <p className="text-sm text-orange-600">Le bilan ne peut être envoyé que lorsque chaque jour de la semaine a au moins une évaluation.</p>
             </div>
-          ) : responsables.length === 0 ? (
-            <div className="bg-white rounded-2xl p-6 shadow-sm text-center">
-              <p className="text-4xl mb-3">✉️</p>
-              <p className="text-gray-600 font-medium mb-2">Aucun responsable configuré</p>
-              <p className="text-sm text-gray-400 mb-5">Ajoute au moins un responsable pour pouvoir envoyer ton bilan.</p>
-              <Link href="/modules/mails/reglages" className="inline-block px-6 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-semibold active:scale-95 transition-all">
-                Aller aux réglages →
-              </Link>
-            </div>
           ) : (
             <>
               <section>
                 <h2 className="text-base font-semibold text-gray-700 mb-3">À qui envoyer ce bilan ?</h2>
+                {responsables.length === 0 && (
+                  <p className="text-sm text-gray-400 mb-3">Aucun responsable pour l&apos;instant — ajoute-en un ci-dessous.</p>
+                )}
                 <div className="space-y-2">
                   {responsables.map(r => (
                     <button
@@ -421,6 +479,46 @@ export default function LiaisonPage() {
                     </button>
                   ))}
                 </div>
+
+                {showAddResp ? (
+                  <div className="bg-white rounded-2xl p-4 shadow-sm border-2 border-indigo-100 mt-3 space-y-2">
+                    <input
+                      type="text"
+                      value={newRespPrenom}
+                      onChange={e => setNewRespPrenom(e.target.value)}
+                      placeholder="Prénom"
+                      className="w-full border-2 border-gray-200 rounded-xl p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    />
+                    <input
+                      type="text"
+                      value={newRespNom}
+                      onChange={e => setNewRespNom(e.target.value)}
+                      placeholder="Nom *"
+                      className="w-full border-2 border-gray-200 rounded-xl p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    />
+                    <input
+                      type="email"
+                      value={newRespEmail}
+                      onChange={e => setNewRespEmail(e.target.value)}
+                      placeholder="E-mail * (obligatoire)"
+                      className="w-full border-2 border-gray-200 rounded-xl p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    />
+                    {addRespError && <p className="text-red-500 text-sm font-medium">{addRespError}</p>}
+                    <div className="flex gap-2 pt-1">
+                      <button onClick={() => { setShowAddResp(false); setAddRespError('') }} className="flex-1 py-2.5 rounded-xl border-2 border-gray-300 text-gray-600 font-semibold active:scale-95 transition-all">Annuler</button>
+                      <button onClick={addRespInline} disabled={addingResp} className="flex-1 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-semibold active:scale-95 transition-all disabled:opacity-40">
+                        {addingResp ? '...' : 'Ajouter'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowAddResp(true)}
+                    className="w-full mt-3 py-3 rounded-2xl border-2 border-dashed border-indigo-300 text-indigo-600 font-semibold active:scale-95 transition-all hover:bg-indigo-50"
+                  >
+                    + Ajouter un responsable
+                  </button>
+                )}
               </section>
 
               {contactsWithEmail.length > 0 && (

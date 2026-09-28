@@ -38,6 +38,12 @@ export default function MailsPage() {
   const [addingAidant, setAddingAidant] = useState(false)
   const [values, setValues] = useState<Record<string, string>>({})
   const [selectedResp, setSelectedResp] = useState<string[]>([])
+  const [showAddResp, setShowAddResp] = useState(false)
+  const [newRespPrenom, setNewRespPrenom] = useState('')
+  const [newRespNom, setNewRespNom] = useState('')
+  const [newRespEmail, setNewRespEmail] = useState('')
+  const [addingResp, setAddingResp] = useState(false)
+  const [addRespError, setAddRespError] = useState('')
   const [selectedCcContacts, setSelectedCcContacts] = useState<string[]>([])
   const [copied, setCopied] = useState(false)
   const [savingDraft, setSavingDraft] = useState(false)
@@ -116,6 +122,28 @@ export default function MailsPage() {
 
   const toggleResp = (id: string) => {
     setSelectedResp(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  const addRespInline = async () => {
+    if (!activeUserId) return
+    const nom = newRespNom.trim()
+    const email = newRespEmail.trim()
+    if (!nom) { setAddRespError('Indique au moins un nom.'); return }
+    if (!email) { setAddRespError("L'e-mail est obligatoire pour pouvoir lui écrire."); return }
+    setAddRespError('')
+    setAddingResp(true)
+    const created = await fetch('/api/mail-responsables', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: activeUserId, nom, prenom: newRespPrenom.trim() || null, email, order: responsables.length }),
+    }).then(r => r.json())
+    setResponsables(prev => [...prev, created])
+    setSelectedResp(prev => [...prev, created.id])
+    setNewRespPrenom('')
+    setNewRespNom('')
+    setNewRespEmail('')
+    setShowAddResp(false)
+    setAddingResp(false)
   }
 
   const toggleCcContact = (id: string) => {
@@ -440,6 +468,46 @@ export default function MailsPage() {
                 </button>
               ))}
             </div>
+
+            {showAddResp ? (
+              <div className="bg-white rounded-2xl p-4 shadow-sm border-2 border-indigo-100 mt-3 space-y-2">
+                <input
+                  type="text"
+                  value={newRespPrenom}
+                  onChange={e => setNewRespPrenom(e.target.value)}
+                  placeholder="Prénom"
+                  className="w-full border-2 border-gray-200 rounded-xl p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                />
+                <input
+                  type="text"
+                  value={newRespNom}
+                  onChange={e => setNewRespNom(e.target.value)}
+                  placeholder="Nom *"
+                  className="w-full border-2 border-gray-200 rounded-xl p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                />
+                <input
+                  type="email"
+                  value={newRespEmail}
+                  onChange={e => setNewRespEmail(e.target.value)}
+                  placeholder="E-mail * (obligatoire)"
+                  className="w-full border-2 border-gray-200 rounded-xl p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                />
+                {addRespError && <p className="text-red-500 text-sm font-medium">{addRespError}</p>}
+                <div className="flex gap-2 pt-1">
+                  <button onClick={() => { setShowAddResp(false); setAddRespError('') }} className="flex-1 py-2.5 rounded-xl border-2 border-gray-300 text-gray-600 font-semibold active:scale-95 transition-all">Annuler</button>
+                  <button onClick={addRespInline} disabled={addingResp} className="flex-1 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-semibold active:scale-95 transition-all disabled:opacity-40">
+                    {addingResp ? '...' : 'Ajouter'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowAddResp(true)}
+                className="w-full mt-3 py-3 rounded-2xl border-2 border-dashed border-indigo-300 text-indigo-600 font-semibold active:scale-95 transition-all hover:bg-indigo-50"
+              >
+                + Ajouter un responsable
+              </button>
+            )}
           </section>
 
           {contactsWithEmail.length > 0 && (
