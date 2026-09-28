@@ -11,6 +11,33 @@ export function ratingInfo(key: string) {
   return RATINGS.find(r => r.key === key) ?? { key, emoji: '❔', label: key }
 }
 
+// Score numérique pour calculer une moyenne (1 = très mal, 4 = très bien).
+export const RATING_SCORE: Record<RatingKey, number> = {
+  tres_mal: 1,
+  mal: 2,
+  bien: 3,
+  tres_bien: 4,
+}
+
+export function averageScore(ratings: RatingKey[]): number | null {
+  if (ratings.length === 0) return null
+  return ratings.reduce((sum, r) => sum + RATING_SCORE[r], 0) / ratings.length
+}
+
+// Reconvertit une moyenne (1 à 4) vers le niveau le plus proche, pour afficher
+// un résumé avec le même vocabulaire (emoji/label) que les évaluations
+// individuelles plutôt qu'une échelle numérique isolée.
+export function overallRating(avg: number): RatingKey {
+  if (avg >= 3.5) return 'tres_bien'
+  if (avg >= 2.5) return 'bien'
+  if (avg >= 1.5) return 'mal'
+  return 'tres_mal'
+}
+
+export function formatAverageFr(avg: number): string {
+  return avg.toFixed(1).replace('.', ',')
+}
+
 // Couleurs actives (bouton sélectionné) par niveau — dégradé vert → rouge.
 export const RATING_COLORS: Record<RatingKey, string> = {
   tres_bien: 'bg-green-500 border-green-500 text-white',

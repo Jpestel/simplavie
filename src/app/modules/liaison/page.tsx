@@ -4,7 +4,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/authContext'
 import { useProfile } from '@/lib/profileContext'
-import { RATINGS, RATING_COLORS, RatingKey, weekDates, isoDate, formatDayFr, formatShortFr } from '@/lib/liaisonRatings'
+import { RATINGS, RATING_COLORS, RatingKey, weekDates, isoDate, formatDayFr, formatShortFr, averageScore, overallRating, formatAverageFr } from '@/lib/liaisonRatings'
 import { joinNames, buildMailtoUrl, MAIL_DISCLAIMER } from '@/lib/mailTemplateTokens'
 
 type Entry = { id: string; date: string; rating: RatingKey; aidants: string[]; comment: string | null }
@@ -161,12 +161,15 @@ export default function LiaisonPage() {
   const missingDays = days.filter(d => !daysWithEntry.has(d))
   const weekComplete = missingDays.length === 0
   const counts = RATINGS.map(r => ({ ...r, count: weekEntries.filter(e => e.rating === r.key).length }))
+  const avgScore = averageScore(weekEntries.map(e => e.rating))
+  const overall = avgScore !== null ? RATINGS.find(r => r.key === overallRating(avgScore))! : null
 
   const recipientEmails = responsables.filter(r => selectedResp.includes(r.id)).map(r => r.email)
 
   const bilanSubject = `Bilan de la semaine du ${formatShortFr(days[0])} au ${formatShortFr(days[6])}`
   const bilanBody = useMemo(() => {
     const intro = `Bonjour,\n\nVoici mon bilan de satisfaction pour la semaine du ${formatShortFr(days[0])} au ${formatShortFr(days[6])} :\n`
+    const globalLine = overall ? `Satisfaction globale de la semaine : ${overall.emoji} ${overall.label} (moyenne ${formatAverageFr(avgScore!)}/4)\n\n` : ''
     const countLines = counts.map(c => `${c.emoji} ${c.label} : ${c.count} jour(s)`).join('\n')
     const detailLines = weekEntries.length > 0
       ? '\n\nDétail :\n' + weekEntries.map(e => {
@@ -177,8 +180,8 @@ export default function LiaisonPage() {
         }).join('\n')
       : ''
     const signature = profile.firstName ? `\n\n${profile.firstName}` : ''
-    return `${intro}\n${countLines}${detailLines}${signature}\n\n${MAIL_DISCLAIMER}`
-  }, [days, counts, weekEntries, profile.firstName])
+    return `${intro}\n${globalLine}${countLines}${detailLines}${signature}\n\n${MAIL_DISCLAIMER}`
+  }, [days, counts, weekEntries, profile.firstName, overall, avgScore])
 
   const copyBilan = () => {
     const ccLine = ccEmails.length > 0 ? `Copie : ${ccEmails.join(', ')}\n` : ''
@@ -357,6 +360,15 @@ export default function LiaisonPage() {
             {weekSent && (
               <div className="bg-green-50 border-2 border-green-200 text-green-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-center mb-4">
                 ✓ Bilan déjà envoyé cette semaine
+              </div>
+            )}
+
+            {overall && (
+              <div className="rounded-2xl bg-indigo-50 border-2 border-indigo-100 p-4 text-center mb-4">
+                <p className="text-xs text-indigo-400 font-semibold uppercase tracking-wide mb-1">Satisfaction globale de la semaine</p>
+                <div className="text-3xl mb-1">{overall.emoji}</div>
+                <div className="text-lg font-bold text-gray-800">{overall.label}</div>
+                <div className="text-xs text-gray-400 mt-1">Moyenne {formatAverageFr(avgScore!)}/4</div>
               </div>
             )}
 
