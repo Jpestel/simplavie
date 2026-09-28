@@ -28,8 +28,16 @@ export function mondayOf(date: Date): Date {
   return d
 }
 
+// ⚠️ Ne JAMAIS passer par `toISOString()` ici : elle convertit en UTC, donc à
+// minuit local dans un fuseau en avance sur UTC (Europe/Paris), la date
+// obtenue est celle de la VEILLE (ex: lundi 00h local → dimanche 22h UTC).
+// C'est exactement ce qui décalait la semaine d'un jour. On reste en
+// calendrier local de bout en bout, comme `localToday()` dans reminderDigest.ts.
 export function isoDate(d: Date): string {
-  return d.toISOString().slice(0, 10)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 export function weekDates(offset: number = 0): string[] {

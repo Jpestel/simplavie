@@ -38,6 +38,7 @@ export default function LiaisonPage() {
   const [selectedResp, setSelectedResp] = useState<string[]>([])
   const [selectedCcContacts, setSelectedCcContacts] = useState<string[]>([])
   const [copied, setCopied] = useState(false)
+  const [weekSent, setWeekSent] = useState(false)
 
   const load = async () => {
     if (!activeUserId) return
@@ -75,6 +76,12 @@ export default function LiaisonPage() {
   const changeEntryDate = (d: string) => {
     setEntryDate(d)
     setEditingId(null)
+  }
+
+  const shiftEntryDate = (delta: number) => {
+    const d = new Date(entryDate + 'T00:00:00')
+    d.setDate(d.getDate() + delta)
+    changeEntryDate(isoDate(d))
   }
 
   const toggleFormAidant = (prenom: string) => {
@@ -127,6 +134,25 @@ export default function LiaisonPage() {
   ]
 
   const days = useMemo(() => weekDates(weekOffset), [weekOffset])
+
+  useEffect(() => {
+    if (!activeUserId) return
+    setWeekSent(false)
+    fetch(`/api/liaison-week-sent?userId=${activeUserId}&weekStart=${days[0]}`)
+      .then(r => r.json())
+      .then(d => setWeekSent(!!d.sent))
+  }, [activeUserId, days])
+
+  const markWeekSent = () => {
+    if (!activeUserId) return
+    setWeekSent(true)
+    fetch('/api/liaison-week-sent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: activeUserId, weekStart: days[0] }),
+    })
+  }
+
   const weekEntries = useMemo(
     () => entries.filter(e => days.includes(e.date)).sort((a, b) => a.date.localeCompare(b.date)),
     [entries, days],
@@ -159,6 +185,7 @@ export default function LiaisonPage() {
     navigator.clipboard.writeText(`Objet : ${bilanSubject}\n${ccLine}\n${bilanBody}`)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+    markWeekSent()
   }
 
   if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="text-xl text-gray-400">Chargement...</div></div>
@@ -244,10 +271,14 @@ export default function LiaisonPage() {
       {view === 'journal' && (
         <div className="space-y-6">
           <section>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold text-gray-700">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <button onClick={() => shiftEntryDate(-1)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold flex-shrink-0">←</button>
+              <h2 className="text-base font-semibold text-gray-700 text-center flex-1">
                 {entryDate === TODAY ? "Aujourd'hui" : formatDayFr(entryDate)}
               </h2>
+              <button onClick={() => shiftEntryDate(1)} disabled={entryDate >= TODAY} className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold flex-shrink-0 disabled:opacity-30">→</button>
+            </div>
+            <div className="flex justify-end mb-4">
               {entryDate !== TODAY && (
                 <button onClick={() => changeEntryDate(TODAY)} className="text-xs px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold">
                   Revenir à aujourd&apos;hui
@@ -322,6 +353,12 @@ export default function LiaisonPage() {
               </div>
               <button onClick={() => setWeekOffset(o => Math.min(0, o + 1))} disabled={weekOffset === 0} className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold disabled:opacity-30">→</button>
             </div>
+
+            {weekSent && (
+              <div className="bg-green-50 border-2 border-green-200 text-green-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-center mb-4">
+                ✓ Bilan déjà envoyé cette semaine
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-2">
               {counts.map(c => (
@@ -404,6 +441,7 @@ export default function LiaisonPage() {
                   <div className="space-y-3">
                     <a
                       href={buildMailtoUrl(recipientEmails, bilanSubject, bilanBody, ccEmails)}
+                      onClick={markWeekSent}
                       className="block w-full text-center py-4 rounded-2xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-lg active:scale-95 transition-all"
                     >
                       📧 Envoyer le bilan par mail

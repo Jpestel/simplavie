@@ -42,6 +42,7 @@ model User {
   mailDrafts           MailDraft[]
   bugReports           BugReport[]
   liaisonEntries       LiaisonEntry[]
+  liaisonWeekSent      LiaisonWeekSent[]
 
   @@map("users")
 }
@@ -392,4 +393,19 @@ model LiaisonEntry {
 
   @@index([userId, date])
   @@map("liaison_entries")
+}
+
+// Marque qu'un bilan hebdomadaire a été envoyé (ou copié) pour une semaine
+// donnée, afin que le rappel du dimanche soir sache s'il doit relancer
+// Quentin ou non. `weekStart` = date ISO du lundi de la semaine concernée.
+model LiaisonWeekSent {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  weekStart String   @map("week_start")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+  @@map("liaison_week_sent")
 }

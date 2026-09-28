@@ -77,8 +77,11 @@ export default function MailsPage() {
     setSelectedEquipements([])
     setCustomEquipement('')
     setShowCustomEquipement(false)
-    const today = new Date().toISOString().slice(0, 10)
-    const now = new Date().toTimeString().slice(0, 5)
+    // Pas de toISOString() ici : elle convertit en UTC et peut faire reculer
+    // la date d'un jour selon l'heure locale (voir liaisonRatings.ts).
+    const nowDate = new Date()
+    const today = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, '0')}-${String(nowDate.getDate()).padStart(2, '0')}`
+    const now = nowDate.toTimeString().slice(0, 5)
     setValues({ date: today, heure: now })
     setSelectedCcContacts([])
     const tTokens = extractTokens(t.subject, t.body)
