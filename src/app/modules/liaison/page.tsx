@@ -362,9 +362,9 @@ export default function LiaisonPage() {
             <button
               key={d}
               onClick={() => { setView('journal'); changeEntryDate(d) }}
-              className={`aspect-square rounded-2xl flex flex-col items-center justify-center gap-0.5 text-white font-bold active:scale-95 transition-all ${DAY_COLORS[i]} ${isSelected ? 'ring-4 ring-gray-700' : ''} ${isToday && !isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-gray-300' : ''}`}
+              className={`rounded-2xl py-3 px-1 flex flex-col items-center justify-center gap-0.5 text-white font-bold active:scale-95 transition-all ${DAY_COLORS[i]} ${isSelected ? 'ring-4 ring-gray-700' : ''} ${isToday && !isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-gray-300' : ''}`}
             >
-              <span className="text-xs opacity-90">{DAY_LABELS[i]}</span>
+              <span className="text-[10px] leading-tight text-center opacity-90">{DAY_LABELS[i]}</span>
               <span className="text-lg leading-none">{new Date(d + 'T00:00:00').getDate()}</span>
               <span className="text-[10px] leading-none">{hasEntry ? '●' : ''}</span>
             </button>
@@ -372,10 +372,10 @@ export default function LiaisonPage() {
         })}
         <button
           onClick={() => setView('bilan')}
-          className={`aspect-square rounded-2xl flex flex-col items-center justify-center gap-0.5 text-white font-bold bg-indigo-600 active:scale-95 transition-all ${view === 'bilan' ? 'ring-4 ring-gray-700' : ''}`}
+          className={`rounded-2xl py-3 px-1 flex flex-col items-center justify-center gap-0.5 text-white font-bold bg-indigo-600 active:scale-95 transition-all ${view === 'bilan' ? 'ring-4 ring-gray-700' : ''}`}
         >
           <span className="text-lg leading-none">📊</span>
-          <span className="text-xs">Bilan</span>
+          <span className="text-[10px] leading-tight">Bilan</span>
           <span className="text-[10px] leading-none">{weekComplete ? '✓' : ''}</span>
         </button>
       </div>
