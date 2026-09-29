@@ -9,6 +9,7 @@ import { joinNames, buildMailtoUrl, MAIL_DISCLAIMER } from '@/lib/mailTemplateTo
 type Entry = { id: string; date: string; rating: RatingKey; aidants: string[]; comment: string | null }
 type Aidant = { id: string; prenom: string }
 type Responsable = { id: string; nom: string; prenom: string | null; email: string }
+type Equipement = { id: string; label: string }
 
 const TODAY = isoDate(new Date())
 
@@ -21,6 +22,7 @@ export default function LiaisonPage() {
   const [entries, setEntries] = useState<Entry[]>([])
   const [aidants, setAidants] = useState<Aidant[]>([])
   const [responsables, setResponsables] = useState<Responsable[]>([])
+  const [equipements, setEquipements] = useState<Equipement[]>([])
 
   const [view, setView] = useState<'journal' | 'bilan'>(searchParams.get('tab') === 'bilan' ? 'bilan' : 'journal')
 
@@ -50,14 +52,16 @@ export default function LiaisonPage() {
 
   const load = async () => {
     if (!activeUserId) return
-    const [ent, aid, resp] = await Promise.all([
+    const [ent, aid, resp, equip] = await Promise.all([
       fetch(`/api/liaison-entries?userId=${activeUserId}`).then(r => r.json()),
       fetch(`/api/mail-aidants?userId=${activeUserId}`).then(r => r.json()),
       fetch(`/api/mail-responsables?userId=${activeUserId}`).then(r => r.json()),
+      fetch(`/api/mail-equipements?userId=${activeUserId}`).then(r => r.json()),
     ])
     setEntries(Array.isArray(ent) ? ent : [])
     setAidants(Array.isArray(aid) ? aid : [])
     setResponsables(Array.isArray(resp) ? resp : [])
+    setEquipements(Array.isArray(equip) ? equip : [])
     setLoading(false)
   }
 
@@ -109,6 +113,17 @@ export default function LiaisonPage() {
     setNewAidantName('')
     setShowAddAidant(false)
     setAddingAidant(false)
+  }
+
+  // Ajoute le nom d'un équipement (réglages > équipements) dans "Une précision ?",
+  // sans écraser ce qui est déjà écrit.
+  const insertEquipement = (label: string) => {
+    setFormComment(prev => {
+      const trimmed = prev.trimEnd()
+      if (!trimmed) return label
+      if (trimmed.toLowerCase().includes(label.toLowerCase())) return prev
+      return /[.,;!?]$/.test(trimmed) ? `${trimmed} ${label}` : `${trimmed}, ${label}`
+    })
   }
 
   const saveForm = async () => {
@@ -303,6 +318,20 @@ export default function LiaisonPage() {
           placeholder="ex: Sarah m'a bien aidé à me lever"
           className="w-full min-h-[80px] border-2 border-gray-200 rounded-2xl p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
         />
+        {equipements.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-2">
+            {equipements.map(eq => (
+              <button
+                key={eq.id}
+                type="button"
+                onClick={() => insertEquipement(eq.label)}
+                className="px-3 py-1 rounded-lg text-xs font-semibold border-2 border-dashed border-gray-300 text-gray-500 active:scale-95 transition-all hover:border-indigo-300 hover:text-indigo-600"
+              >
+                🛠️ {eq.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="flex gap-3">
