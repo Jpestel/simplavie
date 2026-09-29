@@ -378,7 +378,10 @@ model BugReport {
 // d'unicité sur (userId, date), plusieurs lignes peuvent partager la même
 // date. `aidants` est une copie des prénoms au moment de la saisie (pas une
 // référence à MailAidant), pour que l'historique reste stable même si la
-// liste d'aidants change ensuite.
+// liste d'aidants change ensuite. Obligatoire au niveau applicatif (API +
+// formulaire) depuis le 29/09/2026 : une évaluation doit toujours citer au
+// moins un aidant — le type reste `Json?` (nullable) pour ne pas casser les
+// entrées historiques créées avant cette règle.
 model LiaisonEntry {
   id        String   @id @default(uuid())
   userId    String   @map("user_id")

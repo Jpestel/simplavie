@@ -112,7 +112,7 @@ export default function LiaisonPage() {
   }
 
   const saveForm = async () => {
-    if (!activeUserId || !formRating) return
+    if (!activeUserId || !formRating || formAidants.length === 0) return
     setSaving(true)
     const payload = { rating: formRating, aidants: formAidants, comment: formComment.trim() || null }
     let saved: Entry
@@ -255,7 +255,7 @@ export default function LiaisonPage() {
       </div>
 
       <div className="mb-4">
-        <p className="text-sm text-gray-500 mb-2">Avec quel(s) aidant(s) ? (optionnel)</p>
+        <p className="text-sm text-gray-500 mb-2">Avec quel(s) aidant(s) ?</p>
         <div className="flex flex-wrap gap-2">
           {aidants.map(a => (
             <button
@@ -309,7 +309,7 @@ export default function LiaisonPage() {
         <button onClick={cancelForm} className="flex-1 py-3 rounded-xl border-2 border-gray-300 text-gray-600 font-semibold active:scale-95 transition-all">Annuler</button>
         <button
           onClick={saveForm}
-          disabled={!formRating || saving}
+          disabled={!formRating || formAidants.length === 0 || saving}
           className="flex-1 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-semibold active:scale-95 transition-all disabled:opacity-40"
         >
           {saving ? '...' : 'Enregistrer'}
