@@ -46,6 +46,21 @@ export const RATING_COLORS: Record<RatingKey, string> = {
   tres_mal: 'bg-red-500 border-red-500 text-white',
 }
 
+// Abréviations et couleur fixe par jour de la semaine (lundi → dimanche),
+// pour le sélecteur de jours du Cahier de liaison — chaque jour garde
+// toujours la même couleur, quelle que soit la semaine affichée.
+export const DAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+
+export const DAY_COLORS = [
+  'bg-sky-500',      // Lundi
+  'bg-emerald-500',  // Mardi
+  'bg-amber-500',    // Mercredi
+  'bg-fuchsia-500',  // Jeudi
+  'bg-rose-500',     // Vendredi
+  'bg-violet-500',   // Samedi
+  'bg-teal-500',     // Dimanche
+]
+
 export function mondayOf(date: Date): Date {
   const d = new Date(date)
   const day = d.getDay()

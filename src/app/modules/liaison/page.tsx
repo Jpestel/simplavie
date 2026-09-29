@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/authContext'
 import { useProfile } from '@/lib/profileContext'
-import { RATINGS, RATING_COLORS, RatingKey, weekDates, isoDate, formatDayFr, formatShortFr, averageScore, overallRating, formatAverageFr } from '@/lib/liaisonRatings'
+import { RATINGS, RATING_COLORS, RatingKey, weekDates, isoDate, formatDayFr, formatShortFr, averageScore, overallRating, formatAverageFr, DAY_LABELS, DAY_COLORS } from '@/lib/liaisonRatings'
 import { joinNames, buildMailtoUrl, MAIL_DISCLAIMER } from '@/lib/mailTemplateTokens'
 
 type Entry = { id: string; date: string; rating: RatingKey; aidants: string[]; comment: string | null }
@@ -90,10 +90,9 @@ export default function LiaisonPage() {
     setEditingId(null)
   }
 
-  const shiftEntryDate = (delta: number) => {
-    const d = new Date(entryDate + 'T00:00:00')
-    d.setDate(d.getDate() + delta)
-    changeEntryDate(isoDate(d))
+  const resetToToday = () => {
+    setWeekOffset(0)
+    changeEntryDate(TODAY)
   }
 
   const toggleFormAidant = (prenom: string) => {
@@ -353,30 +352,44 @@ export default function LiaisonPage() {
         <h1 className="text-2xl font-bold text-gray-800">📔 Cahier de liaison</h1>
       </div>
 
-      {/* Tabs */}
-      <div className="grid grid-cols-2 gap-1 mb-6 bg-gray-100 rounded-2xl p-1">
-        {([['journal', '📝 Mon journal'], ['bilan', '📊 Bilan de la semaine']] as const).map(([tab, label]) => (
-          <button key={tab} onClick={() => setView(tab)}
-            className={`py-2.5 rounded-xl text-xs font-semibold transition-all ${view === tab ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>
-            {label}
-          </button>
-        ))}
+      {/* Sélecteur de la semaine : les 7 jours + Bilan, sur deux lignes de 4 */}
+      <div className="grid grid-cols-4 gap-2 mb-6">
+        {days.map((d, i) => {
+          const hasEntry = entries.some(e => e.date === d)
+          const isSelected = view === 'journal' && entryDate === d
+          const isToday = d === TODAY
+          return (
+            <button
+              key={d}
+              onClick={() => { setView('journal'); changeEntryDate(d) }}
+              className={`aspect-square rounded-2xl flex flex-col items-center justify-center gap-0.5 text-white font-bold active:scale-95 transition-all ${DAY_COLORS[i]} ${isSelected ? 'ring-4 ring-gray-700' : ''} ${isToday && !isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-gray-300' : ''}`}
+            >
+              <span className="text-xs opacity-90">{DAY_LABELS[i]}</span>
+              <span className="text-lg leading-none">{new Date(d + 'T00:00:00').getDate()}</span>
+              <span className="text-[10px] leading-none">{hasEntry ? '●' : ''}</span>
+            </button>
+          )
+        })}
+        <button
+          onClick={() => setView('bilan')}
+          className={`aspect-square rounded-2xl flex flex-col items-center justify-center gap-0.5 text-white font-bold bg-indigo-600 active:scale-95 transition-all ${view === 'bilan' ? 'ring-4 ring-gray-700' : ''}`}
+        >
+          <span className="text-lg leading-none">📊</span>
+          <span className="text-xs">Bilan</span>
+          <span className="text-[10px] leading-none">{weekComplete ? '✓' : ''}</span>
+        </button>
       </div>
 
       {/* ── JOURNAL ── */}
       {view === 'journal' && (
         <div className="space-y-6">
           <section>
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <button onClick={() => shiftEntryDate(-1)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold flex-shrink-0">←</button>
-              <h2 className="text-base font-semibold text-gray-700 text-center flex-1">
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <h2 className="text-base font-semibold text-gray-700">
                 {entryDate === TODAY ? "Aujourd'hui" : formatDayFr(entryDate)}
               </h2>
-              <button onClick={() => shiftEntryDate(1)} disabled={entryDate >= TODAY} className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold flex-shrink-0 disabled:opacity-30">→</button>
-            </div>
-            <div className="flex justify-end mb-4">
-              {entryDate !== TODAY && (
-                <button onClick={() => changeEntryDate(TODAY)} className="text-xs px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold">
+              {(entryDate !== TODAY || weekOffset !== 0) && (
+                <button onClick={resetToToday} className="text-xs px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold">
                   Revenir à aujourd&apos;hui
                 </button>
               )}
