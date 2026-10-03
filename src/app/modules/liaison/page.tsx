@@ -398,12 +398,12 @@ export default function LiaisonPage() {
             {dayEntries.map(e => (
               editingId === e.id ? <div key={e.id}>{ratingForm}</div> : (
                 <div key={e.id} className="bg-white rounded-2xl p-4 shadow-sm border-2 border-gray-100 mb-2">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-start gap-3">
                     <span className="text-2xl">{RATINGS.find(r => r.key === e.rating)!.emoji}</span>
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-gray-700">{RATINGS.find(r => r.key === e.rating)!.label}</div>
-                      {e.aidants.length > 0 && <div className="text-sm text-gray-500 truncate">{joinNames(e.aidants)}</div>}
-                      {e.comment && <div className="text-xs text-gray-400 truncate mt-0.5">{e.comment}</div>}
+                      {e.aidants.length > 0 && <div className="text-sm text-gray-500 break-words">{joinNames(e.aidants)}</div>}
+                      {e.comment && <div className="text-sm text-gray-600 whitespace-pre-wrap break-words mt-1">{e.comment}</div>}
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <button onClick={() => startEdit(e)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-indigo-100 text-gray-500 hover:text-indigo-600 active:scale-95 transition-all text-sm">✏️</button>
@@ -587,7 +587,7 @@ export default function LiaisonPage() {
                     <p className="text-xs text-gray-400 mb-1">À : {recipientEmails.join(', ')}</p>
                     {ccEmails.length > 0 && <p className="text-xs text-gray-400 mb-1">Copie : {ccEmails.join(', ')}</p>}
                     <p className="font-bold text-gray-800 mb-3">{bilanSubject}</p>
-                    <p className="text-gray-600 whitespace-pre-wrap">{bilanBody}</p>
+                    <p className="text-gray-600 whitespace-pre-wrap break-words">{bilanBody}</p>
                   </section>
 
                   <div className="space-y-3">
