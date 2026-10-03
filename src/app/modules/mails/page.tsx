@@ -1,6 +1,7 @@
 'use client'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/authContext'
 import { useProfile } from '@/lib/profileContext'
 import {
@@ -19,6 +20,11 @@ type Step = 'template' | 'champs' | 'destinataires' | 'apercu' | 'brouillons' | 
 export default function MailsPage() {
   const { activeUserId } = useAuth()
   const { profile } = useProfile()
+  const searchParams = useSearchParams()
+  // ?prefill=1 : un autre module (ex. Cahier de liaison) a déposé un mail déjà
+  // rédigé dans sessionStorage ; on saute le choix du modèle.
+  const wantsPrefill = searchParams.get('prefill') === '1'
+  const prefillDone = useRef(false)
   const [loading, setLoading] = useState(true)
 
   const [responsables, setResponsables] = useState<Responsable[]>([])
@@ -74,6 +80,20 @@ export default function MailsPage() {
       setLoading(false)
     })
   }, [activeUserId])
+
+  useEffect(() => {
+    if (loading || !wantsPrefill || prefillDone.current) return
+    prefillDone.current = true
+    try {
+      const raw = sessionStorage.getItem('simplavie_mail_prefill')
+      if (!raw) return
+      sessionStorage.removeItem('simplavie_mail_prefill')
+      const p = JSON.parse(raw) as { label?: string; subject?: string; body?: string }
+      if (!p.body) return
+      setTemplate({ id: '__prefill', label: p.label || 'Signalement', subject: p.subject || '', body: p.body })
+      setStep('destinataires')
+    } catch { /* sessionStorage indisponible : on retombe sur le choix du modèle */ }
+  }, [loading, wantsPrefill])
 
   const tokens = useMemo(() => template ? extractTokens(template.subject, template.body) : [], [template])
   const caregiverTokenUsed = tokens.some(isCaregiverToken)
@@ -252,20 +272,10 @@ export default function MailsPage() {
 
   if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="text-xl text-gray-400">Chargement...</div></div>
 
-  if (responsables.length === 0) {
-    return (
-      <main className="min-h-screen p-6 max-w-lg mx-auto flex flex-col items-center justify-center text-center">
-        <div className="text-6xl mb-4">✉️</div>
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">Aucun responsable configuré</h1>
-        <p className="text-gray-500 mb-6">Il faut d&apos;abord ajouter au moins un responsable à qui écrire, dans les réglages.</p>
-        <Link href="/modules/mails/reglages" className="w-full py-4 rounded-2xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-lg active:scale-95 transition-all">
-          Aller aux réglages →
-        </Link>
-      </main>
-    )
-  }
-
-  if (templates.length === 0) {
+  // Sans responsable on peut quand même avancer : l'étape « destinataires »
+  // propose « + Ajouter un responsable ». Sans modèle, on laisse passer un mail
+  // prérempli (signalement depuis le Cahier de liaison), qui n'en a pas besoin.
+  if (templates.length === 0 && !wantsPrefill) {
     return (
       <main className="min-h-screen p-6 max-w-lg mx-auto flex flex-col items-center justify-center text-center">
         <div className="text-6xl mb-4">📝</div>
@@ -451,6 +461,9 @@ export default function MailsPage() {
         <div className="space-y-6">
           <section>
             <h2 className="text-base font-semibold text-gray-700 mb-3">À qui envoyer ce mail ?</h2>
+            {responsables.length === 0 && (
+              <p className="text-sm text-gray-400 mb-3">Aucun responsable pour l&apos;instant — ajoute-en un ci-dessous.</p>
+            )}
             <div className="space-y-2">
               {responsables.map(r => (
                 <button
