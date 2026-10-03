@@ -1,18 +1,18 @@
 // Envoi d'e-mails par SMTP, volontairement agnostique du fournisseur.
 //
-// Configuration dans .env.local :
-//   SMTP_HOST=smtp-relay.brevo.com
-//   SMTP_PORT=587
-//   SMTP_USER=<identifiant SMTP fourni par le prestataire>
-//   SMTP_PASS=<clé SMTP fournie par le prestataire>
-//   MAIL_FROM=SimplaVie <noreply@pastech.fr>
+// Configuration dans .env.local (Resend, depuis le 03/10/2026 ; Brevo abandonné) :
+//   SMTP_HOST=smtp.resend.com
+//   SMTP_PORT=465                 (TLS implicite ; 587 = STARTTLS)
+//   SMTP_USER=resend              (littéralement « resend »)
+//   SMTP_PASS=<clé API Resend>
+//   MAIL_FROM=SimplaVie <contact@pastech.fr>   (domaine pastech.fr vérifié chez Resend)
 //   MAIL_REPLY_TO=<adresse réellement relevée>   (facultatif)
 //
 // MAIL_FROM n'a pas besoin de correspondre à une boîte existante : il suffit
 // que le domaine soit authentifié chez le prestataire. MAIL_REPLY_TO sert
 // justement à ce qu'une réponse arrive quelque part.
 //
-// Changer de prestataire (Brevo, IONOS, autre) ne demande que de modifier ces
+// Changer de prestataire (Resend, IONOS, autre) ne demande que de modifier ces
 // variables : aucun code à retoucher.
 import nodemailer, { type Transporter } from 'nodemailer'
 
