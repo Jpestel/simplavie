@@ -32,18 +32,20 @@ export async function sendWeeklyLiaisonReminders(): Promise<LiaisonDigestResult>
   const days = weekDates(0)
   const weekStart = days[0]
 
-  const [profiles, alreadySent, weekEntries] = await Promise.all([
+  const [profiles, alreadySent, weekEntries, noVisitDays] = await Promise.all([
     prisma.userProfile.findMany({
       where: { id: { in: userIds }, email: { not: null } },
       select: { id: true, email: true, firstName: true },
     }),
     prisma.liaisonWeekSent.findMany({ where: { userId: { in: userIds }, weekStart }, select: { userId: true } }),
     prisma.liaisonEntry.findMany({ where: { userId: { in: userIds }, date: { in: days } }, select: { userId: true, date: true } }),
+    prisma.liaisonNoVisit.findMany({ where: { userId: { in: userIds }, date: { in: days } }, select: { userId: true, date: true } }),
   ])
 
   const sentUserIds = new Set(alreadySent.map(r => r.userId))
+  // Un jour est « fait » s'il a une évaluation OU s'il est marqué « sans visite ».
   const entriesByUser: Record<string, Set<string>> = {}
-  for (const e of weekEntries) {
+  for (const e of [...weekEntries, ...noVisitDays]) {
     if (!entriesByUser[e.userId]) entriesByUser[e.userId] = new Set()
     entriesByUser[e.userId].add(e.date)
   }

@@ -43,6 +43,8 @@ model User {
   bugReports           BugReport[]
   liaisonEntries       LiaisonEntry[]
   liaisonWeekSent      LiaisonWeekSent[]
+  liaisonMotifs        LiaisonMotif[]
+  liaisonNoVisit       LiaisonNoVisit[]
 
   @@map("users")
 }
@@ -388,6 +390,11 @@ model LiaisonEntry {
   date      String
   rating    String
   aidants   Json?
+  // Moment de la journée (matin/midi/soir/nuit), facultatif.
+  moment    String?
+  // Motifs rapides cochés : copie des libellés au moment de la saisie (comme
+  // `aidants`), pour que l'historique reste stable si la liste change.
+  motifs    Json?
   comment   String?  @db.Text
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -396,6 +403,35 @@ model LiaisonEntry {
 
   @@index([userId, date])
   @@map("liaison_entries")
+}
+
+// Motifs rapides proposés en puces dans le formulaire d'évaluation (modifiable
+// dans les réglages). `kind` : "negatif" (proposés pour Mal / Très mal) ou
+// "positif" (proposés pour Bien / Très bien).
+model LiaisonMotif {
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+  label  String
+  kind   String @default("negatif")
+  order  Int    @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("liaison_motifs")
+}
+
+// Jour où personne n'est passé : il compte comme "rempli" pour pouvoir envoyer
+// le bilan de la semaine, sans fausser les moyennes (aucune évaluation créée).
+model LiaisonNoVisit {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  date      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@map("liaison_no_visit")
 }
 
 // Marque qu'un bilan hebdomadaire a été envoyé (ou copié) pour une semaine

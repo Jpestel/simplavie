@@ -103,3 +103,149 @@ export function formatShortFr(iso: string): string {
   const d = new Date(iso + 'T00:00:00')
   return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
 }
+
+// ─── Moment de la journée ─────────────────────────────────────────────────────
+
+export type MomentKey = 'matin' | 'midi' | 'soir' | 'nuit'
+
+export const MOMENTS: { key: MomentKey; emoji: string; label: string; phrase: string }[] = [
+  { key: 'matin', emoji: '🌅', label: 'Matin', phrase: 'le matin' },
+  { key: 'midi', emoji: '☀️', label: 'Midi', phrase: 'le midi' },
+  { key: 'soir', emoji: '🌆', label: 'Soir', phrase: 'le soir' },
+  { key: 'nuit', emoji: '🌙', label: 'Nuit', phrase: 'la nuit' },
+]
+
+export function momentInfo(key?: string | null) {
+  return MOMENTS.find(m => m.key === key) ?? null
+}
+
+/** Déduit le moment de la journée d'une heure de planning ("08:30"). */
+export function momentFromTime(time?: string | null): MomentKey | null {
+  const h = parseInt((time ?? '').slice(0, 2), 10)
+  if (Number.isNaN(h)) return null
+  if (h < 5) return 'nuit'
+  if (h < 11) return 'matin'
+  if (h < 15) return 'midi'
+  if (h < 21) return 'soir'
+  return 'nuit'
+}
+
+export function isBadRating(rating: string): boolean {
+  return rating === 'mal' || rating === 'tres_mal'
+}
+
+// ─── Motifs rapides ───────────────────────────────────────────────────────────
+
+export type MotifKind = 'negatif' | 'positif'
+
+// Proposés au chargement initial (bouton « Charger les motifs de base »), puis
+// entièrement modifiables dans les réglages du Cahier de liaison.
+export const DEFAULT_MOTIFS: { label: string; kind: MotifKind }[] = [
+  { label: 'Absence non prévenue', kind: 'negatif' },
+  { label: 'Retard', kind: 'negatif' },
+  { label: 'Tâche non faite', kind: 'negatif' },
+  { label: 'Poubelle non sortie', kind: 'negatif' },
+  { label: 'Ménage mal fait', kind: 'negatif' },
+  { label: 'Courses mal rangées', kind: 'negatif' },
+  { label: 'Lève-malade mal utilisé', kind: 'negatif' },
+  { label: 'Toilette bâclée', kind: 'negatif' },
+  { label: 'Repas oublié', kind: 'negatif' },
+  { label: 'Manque de respect', kind: 'negatif' },
+  { label: 'Parti trop tôt', kind: 'negatif' },
+  { label: "À l'heure", kind: 'positif' },
+  { label: 'Très attentionné(e)', kind: 'positif' },
+  { label: 'Travail soigné', kind: 'positif' },
+  { label: 'Bonne utilisation du lève-malade', kind: 'positif' },
+  { label: 'A pris son temps', kind: 'positif' },
+  { label: 'Bonne ambiance', kind: 'positif' },
+]
+
+// ─── Résumé par aidant ────────────────────────────────────────────────────────
+
+export type AidantStat = {
+  name: string
+  count: number
+  avg: number
+  bad: number
+  topMotifs: { label: string; count: number }[]
+}
+
+/**
+ * Une évaluation qui cite plusieurs aidants compte pour chacun d'eux. Les
+ * motifs ne sont retenus que pour les évaluations négatives (ce sont eux qui
+ * servent de preuve), les trois plus fréquents par aidant. Trié par prénom
+ * (ordre neutre, pas un classement).
+ */
+export function aidantStats(
+  entries: { rating: RatingKey; aidants: string[]; motifs?: string[] | null }[],
+): AidantStat[] {
+  const map = new Map<string, { scores: number[]; bad: number; motifs: Map<string, number> }>()
+  for (const e of entries) {
+    for (const name of e.aidants ?? []) {
+      const s = map.get(name) ?? { scores: [], bad: 0, motifs: new Map<string, number>() }
+      s.scores.push(RATING_SCORE[e.rating])
+      if (isBadRating(e.rating)) {
+        s.bad += 1
+        for (const m of e.motifs ?? []) s.motifs.set(m, (s.motifs.get(m) ?? 0) + 1)
+      }
+      map.set(name, s)
+    }
+  }
+  return [...map.entries()]
+    .map(([name, s]) => ({
+      name,
+      count: s.scores.length,
+      avg: s.scores.reduce((a, b) => a + b, 0) / s.scores.length,
+      bad: s.bad,
+      topMotifs: [...s.motifs.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'fr'))
+        .slice(0, 3)
+        .map(([label, count]) => ({ label, count })),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+}
+
+// ─── Signalement immédiat à l'agence ──────────────────────────────────────────
+
+function listFr(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? ''
+  return `${names.slice(0, -1).join(', ')} et ${names[names.length - 1]}`
+}
+
+/** Mail prérempli pour prévenir tout de suite l'agence après un « Mal » / « Très mal ». */
+export function buildIncidentMail(
+  e: {
+    date: string
+    rating: RatingKey
+    aidants: string[]
+    moment?: string | null
+    motifs?: string[] | null
+    comment?: string | null
+  },
+  firstName: string,
+): { label: string; subject: string; body: string } {
+  const jour = formatDayFr(e.date)
+  const jourMinuscule = jour.charAt(0).toLowerCase() + jour.slice(1)
+  const moment = momentInfo(e.moment)
+  const quand = moment ? `${jourMinuscule}, ${moment.phrase}` : jourMinuscule
+  const qui = listFr(e.aidants)
+  const info = ratingInfo(e.rating)
+
+  const lignes = [
+    'Bonjour,',
+    '',
+    `Je souhaite vous signaler un problème survenu le ${quand}${qui ? (moment ? ', avec ' : ' avec ') + qui : ''}.`,
+    '',
+    `Évaluation : ${info.emoji} ${info.label}`,
+  ]
+  if (e.motifs && e.motifs.length > 0) lignes.push(`Motifs : ${e.motifs.join(', ')}`)
+  if (e.comment && e.comment.trim()) lignes.push(`Précisions : ${e.comment.trim()}`)
+  lignes.push('', 'Merci de votre retour.')
+  if (firstName) lignes.push('', firstName)
+
+  return {
+    label: 'Signalement',
+    subject: `Signalement${qui ? ' concernant ' + qui : ''} — ${quand}`,
+    body: lignes.join('\n'),
+  }
+}

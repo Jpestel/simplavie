@@ -2,6 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAccess, isDenied, deny } from '@/lib/apiAuth'
 
+const MOMENTS = ['matin', 'midi', 'soir', 'nuit']
+
+function cleanMoment(v: unknown): string | null {
+  return typeof v === 'string' && MOMENTS.includes(v) ? v : null
+}
+
+function cleanMotifs(v: unknown): string[] {
+  if (!Array.isArray(v)) return []
+  return v.filter((x): x is string => typeof x === 'string' && x.trim() !== '').map(x => x.trim())
+}
+
 export async function GET(req: NextRequest) {
   const userId = req.nextUrl.searchParams.get('userId')
 
@@ -30,8 +41,15 @@ export async function POST(req: NextRequest) {
   if (isDenied(auth)) return deny(auth)
 
   const entry = await prisma.liaisonEntry.create({
-    data: { userId, date, rating, aidants, comment: comment || null },
+    data: {
+      userId, date, rating, aidants,
+      moment: cleanMoment(body.moment),
+      motifs: cleanMotifs(body.motifs),
+      comment: comment || null,
+    },
   })
+  // Un jour qui reçoit une évaluation n'est plus « sans visite ».
+  await prisma.liaisonNoVisit.deleteMany({ where: { userId, date } })
   return NextResponse.json(entry)
 }
 
@@ -54,6 +72,8 @@ export async function PATCH(req: NextRequest) {
       ...(date !== undefined ? { date } : {}),
       ...(rating !== undefined ? { rating } : {}),
       ...(aidants !== undefined ? { aidants } : {}),
+      ...(body.moment !== undefined ? { moment: cleanMoment(body.moment) } : {}),
+      ...(body.motifs !== undefined ? { motifs: cleanMotifs(body.motifs) } : {}),
       ...(comment !== undefined ? { comment: comment || null } : {}),
     },
   })
