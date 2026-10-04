@@ -249,3 +249,55 @@ export function buildIncidentMail(
     body: lignes.join('\n'),
   }
 }
+
+// ─── Mail de rappel du dimanche soir (envoyé à Quentin, jamais à l'agence) ────
+
+/**
+ * Contenu du rappel hebdomadaire. `canSend` = au moins un responsable a une
+ * adresse e-mail : sans cela le bilan ne peut pas partir, donc le rappel le
+ * dit et renvoie vers l'ajout d'un responsable. Dans tous les cas il rappelle
+ * que le bilan ne part jamais tout seul.
+ */
+export function buildReminderMail(input: {
+  base: string
+  firstName?: string | null
+  missingDays: string[]
+  canSend: boolean
+}): { subject: string; html: string; text: string } {
+  const { base, firstName, missingDays, canSend } = input
+  const lienBilan = `${base}/modules/liaison?tab=bilan`
+  const lienResp = `${base}/modules/mails/reglages`
+
+  const missingHtml = missingDays.length > 0
+    ? `<p style="color:#555">Il manque une évaluation pour :</p>
+       <ul style="color:#c2410c">${missingDays.map(d => `<li>${formatDayFr(d)}</li>`).join('')}</ul>`
+    : `<p style="color:#555">Ta semaine est complète — tu peux relire ton bilan et l'envoyer si tu veux.</p>`
+  const missingText = missingDays.length > 0
+    ? `Il manque une évaluation pour :\n${missingDays.map(d => `- ${formatDayFr(d)}`).join('\n')}\n\n`
+    : `Ta semaine est complète — tu peux relire ton bilan et l'envoyer si tu veux.\n\n`
+
+  const noticeHtml = canSend ? '' : `
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:12px 16px;margin:16px 0;color:#9a3412">
+      <p style="margin:0 0 8px"><strong>Avant de pouvoir envoyer ton bilan</strong>, ajoute un responsable avec son adresse e-mail.</p>
+      <p style="margin:0"><a href="${lienResp}" style="color:#9a3412;font-weight:bold">Ajouter un responsable →</a></p>
+    </div>`
+  const noticeText = canSend ? '' : `⚠️ Avant de pouvoir envoyer ton bilan, ajoute un responsable avec son adresse e-mail : ${lienResp}\n\n`
+
+  const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+      <h2 style="color:#6366f1">📔 Cahier de liaison</h2>
+      <p style="color:#555">C'est dimanche soir !</p>
+      ${missingHtml}
+      ${noticeHtml}
+      <p style="text-align:center;margin:24px 0">
+        <a href="${lienBilan}" style="background:#6366f1;color:#fff;text-decoration:none;padding:12px 24px;border-radius:12px;font-weight:bold;display:inline-block">
+          Voir le bilan de ma semaine
+        </a>
+      </p>
+      <p style="color:#aaa;font-size:12px">SimplaVie — rappel automatique. Le bilan ne part jamais tout seul : c'est toi qui décides de l'envoyer, quand tu veux.</p>
+    </div>
+  `
+  const text = `Bonjour${firstName ? ' ' + firstName : ''},\n\nC'est dimanche soir !\n\n${missingText}${noticeText}${lienBilan}\n\nLe bilan ne part jamais tout seul : c'est toi qui décides de l'envoyer, quand tu veux.\n\n— SimplaVie`
+
+  return { subject: '📔 Ton bilan de la semaine est prêt à relire', html, text }
+}
