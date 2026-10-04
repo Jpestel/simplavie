@@ -427,6 +427,8 @@ model LiaisonNoVisit {
   id        String   @id @default(uuid())
   userId    String   @map("user_id")
   date      String
+  // Pourquoi il n'y a pas d'évaluation ce jour-là : aucune | oubli | absent | autre (null = aucune).
+  reason    String?
   createdAt DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

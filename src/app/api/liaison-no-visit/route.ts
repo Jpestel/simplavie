@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAccess, isDenied, deny } from '@/lib/apiAuth'
+import { noEvalReason } from '@/lib/liaisonRatings'
 
 // Jours où personne n'est passé : ils comptent comme « remplis » pour le bilan
 // de la semaine, sans créer d'évaluation (donc sans toucher aux moyennes).
@@ -12,14 +13,15 @@ export async function GET(req: NextRequest) {
 
   const rows = await prisma.liaisonNoVisit.findMany({
     where: { userId: userId as string },
-    select: { date: true },
+    select: { date: true, reason: true },
     orderBy: { date: 'desc' },
   })
-  return NextResponse.json(rows.map(r => r.date))
+  return NextResponse.json(rows.map(r => ({ date: r.date, reason: noEvalReason(r.reason).key })))
 }
 
 export async function POST(req: NextRequest) {
-  const { userId, date } = await req.json()
+  const { userId, date, reason: rawReason } = await req.json()
+  const reason = noEvalReason(typeof rawReason === 'string' ? rawReason : null).key
   if (!userId || !date) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
 
   const auth = await requireAccess(req, userId, 'write')
@@ -33,8 +35,8 @@ export async function POST(req: NextRequest) {
 
   await prisma.liaisonNoVisit.upsert({
     where: { userId_date: { userId, date } },
-    update: {},
-    create: { userId, date },
+    update: { reason },
+    create: { userId, date, reason },
   })
   return NextResponse.json({ ok: true })
 }

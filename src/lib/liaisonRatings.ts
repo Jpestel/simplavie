@@ -335,6 +335,18 @@ export function weekDatesFrom(weekStart: string): string[] {
  * semaines qui se terminent à cette semaine (pour la tendance par aidant) ;
  * `noVisitDays` = jours de la semaine marqués « personne n'est passé ».
  */
+/** Jours sans évaluation : la raison choisie, et comment elle s'écrit dans le bilan. */
+export const NO_EVAL_REASONS = [
+  { key: 'aucune', emoji: '🚫', label: "Personne n'est passé ce jour-là", mail: "aucune intervention", line: "pas d'intervention" },
+  { key: 'oubli', emoji: '🤔', label: "J'ai oublié, je ne me souviens plus", mail: "oubli de ma part", line: "pas d'évaluation (oubli de ma part)" },
+  { key: 'absent', emoji: '🏠', label: "J'étais absent de chez moi", mail: "absent de chez moi", line: "absent de chez moi" },
+  { key: 'autre', emoji: '✏️', label: "Autre raison", mail: "autre raison", line: "pas d'évaluation pour cette journée" },
+] as const
+export type NoEvalReasonKey = (typeof NO_EVAL_REASONS)[number]['key']
+export function noEvalReason(key: string | null | undefined) {
+  return NO_EVAL_REASONS.find(r => r.key === key) ?? NO_EVAL_REASONS[0]
+}
+
 /** Explication ajoutée au tout premier bilan : les destinataires ne connaissent pas forcément l'outil. */
 export const FIRST_BILAN_EXPLANATION = [
   "C'est la première fois que je vous envoie ce bilan, je vous explique de quoi il s'agit.",
@@ -348,13 +360,15 @@ export function buildBilanMail(input: {
   weekEntries: BilanEntry[]
   fourWeeksEntries: BilanEntry[]
   noVisitDays: string[]
+  /** Raison par date (voir NO_EVAL_REASONS) ; absente = « aucune intervention ». */
+  noVisitReasons?: Record<string, string>
   firstName: string
   includeAidantSummary: boolean
   disclaimer: string
   /** Tout premier bilan envoyé par ce compte : les responsables n'ont pas forcément été prévenus. */
   isFirstBilan?: boolean
 }): { subject: string; body: string } {
-  const { days, weekEntries, fourWeeksEntries, noVisitDays, firstName, includeAidantSummary, disclaimer, isFirstBilan } = input
+  const { days, weekEntries, fourWeeksEntries, noVisitDays, noVisitReasons = {}, firstName, includeAidantSummary, disclaimer, isFirstBilan } = input
   const periode = `du ${formatShortFr(days[0])} au ${formatShortFr(days[6])}`
   const subject = `Bilan de la semaine ${periode}`
 
@@ -367,13 +381,21 @@ export function buildBilanMail(input: {
     : `Bonjour,\n\nVoici mon bilan de satisfaction pour la semaine ${periode} :\n`
   const globalLine = overall ? `Satisfaction globale de la semaine : ${overall.emoji} ${overall.label} (moyenne ${formatAverageFr(avg!)}/4)\n\n` : ''
   const countLines = counts.map(c => `${c.emoji} ${c.label} : ${c.count} intervention(s)`).join('\n')
-  const noVisitLine = noVisitDays.length > 0 ? `\nJour(s) sans intervention : ${noVisitDays.length}` : ''
+  const reasonOf = (d: string) => noEvalReason(noVisitReasons[d]).key
+  const noInterv = noVisitDays.filter(d => reasonOf(d) === 'aucune')
+  const noEval = noVisitDays.filter(d => reasonOf(d) !== 'aucune')
+  const noEvalDetail = NO_EVAL_REASONS.filter(r => r.key !== 'aucune')
+    .map(r => ({ r, n: noEval.filter(d => reasonOf(d) === r.key).length })).filter(x => x.n > 0)
+    .map(x => `${x.r.mail} : ${x.n}`).join(', ')
+  const noVisitLine =
+    (noInterv.length > 0 ? `\nJour(s) sans intervention : ${noInterv.length}` : '') +
+    (noEval.length > 0 ? `\nJour(s) sans évaluation : ${noEval.length} (${noEvalDetail})` : '')
 
   const lines: string[] = []
   for (const d of days) {
     const es = weekEntries.filter(e => e.date === d)
     if (es.length === 0) {
-      if (noVisitDays.includes(d)) lines.push(`- ${formatDayFr(d)} : pas d'intervention`)
+      if (noVisitDays.includes(d)) lines.push(`- ${formatDayFr(d)} : ${noEvalReason(noVisitReasons[d]).line}`)
       continue
     }
     for (const e of es) {

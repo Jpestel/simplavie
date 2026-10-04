@@ -6,7 +6,7 @@ import { useProfile } from '@/lib/profileContext'
 import {
   RATINGS, RATING_COLORS, RatingKey, weekDates, isoDate, formatDayFr, formatShortFr, averageScore,
   overallRating, formatAverageFr, DAY_LABELS, DAY_COLORS, MOMENTS, MomentKey, momentInfo, momentFromTime,
-  isBadRating, DEFAULT_MOTIFS, aidantStats, buildIncidentMail, buildBilanMail,
+  isBadRating, DEFAULT_MOTIFS, aidantStats, buildIncidentMail, buildBilanMail, NO_EVAL_REASONS, noEvalReason,
 } from '@/lib/liaisonRatings'
 import { joinNames, buildMailtoUrl, MAIL_DISCLAIMER } from '@/lib/mailTemplateTokens'
 import type { CareData } from '@/types'
@@ -66,7 +66,10 @@ export default function LiaisonPage() {
   const [responsables, setResponsables] = useState<Responsable[]>([])
   const [equipements, setEquipements] = useState<Equipement[]>([])
   const [motifs, setMotifs] = useState<Motif[]>([])
-  const [noVisitDays, setNoVisitDays] = useState<string[]>([])
+  // jours sans évaluation : date → raison (aucune | oubli | absent | autre)
+  const [noVisitMap, setNoVisitMap] = useState<Record<string, string>>({})
+  const [showNoEvalChoices, setShowNoEvalChoices] = useState(false)
+  const noVisitDays = useMemo(() => Object.keys(noVisitMap), [noVisitMap])
   const [care, setCare] = useState<CareData | null>(null)
 
   const [view, setView] = useState<'journal' | 'bilan'>(searchParams.get('tab') === 'bilan' ? 'bilan' : 'journal')
@@ -120,7 +123,7 @@ export default function LiaisonPage() {
       fetch(`/api/mail-responsables?userId=${activeUserId}`).then(r => r.json()),
       fetch(`/api/mail-equipements?userId=${activeUserId}`).then(r => r.json()),
       getJson<Motif[]>(`/api/liaison-motifs?userId=${activeUserId}`),
-      getJson<string[]>(`/api/liaison-no-visit?userId=${activeUserId}`),
+      getJson<{ date: string; reason: string }[]>(`/api/liaison-no-visit?userId=${activeUserId}`),
       getJson<CareData>(`/api/care?userId=${activeUserId}`),
     ])
     setEntries(Array.isArray(ent) ? (ent as RawEntry[]).map(normalizeEntry) : [])
@@ -128,7 +131,7 @@ export default function LiaisonPage() {
     setResponsables(Array.isArray(resp) ? resp : [])
     setEquipements(Array.isArray(equip) ? equip : [])
     setMotifs(Array.isArray(mot) ? mot : [])
-    setNoVisitDays(Array.isArray(nov) ? nov : [])
+    setNoVisitMap(Array.isArray(nov) ? Object.fromEntries(nov.map(n => [n.date, n.reason || 'aucune'])) : {})
     setCare(careData && Array.isArray(careData.appointments) ? careData : null)
     setLoading(false)
   }
@@ -197,6 +200,7 @@ export default function LiaisonPage() {
   const changeEntryDate = (d: string) => {
     setEntryDate(d)
     setEditingId(null)
+    setShowNoEvalChoices(false)
   }
 
   const resetToToday = () => {
@@ -304,7 +308,7 @@ export default function LiaisonPage() {
     const saved = normalizeEntry(await res.json())
     setEntries(prev => [...prev, saved])
     // Un jour qui reçoit une évaluation n'est plus « sans visite » (le serveur fait pareil).
-    setNoVisitDays(prev => prev.filter(d => d !== entryDate))
+    setNoVisitMap(prev => { const n = { ...prev }; delete n[entryDate]; return n })
     return saved
   }
 
@@ -394,16 +398,17 @@ export default function LiaisonPage() {
     }
   }
 
-  const markNoVisit = async () => {
+  const markNoVisit = async (reason: string) => {
     if (!activeUserId) return
     const res = await fetch('/api/liaison-no-visit', {
       method: 'POST',
       headers: JSON_HEADERS,
-      body: JSON.stringify({ userId: activeUserId, date: entryDate }),
+      body: JSON.stringify({ userId: activeUserId, date: entryDate, reason }),
     })
     if (res.ok) {
       setErrorMsg('')
-      setNoVisitDays(prev => prev.includes(entryDate) ? prev : [...prev, entryDate])
+      setShowNoEvalChoices(false)
+      setNoVisitMap(prev => ({ ...prev, [entryDate]: reason }))
     } else {
       setErrorMsg("Impossible de marquer ce jour pour l'instant, réessaie dans un instant.")
     }
@@ -412,7 +417,7 @@ export default function LiaisonPage() {
   const unmarkNoVisit = async () => {
     if (!activeUserId) return
     await fetch(`/api/liaison-no-visit?userId=${activeUserId}&date=${entryDate}`, { method: 'DELETE' })
-    setNoVisitDays(prev => prev.filter(d => d !== entryDate))
+    setNoVisitMap(prev => { const n = { ...prev }; delete n[entryDate]; return n })
   }
 
   const toggleResp = (id: string) => {
@@ -515,11 +520,12 @@ export default function LiaisonPage() {
     weekEntries,
     fourWeeksEntries,
     noVisitDays: noVisitInWeek,
+    noVisitReasons: noVisitMap,
     firstName: profile.firstName || '',
     includeAidantSummary,
     disclaimer: MAIL_DISCLAIMER,
     isFirstBilan,
-  }), [days, weekEntries, fourWeeksEntries, noVisitInWeek, profile.firstName, includeAidantSummary, isFirstBilan])
+  }), [days, weekEntries, fourWeeksEntries, noVisitInWeek, noVisitMap, profile.firstName, includeAidantSummary, isFirstBilan])
 
   const copyBilan = () => {
     const ccLine = ccEmails.length > 0 ? `Copie : ${ccEmails.join(', ')}\n` : ''
@@ -771,7 +777,7 @@ export default function LiaisonPage() {
             >
               <span className="text-[10px] leading-tight text-center opacity-90">{DAY_LABELS[i]}</span>
               <span className="text-lg leading-none">{new Date(d + 'T00:00:00').getDate()}</span>
-              <span className="text-[10px] leading-none" title={isNoVisit ? "Pas d'intervention" : undefined}>{hasEntry ? '●' : isNoVisit ? '–' : ''}</span>
+              <span className="text-[10px] leading-none" title={isNoVisit ? noEvalReason(noVisitMap[d]).label : undefined}>{hasEntry ? '●' : isNoVisit ? '–' : ''}</span>
             </button>
           )
         })}
@@ -922,17 +928,33 @@ export default function LiaisonPage() {
             {dayEntries.length === 0 && (
               noVisitDays.includes(entryDate) ? (
                 <div className="mt-3 bg-gray-50 border-2 border-gray-200 rounded-2xl p-3 flex items-center justify-between gap-2">
-                  <span className="text-sm font-semibold text-gray-600">🚫 Personne n&apos;est passé ce jour-là</span>
+                  <span className="text-sm font-semibold text-gray-600">
+                    {noEvalReason(noVisitMap[entryDate]).emoji} {noEvalReason(noVisitMap[entryDate]).label}
+                  </span>
                   <button onClick={unmarkNoVisit} className="text-xs px-3 py-1.5 rounded-lg bg-white border-2 border-gray-200 text-gray-600 font-semibold active:scale-95 transition-all">
                     Annuler
                   </button>
                 </div>
+              ) : showNoEvalChoices ? (
+                <div className="mt-3 space-y-2">
+                  <p className="text-sm text-gray-500">Pas d&apos;évaluation ce jour-là, pourquoi ?</p>
+                  {NO_EVAL_REASONS.map(rs => (
+                    <button
+                      key={rs.key}
+                      onClick={() => markNoVisit(rs.key)}
+                      className="w-full py-3 rounded-2xl border-2 border-gray-200 bg-white text-gray-700 font-semibold active:scale-95 transition-all hover:bg-gray-50"
+                    >
+                      {rs.emoji} {rs.label}
+                    </button>
+                  ))}
+                  <button onClick={() => setShowNoEvalChoices(false)} className="w-full py-2 text-sm text-gray-400">Retour</button>
+                </div>
               ) : (
                 <button
-                  onClick={markNoVisit}
+                  onClick={() => setShowNoEvalChoices(true)}
                   className="mt-3 w-full py-3 rounded-2xl border-2 border-dashed border-gray-300 text-gray-500 font-semibold active:scale-95 transition-all hover:bg-gray-50"
                 >
-                  🚫 Personne n&apos;est passé ce jour-là
+                  🚫 Pas d&apos;évaluation ce jour-là
                 </button>
               )
             )}

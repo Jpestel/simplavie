@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
       where: { userId, date: { gte: fourWeeksStart, lte: days[6] } },
       orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
     }),
-    prisma.liaisonNoVisit.findMany({ where: { userId, date: { in: days } }, select: { date: true } }),
+    prisma.liaisonNoVisit.findMany({ where: { userId, date: { in: days } }, select: { date: true, reason: true } }),
     prisma.mailResponsable.findMany({ where: { userId, id: { in: responsableIds } } }),
     prisma.userProfile.findUnique({ where: { id: userId } }),
   ])
@@ -125,6 +125,7 @@ export async function POST(req: NextRequest) {
     weekEntries: weekEntries.map(toBilanEntry),
     fourWeeksEntries: entries.map(toBilanEntry),
     noVisitDays: noVisit.map(n => n.date),
+    noVisitReasons: Object.fromEntries(noVisit.map(n => [n.date, n.reason ?? 'aucune'])),
     firstName: profile?.firstName ?? '',
     includeAidantSummary,
     disclaimer: MAIL_DISCLAIMER,
