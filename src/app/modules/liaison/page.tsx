@@ -97,6 +97,7 @@ export default function LiaisonPage() {
   const [selectedCcContacts, setSelectedCcContacts] = useState<string[]>([])
   const [copied, setCopied] = useState(false)
   const [weekSent, setWeekSent] = useState(false)
+  const [isFirstBilan, setIsFirstBilan] = useState(false)
   const [weekSentInfo, setWeekSentInfo] = useState<{ sentAt: string | null; recipients: string[]; method: string | null } | null>(null)
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState('')
@@ -459,6 +460,7 @@ export default function LiaisonPage() {
       .then(r => r.json())
       .then(d => {
         setWeekSent(!!d.sent)
+        setIsFirstBilan(d.isFirstBilan === true)
         setWeekSentInfo(d.sent ? { sentAt: d.sentAt ?? null, recipients: d.recipients ?? [], method: d.method ?? null } : null)
       })
   }, [activeUserId, days])
@@ -512,7 +514,8 @@ export default function LiaisonPage() {
     firstName: profile.firstName || '',
     includeAidantSummary,
     disclaimer: MAIL_DISCLAIMER,
-  }), [days, weekEntries, fourWeeksEntries, noVisitInWeek, profile.firstName, includeAidantSummary])
+    isFirstBilan,
+  }), [days, weekEntries, fourWeeksEntries, noVisitInWeek, profile.firstName, includeAidantSummary, isFirstBilan])
 
   const copyBilan = () => {
     const ccLine = ccEmails.length > 0 ? `Copie : ${ccEmails.join(', ')}\n` : ''

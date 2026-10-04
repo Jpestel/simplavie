@@ -335,6 +335,14 @@ export function weekDatesFrom(weekStart: string): string[] {
  * semaines qui se terminent à cette semaine (pour la tendance par aidant) ;
  * `noVisitDays` = jours de la semaine marqués « personne n'est passé ».
  */
+/** Explication ajoutée au tout premier bilan : les destinataires ne connaissent pas forcément l'outil. */
+export const FIRST_BILAN_EXPLANATION = [
+  "C'est la première fois que je vous envoie ce bilan, je vous explique de quoi il s'agit.",
+  "Afin que vous ayez un retour régulier sur les interventions des aidants chez moi, j'utilise un outil adapté à mon handicap, SimplaVie. Chaque jour où un aidant est venu, j'indique en quelques clics comment cela s'est passé (très bien, bien, mal ou très mal), avec si besoin quelques précisions.",
+  "Chaque semaine, ce bilan résume mes évaluations : le détail de chaque intervention, la satisfaction globale de la semaine et, pour chaque aidant, ce qui s'est bien ou mal passé. Il est envoyé par l'outil, mais seulement quand je décide de l'envoyer, et son contenu reflète mes propres choix. C'est pourquoi il est très factuel. Vous le recevrez désormais sous ce même format.",
+  "Vous pouvez simplement répondre à ce mail : votre réponse m'arrivera directement.",
+].join('\n\n')
+
 export function buildBilanMail(input: {
   days: string[]
   weekEntries: BilanEntry[]
@@ -343,8 +351,10 @@ export function buildBilanMail(input: {
   firstName: string
   includeAidantSummary: boolean
   disclaimer: string
+  /** Tout premier bilan envoyé par ce compte : les responsables n'ont pas forcément été prévenus. */
+  isFirstBilan?: boolean
 }): { subject: string; body: string } {
-  const { days, weekEntries, fourWeeksEntries, noVisitDays, firstName, includeAidantSummary, disclaimer } = input
+  const { days, weekEntries, fourWeeksEntries, noVisitDays, firstName, includeAidantSummary, disclaimer, isFirstBilan } = input
   const periode = `du ${formatShortFr(days[0])} au ${formatShortFr(days[6])}`
   const subject = `Bilan de la semaine ${periode}`
 
@@ -352,7 +362,9 @@ export function buildBilanMail(input: {
   const overall = avg !== null ? ratingInfo(overallRating(avg)) : null
   const counts = RATINGS.map(r => ({ ...r, count: weekEntries.filter(e => e.rating === r.key).length }))
 
-  const intro = `Bonjour,\n\nVoici mon bilan de satisfaction pour la semaine ${periode} :\n`
+  const intro = isFirstBilan
+    ? `Bonjour,\n\n${FIRST_BILAN_EXPLANATION}\n\nVoici donc mon bilan de satisfaction pour la semaine ${periode} :\n`
+    : `Bonjour,\n\nVoici mon bilan de satisfaction pour la semaine ${periode} :\n`
   const globalLine = overall ? `Satisfaction globale de la semaine : ${overall.emoji} ${overall.label} (moyenne ${formatAverageFr(avg!)}/4)\n\n` : ''
   const countLines = counts.map(c => `${c.emoji} ${c.label} : ${c.count} intervention(s)`).join('\n')
   const noVisitLine = noVisitDays.length > 0 ? `\nJour(s) sans intervention : ${noVisitDays.length}` : ''

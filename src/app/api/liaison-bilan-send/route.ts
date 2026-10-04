@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSession, requireAccess, isDenied, deny } from '@/lib/apiAuth'
 import { sendMail } from '@/lib/mailer'
+import { isFirstServerBilan } from '@/lib/liaisonFirstBilan'
 import { MAIL_DISCLAIMER } from '@/lib/mailTemplateTokens'
 import {
   RatingKey, BilanEntry, buildBilanMail, weekDatesFrom, addDaysIso, formatDayFr,
@@ -112,6 +113,8 @@ export async function POST(req: NextRequest) {
     ...contacts.filter(c => c.id && ccContactIds.includes(c.id)).map(c => cleanEmail(c.email)).filter((x): x is string => !!x),
   ])].filter(a => !to.includes(a))
 
+  const isFirstBilan = await isFirstServerBilan(userId, weekStart)
+
   const mail = buildBilanMail({
     days,
     weekEntries: weekEntries.map(toBilanEntry),
@@ -120,6 +123,7 @@ export async function POST(req: NextRequest) {
     firstName: profile?.firstName ?? '',
     includeAidantSummary,
     disclaimer: MAIL_DISCLAIMER,
+    isFirstBilan,
   })
 
   const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1f2937;line-height:1.5">${escapeHtml(mail.body).replace(/\n/g, '<br>')}</div>`

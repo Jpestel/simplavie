@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { isFirstServerBilan } from '@/lib/liaisonFirstBilan'
 import { requireAccess, isDenied, deny } from '@/lib/apiAuth'
 
 export async function GET(req: NextRequest) {
@@ -18,6 +19,7 @@ export async function GET(req: NextRequest) {
     sentAt: row?.sentAt ?? null,
     recipients: Array.isArray(row?.recipients) ? row?.recipients : [],
     method: row?.method ?? null,
+    isFirstBilan: await isFirstServerBilan(userId as string, weekStart),
   })
 }
 
