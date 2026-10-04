@@ -301,3 +301,94 @@ export function buildReminderMail(input: {
 
   return { subject: '📔 Ton bilan de la semaine est prêt à relire', html, text }
 }
+
+// ─── Bilan hebdomadaire : dates et rédaction (partagés navigateur / serveur) ──
+
+export type BilanEntry = {
+  date: string
+  rating: RatingKey
+  aidants: string[]
+  moment?: string | null
+  motifs?: string[] | null
+  comment?: string | null
+}
+
+/** Ajoute (ou retire) des jours à une date ISO locale, sans passer par l'UTC. */
+export function addDaysIso(iso: string, delta: number): string {
+  const d = new Date(iso + 'T00:00:00')
+  d.setDate(d.getDate() + delta)
+  return isoDate(d)
+}
+
+/** Les 7 jours (lundi → dimanche) à partir de la date ISO d'un lundi. */
+export function weekDatesFrom(weekStart: string): string[] {
+  return Array.from({ length: 7 }, (_, i) => addDaysIso(weekStart, i))
+}
+
+/**
+ * Rédige le bilan envoyé à l'agence. UNE seule fonction pour l'aperçu affiché à
+ * l'écran et pour l'envoi par le serveur : ce qu'on voit est exactement ce qui part.
+ * `weekEntries` = évaluations des 7 jours ; `fourWeeksEntries` = celles des 4
+ * semaines qui se terminent à cette semaine (pour la tendance par aidant) ;
+ * `noVisitDays` = jours de la semaine marqués « personne n'est passé ».
+ */
+export function buildBilanMail(input: {
+  days: string[]
+  weekEntries: BilanEntry[]
+  fourWeeksEntries: BilanEntry[]
+  noVisitDays: string[]
+  firstName: string
+  includeAidantSummary: boolean
+  disclaimer: string
+}): { subject: string; body: string } {
+  const { days, weekEntries, fourWeeksEntries, noVisitDays, firstName, includeAidantSummary, disclaimer } = input
+  const periode = `du ${formatShortFr(days[0])} au ${formatShortFr(days[6])}`
+  const subject = `Bilan de la semaine ${periode}`
+
+  const avg = averageScore(weekEntries.map(e => e.rating))
+  const overall = avg !== null ? ratingInfo(overallRating(avg)) : null
+  const counts = RATINGS.map(r => ({ ...r, count: weekEntries.filter(e => e.rating === r.key).length }))
+
+  const intro = `Bonjour,\n\nVoici mon bilan de satisfaction pour la semaine ${periode} :\n`
+  const globalLine = overall ? `Satisfaction globale de la semaine : ${overall.emoji} ${overall.label} (moyenne ${formatAverageFr(avg!)}/4)\n\n` : ''
+  const countLines = counts.map(c => `${c.emoji} ${c.label} : ${c.count} intervention(s)`).join('\n')
+  const noVisitLine = noVisitDays.length > 0 ? `\nJour(s) sans intervention : ${noVisitDays.length}` : ''
+
+  const lines: string[] = []
+  for (const d of days) {
+    const es = weekEntries.filter(e => e.date === d)
+    if (es.length === 0) {
+      if (noVisitDays.includes(d)) lines.push(`- ${formatDayFr(d)} : pas d'intervention`)
+      continue
+    }
+    for (const e of es) {
+      const info = ratingInfo(e.rating)
+      const mo = momentInfo(e.moment)
+      const when = mo ? ` (${mo.label.toLowerCase()})` : ''
+      const who = e.aidants.length > 0 ? ` (${listFr(e.aidants)})` : ''
+      const why = e.motifs && e.motifs.length > 0 ? ` [${e.motifs.join(', ')}]` : ''
+      const note = e.comment ? ` — ${e.comment}` : ''
+      lines.push(`- ${formatDayFr(d)}${when} : ${info.emoji} ${info.label}${who}${why}${note}`)
+    }
+  }
+  const detailLines = lines.length > 0 ? '\n\nDétail :\n' + lines.join('\n') : ''
+
+  let aidantLines = ''
+  const weekStats = aidantStats(weekEntries)
+  if (includeAidantSummary && weekStats.length > 0) {
+    const monthByName = new Map(aidantStats(fourWeeksEntries).map(s => [s.name, s]))
+    aidantLines = '\n\nPar aidant :\n' + weekStats.map(s => {
+      const lvl = ratingInfo(overallRating(s.avg))
+      const motifsTxt = s.topMotifs.length > 0
+        ? ` (motifs : ${s.topMotifs.map(m => (m.count > 1 ? `${m.label} ×${m.count}` : m.label)).join(', ')})`
+        : ''
+      const badTxt = s.bad > 0 ? ` — ${s.bad} « Mal / Très mal »${motifsTxt}` : ''
+      const m4 = monthByName.get(s.name)
+      const trend = m4 && m4.count > s.count ? ` (4 dernières semaines : ${formatAverageFr(m4.avg)}/4)` : ''
+      return `- ${s.name} : ${lvl.emoji} ${formatAverageFr(s.avg)}/4 sur ${s.count} intervention(s) cette semaine${badTxt}${trend}`
+    }).join('\n')
+  }
+
+  const signature = firstName ? `\n\n${firstName}` : ''
+  return { subject, body: `${intro}\n${globalLine}${countLines}${noVisitLine}${aidantLines}${detailLines}${signature}\n\n${disclaimer}` }
+}

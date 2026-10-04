@@ -13,13 +13,20 @@ export async function GET(req: NextRequest) {
   const row = await prisma.liaisonWeekSent.findUnique({
     where: { userId_weekStart: { userId: userId as string, weekStart } },
   })
-  return NextResponse.json({ sent: !!row })
+  return NextResponse.json({
+    sent: !!row,
+    sentAt: row?.sentAt ?? null,
+    recipients: Array.isArray(row?.recipients) ? row?.recipients : [],
+    method: row?.method ?? null,
+  })
 }
 
-// Idempotent : cliquer plusieurs fois sur "Envoyer"/"Copier" la même semaine
-// ne crée qu'une seule marque.
+// Marque une semaine comme « envoyée » après un simple clic sur « Ouvrir dans mon
+// appli mail » ou « Copier » (on ne sait pas si l'e-mail est vraiment parti).
+// L'envoi par SimplaVie, lui, est enregistré par /api/liaison-bilan-send. Idempotent,
+// et ne remplace jamais le détail d'un envoi déjà fait par le serveur.
 export async function POST(req: NextRequest) {
-  const { userId, weekStart } = await req.json()
+  const { userId, weekStart, method } = await req.json()
   if (!userId || !weekStart) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
 
   const auth = await requireAccess(req, userId, 'write')
@@ -28,7 +35,12 @@ export async function POST(req: NextRequest) {
   await prisma.liaisonWeekSent.upsert({
     where: { userId_weekStart: { userId, weekStart } },
     update: {},
-    create: { userId, weekStart },
+    create: {
+      userId,
+      weekStart,
+      sentAt: new Date(),
+      method: method === 'mailto' || method === 'copie' ? method : null,
+    },
   })
   return NextResponse.json({ ok: true })
 }

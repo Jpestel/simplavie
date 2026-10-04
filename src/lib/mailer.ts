@@ -51,6 +51,12 @@ export async function sendMail(opts: {
   subject: string
   html: string
   text?: string
+  /** Copie visible (ex. la personne qui envoie, ses proches). */
+  cc?: string[]
+  /** Adresse qui reçoit les réponses ; à défaut MAIL_REPLY_TO. */
+  replyTo?: string
+  /** Nom affiché de l'expéditeur (l'adresse reste celle de MAIL_FROM). */
+  fromName?: string
 }): Promise<MailResult> {
   const t = getTransporter()
   if (!t) {
@@ -59,23 +65,30 @@ export async function sendMail(opts: {
     return { ok: false, reason }
   }
 
-  const from = process.env.MAIL_FROM
+  let from = process.env.MAIL_FROM
   if (!from) {
     const reason = 'MAIL_FROM non défini dans .env.local'
     console.error('[mailer] e-mail NON envoyé —', reason, '| sujet:', opts.subject)
     return { ok: false, reason }
   }
+  // Nom affiché personnalisé (ex. « Quentin (via SimplaVie) ») : on garde l'adresse
+  // vérifiée de MAIL_FROM, on ne change que le nom.
+  if (opts.fromName) {
+    const address = (from.match(/<([^>]+)>/)?.[1] ?? from).trim()
+    from = `"${opts.fromName.replace(/["\r\n]/g, '')}" <${address}>`
+  }
 
   const to = Array.isArray(opts.to) ? opts.to : [opts.to]
   if (to.length === 0) return { ok: false, reason: 'aucun destinataire' }
+  const cc = opts.cc && opts.cc.length > 0 ? opts.cc : undefined
 
   // L'expéditeur peut être une adresse sans boîte (noreply@) : on redirige
   // alors les réponses vers une adresse réellement relevée.
-  const replyTo = process.env.MAIL_REPLY_TO || undefined
+  const replyTo = opts.replyTo || process.env.MAIL_REPLY_TO || undefined
 
   try {
-    await t.sendMail({ from, to, replyTo, subject: opts.subject, html: opts.html, text: opts.text })
-    console.log('[mailer] envoyé —', opts.subject, '→', to.join(', '))
+    await t.sendMail({ from, to, cc, replyTo, subject: opts.subject, html: opts.html, text: opts.text })
+    console.log('[mailer] envoyé —', opts.subject, '→', to.join(', '), cc ? `(copie : ${cc.join(', ')})` : '')
     return { ok: true }
   } catch (e) {
     const reason = e instanceof Error ? e.message : String(e)

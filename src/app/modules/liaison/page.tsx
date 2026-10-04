@@ -6,7 +6,7 @@ import { useProfile } from '@/lib/profileContext'
 import {
   RATINGS, RATING_COLORS, RatingKey, weekDates, isoDate, formatDayFr, formatShortFr, averageScore,
   overallRating, formatAverageFr, DAY_LABELS, DAY_COLORS, MOMENTS, MomentKey, momentInfo, momentFromTime,
-  isBadRating, DEFAULT_MOTIFS, aidantStats, buildIncidentMail,
+  isBadRating, DEFAULT_MOTIFS, aidantStats, buildIncidentMail, buildBilanMail,
 } from '@/lib/liaisonRatings'
 import { joinNames, buildMailtoUrl, MAIL_DISCLAIMER } from '@/lib/mailTemplateTokens'
 import type { CareData } from '@/types'
@@ -97,6 +97,9 @@ export default function LiaisonPage() {
   const [selectedCcContacts, setSelectedCcContacts] = useState<string[]>([])
   const [copied, setCopied] = useState(false)
   const [weekSent, setWeekSent] = useState(false)
+  const [weekSentInfo, setWeekSentInfo] = useState<{ sentAt: string | null; recipients: string[]; method: string | null } | null>(null)
+  const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState('')
   const [statsPeriod, setStatsPeriod] = useState<'semaine' | 'quatre'>('semaine')
   const [includeAidantSummary, setIncludeAidantSummary] = useState(true)
   const [showAddResp, setShowAddResp] = useState(false)
@@ -450,18 +453,25 @@ export default function LiaisonPage() {
   useEffect(() => {
     if (!activeUserId) return
     setWeekSent(false)
+    setWeekSentInfo(null)
+    setSendError('')
     fetch(`/api/liaison-week-sent?userId=${activeUserId}&weekStart=${days[0]}`)
       .then(r => r.json())
-      .then(d => setWeekSent(!!d.sent))
+      .then(d => {
+        setWeekSent(!!d.sent)
+        setWeekSentInfo(d.sent ? { sentAt: d.sentAt ?? null, recipients: d.recipients ?? [], method: d.method ?? null } : null)
+      })
   }, [activeUserId, days])
 
-  const markWeekSent = () => {
+  // Simple clic sur « Ouvrir dans mon appli mail » ou « Copier » : on note que le bilan a été
+  // préparé (on ne sait pas si l'e-mail est vraiment parti, contrairement à l'envoi par SimplaVie).
+  const markWeekSent = (method: 'mailto' | 'copie') => {
     if (!activeUserId) return
     setWeekSent(true)
     fetch('/api/liaison-week-sent', {
       method: 'POST',
       headers: JSON_HEADERS,
-      body: JSON.stringify({ userId: activeUserId, weekStart: days[0] }),
+      body: JSON.stringify({ userId: activeUserId, weekStart: days[0], method }),
     })
   }
 
@@ -470,7 +480,7 @@ export default function LiaisonPage() {
     [entries, days],
   )
   // Un jour est « fait » s'il a une évaluation OU s'il est marqué « sans visite ».
-  const noVisitInWeek = days.filter(d => noVisitDays.includes(d))
+  const noVisitInWeek = useMemo(() => days.filter(d => noVisitDays.includes(d)), [days, noVisitDays])
   const daysDone = new Set([...weekEntries.map(e => e.date), ...noVisitInWeek])
   const missingDays = days.filter(d => !daysDone.has(d))
   const weekComplete = missingDays.length === 0
@@ -481,65 +491,73 @@ export default function LiaisonPage() {
   // Résumé par aidant : la semaine affichée, et les 4 dernières semaines (qui se terminent à la semaine affichée).
   const weekStats = useMemo(() => aidantStats(weekEntries), [weekEntries])
   const fourWeeksStart = useMemo(() => weekDates(weekOffset - 3)[0], [weekOffset])
-  const fourWeeksStats = useMemo(
-    () => aidantStats(entries.filter(e => e.date >= fourWeeksStart && e.date <= days[6])),
+  const fourWeeksEntries = useMemo(
+    () => entries.filter(e => e.date >= fourWeeksStart && e.date <= days[6]),
     [entries, fourWeeksStart, days],
   )
+  const fourWeeksStats = useMemo(() => aidantStats(fourWeeksEntries), [fourWeeksEntries])
   const shownStats = statsPeriod === 'semaine' ? weekStats : fourWeeksStats
 
-  const recipientEmails = responsables.filter(r => selectedResp.includes(r.id)).map(r => r.email)
+  // Seuls les responsables ayant une adresse e-mail peuvent recevoir le bilan.
+  const sendableResp = responsables.filter(r => r.email && r.email.trim())
+  const selectedSendable = sendableResp.filter(r => selectedResp.includes(r.id))
+  const recipientEmails = selectedSendable.map(r => r.email.trim())
 
-  const bilanSubject = `Bilan de la semaine du ${formatShortFr(days[0])} au ${formatShortFr(days[6])}`
-  const bilanBody = useMemo(() => {
-    const intro = `Bonjour,\n\nVoici mon bilan de satisfaction pour la semaine du ${formatShortFr(days[0])} au ${formatShortFr(days[6])} :\n`
-    const globalLine = overall ? `Satisfaction globale de la semaine : ${overall.emoji} ${overall.label} (moyenne ${formatAverageFr(avgScore!)}/4)\n\n` : ''
-    const countLines = counts.map(c => `${c.emoji} ${c.label} : ${c.count} intervention(s)`).join('\n')
-    const noVisitLine = noVisitInWeek.length > 0 ? `\nJour(s) sans intervention : ${noVisitInWeek.length}` : ''
-
-    const lines: string[] = []
-    for (const d of days) {
-      const es = weekEntries.filter(e => e.date === d)
-      if (es.length === 0) {
-        if (noVisitInWeek.includes(d)) lines.push(`- ${formatDayFr(d)} : pas d'intervention`)
-        continue
-      }
-      for (const e of es) {
-        const info = RATINGS.find(r => r.key === e.rating)!
-        const mo = momentInfo(e.moment)
-        const when = mo ? ` (${mo.label.toLowerCase()})` : ''
-        const who = e.aidants.length > 0 ? ` (${joinNames(e.aidants)})` : ''
-        const why = e.motifs.length > 0 ? ` [${e.motifs.join(', ')}]` : ''
-        const note = e.comment ? ` — ${e.comment}` : ''
-        lines.push(`- ${formatDayFr(d)}${when} : ${info.emoji} ${info.label}${who}${why}${note}`)
-      }
-    }
-    const detailLines = lines.length > 0 ? '\n\nDétail :\n' + lines.join('\n') : ''
-
-    let aidantLines = ''
-    if (includeAidantSummary && weekStats.length > 0) {
-      const monthByName = new Map(fourWeeksStats.map(s => [s.name, s]))
-      aidantLines = '\n\nPar aidant :\n' + weekStats.map(s => {
-        const lvl = RATINGS.find(r => r.key === overallRating(s.avg))!
-        const motifsTxt = s.topMotifs.length > 0
-          ? ` (motifs : ${s.topMotifs.map(m => (m.count > 1 ? `${m.label} ×${m.count}` : m.label)).join(', ')})`
-          : ''
-        const badTxt = s.bad > 0 ? ` — ${s.bad} « Mal / Très mal »${motifsTxt}` : ''
-        const m4 = monthByName.get(s.name)
-        const trend = m4 && m4.count > s.count ? ` (4 dernières semaines : ${formatAverageFr(m4.avg)}/4)` : ''
-        return `- ${s.name} : ${lvl.emoji} ${formatAverageFr(s.avg)}/4 sur ${s.count} intervention(s) cette semaine${badTxt}${trend}`
-      }).join('\n')
-    }
-
-    const signature = profile.firstName ? `\n\n${profile.firstName}` : ''
-    return `${intro}\n${globalLine}${countLines}${noVisitLine}${aidantLines}${detailLines}${signature}\n\n${MAIL_DISCLAIMER}`
-  }, [days, counts, weekEntries, noVisitInWeek, profile.firstName, overall, avgScore, includeAidantSummary, weekStats, fourWeeksStats])
+  // Même fonction que celle du serveur : l'aperçu est exactement ce qui part.
+  const { subject: bilanSubject, body: bilanBody } = useMemo(() => buildBilanMail({
+    days,
+    weekEntries,
+    fourWeeksEntries,
+    noVisitDays: noVisitInWeek,
+    firstName: profile.firstName || '',
+    includeAidantSummary,
+    disclaimer: MAIL_DISCLAIMER,
+  }), [days, weekEntries, fourWeeksEntries, noVisitInWeek, profile.firstName, includeAidantSummary])
 
   const copyBilan = () => {
     const ccLine = ccEmails.length > 0 ? `Copie : ${ccEmails.join(', ')}\n` : ''
     navigator.clipboard.writeText(`Objet : ${bilanSubject}\n${ccLine}\n${bilanBody}`)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
-    markWeekSent()
+    markWeekSent('copie')
+  }
+
+  // Envoi direct par SimplaVie : uniquement quand on appuie sur le bouton, et seulement vers des
+  // responsables ayant une adresse e-mail. Le serveur re-vérifie tout (semaine complète, adresses).
+  const sendBilan = async () => {
+    if (!activeUserId || sending || selectedSendable.length === 0) return
+    const names = selectedSendable.map(r => `${r.prenom ? r.prenom + ' ' : ''}${r.nom}`).join(', ')
+    const already = weekSentInfo?.method === 'serveur' ? '\n\nAttention : ce bilan a déjà été envoyé par SimplaVie.' : ''
+    if (!confirm(`Envoyer le bilan de la semaine à ${names} ?${already}`)) return
+    setSending(true)
+    setSendError('')
+    try {
+      const res = await fetch('/api/liaison-bilan-send', {
+        method: 'POST',
+        headers: JSON_HEADERS,
+        body: JSON.stringify({
+          userId: activeUserId,
+          weekStart: days[0],
+          responsableIds: selectedSendable.map(r => r.id),
+          ccContactIds: selectedCcContacts,
+          includeAidantSummary,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setWeekSent(true)
+        setWeekSentInfo({
+          sentAt: data.sentAt ?? new Date().toISOString(),
+          recipients: [...(data.to ?? []), ...(data.cc ?? [])],
+          method: 'serveur',
+        })
+      } else {
+        setSendError(data.error || "L'envoi a échoué, réessaie dans un instant.")
+      }
+    } catch {
+      setSendError('Impossible de joindre le serveur, réessaie dans un instant.')
+    }
+    setSending(false)
   }
 
   if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="text-xl text-gray-400">Chargement...</div></div>
@@ -931,8 +949,14 @@ export default function LiaisonPage() {
             </div>
 
             {weekSent && (
-              <div className="bg-green-50 border-2 border-green-200 text-green-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-center mb-4">
-                ✓ Bilan déjà envoyé cette semaine
+              <div className="bg-green-50 border-2 border-green-200 text-green-700 rounded-xl px-4 py-2.5 text-sm font-semibold text-center mb-4 break-words">
+                {weekSentInfo?.method === 'serveur'
+                  ? `✓ Bilan envoyé${weekSentInfo.sentAt ? ` le ${new Date(weekSentInfo.sentAt).toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}` : ''}${weekSentInfo.recipients.length > 0 ? ` à ${weekSentInfo.recipients.join(', ')}` : ''}`
+                  : weekSentInfo?.method === 'mailto'
+                    ? "✓ Bilan ouvert dans ton appli mail cette semaine"
+                    : weekSentInfo?.method === 'copie'
+                      ? '✓ Bilan copié cette semaine'
+                      : '✓ Bilan déjà envoyé cette semaine'}
               </div>
             )}
 
@@ -1028,11 +1052,16 @@ export default function LiaisonPage() {
 
               <section>
                 <h2 className="text-base font-semibold text-gray-700 mb-3">À qui envoyer ce bilan ?</h2>
-                {responsables.length === 0 && (
-                  <p className="text-sm text-gray-400 mb-3">Aucun responsable pour l&apos;instant — ajoute-en un ci-dessous.</p>
+                {sendableResp.length === 0 && (
+                  <div className="bg-orange-50 border-2 border-orange-200 rounded-2xl p-4 mb-3">
+                    <p className="font-semibold text-orange-700">Impossible d&apos;envoyer pour l&apos;instant</p>
+                    <p className="text-sm text-orange-600">
+                      Aucun responsable n&apos;a d&apos;adresse e-mail. Ajoute-en un ci-dessous : le bilan ne part que vers l&apos;adresse e-mail d&apos;un responsable.
+                    </p>
+                  </div>
                 )}
                 <div className="space-y-2">
-                  {responsables.map(r => (
+                  {sendableResp.map(r => (
                     <button
                       key={r.id}
                       onClick={() => toggleResp(r.id)}
@@ -1108,32 +1137,50 @@ export default function LiaisonPage() {
                 </section>
               )}
 
-              {selectedResp.length > 0 && (
-                <>
-                  <section className="bg-white rounded-2xl p-5 shadow-sm border-2 border-gray-100">
-                    <p className="text-xs text-gray-400 mb-1">À : {recipientEmails.join(', ')}</p>
-                    {ccEmails.length > 0 && <p className="text-xs text-gray-400 mb-1">Copie : {ccEmails.join(', ')}</p>}
-                    <p className="font-bold text-gray-800 mb-3">{bilanSubject}</p>
-                    <p className="text-gray-600 whitespace-pre-wrap break-words">{bilanBody}</p>
-                  </section>
+              <section className="bg-white rounded-2xl p-5 shadow-sm border-2 border-gray-100">
+                <p className="text-xs text-gray-400 mb-1">
+                  À : {recipientEmails.length > 0 ? recipientEmails.join(', ') : '(choisis au moins un responsable)'}
+                </p>
+                {ccEmails.length > 0 && <p className="text-xs text-gray-400 mb-1">Copie : {ccEmails.join(', ')}</p>}
+                <p className="font-bold text-gray-800 mb-3">{bilanSubject}</p>
+                <p className="text-gray-600 whitespace-pre-wrap break-words">{bilanBody}</p>
+              </section>
 
-                  <div className="space-y-3">
+              {sendError && (
+                <div className="bg-red-50 border-2 border-red-200 text-red-700 rounded-2xl p-3 text-sm font-semibold">{sendError}</div>
+              )}
+
+              <div className="space-y-3">
+                <button
+                  onClick={sendBilan}
+                  disabled={selectedSendable.length === 0 || sending}
+                  className="w-full py-4 rounded-2xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-lg active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none"
+                >
+                  {sending ? 'Envoi en cours...' : '📧 Envoyer le bilan'}
+                </button>
+                <p className="text-xs text-gray-400 text-center">
+                  {selectedSendable.length === 0
+                    ? 'Choisis au moins un responsable (avec son e-mail) pour pouvoir envoyer.'
+                    : 'Le bilan ne part que lorsque tu appuies sur « Envoyer », jamais tout seul.'}
+                </p>
+                {selectedSendable.length > 0 && (
+                  <div className="grid grid-cols-2 gap-2">
                     <a
                       href={buildMailtoUrl(recipientEmails, bilanSubject, bilanBody, ccEmails)}
-                      onClick={markWeekSent}
-                      className="block w-full text-center py-4 rounded-2xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-lg active:scale-95 transition-all"
+                      onClick={() => markWeekSent('mailto')}
+                      className="text-center py-3 rounded-xl border-2 border-gray-300 text-gray-600 font-semibold text-sm active:scale-95 transition-all hover:bg-gray-50"
                     >
-                      📧 Envoyer le bilan par mail
+                      ✉️ Ouvrir dans mon appli mail
                     </a>
                     <button
                       onClick={copyBilan}
-                      className="w-full py-4 rounded-2xl border-2 border-indigo-300 text-indigo-600 font-bold text-lg active:scale-95 transition-all hover:bg-indigo-50"
+                      className="py-3 rounded-xl border-2 border-gray-300 text-gray-600 font-semibold text-sm active:scale-95 transition-all hover:bg-gray-50"
                     >
                       {copied ? '✓ Copié !' : '📋 Copier le texte'}
                     </button>
                   </div>
-                </>
-              )}
+                )}
+              </div>
             </>
           )}
         </div>

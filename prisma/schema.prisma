@@ -437,11 +437,17 @@ model LiaisonNoVisit {
 // Marque qu'un bilan hebdomadaire a été envoyé (ou copié) pour une semaine
 // donnée, afin que le rappel du dimanche soir sache s'il doit relancer
 // Quentin ou non. `weekStart` = date ISO du lundi de la semaine concernée.
+// `method` : "serveur" (envoyé par SimplaVie, fait foi : `sentAt` et
+// `recipients` = adresses réellement destinataires/en copie), "mailto" ou
+// "copie" (simple clic : on ne sait pas si l'e-mail est vraiment parti).
 model LiaisonWeekSent {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
-  weekStart String   @map("week_start")
-  createdAt DateTime @default(now()) @map("created_at")
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  weekStart  String    @map("week_start")
+  sentAt     DateTime? @map("sent_at")
+  recipients Json?
+  method     String?
+  createdAt  DateTime  @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
