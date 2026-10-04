@@ -113,6 +113,11 @@ export async function POST(req: NextRequest) {
     ...contacts.filter(c => c.id && ccContactIds.includes(c.id)).map(c => cleanEmail(c.email)).filter((x): x is string => !!x),
   ])].filter(a => !to.includes(a))
 
+  // Copie CACHÉE : les contacts marqués « toujours en copie cachée » (jamais visibles des responsables).
+  const bcc = [...new Set(
+    contacts.filter(c => (c as { bccAlways?: boolean }).bccAlways === true).map(c => cleanEmail(c.email)).filter((x): x is string => !!x),
+  )].filter(a => !to.includes(a) && !cc.includes(a))
+
   const isFirstBilan = await isFirstServerBilan(userId, weekStart)
 
   const mail = buildBilanMail({
@@ -132,6 +137,7 @@ export async function POST(req: NextRequest) {
   const result = await sendMail({
     to,
     cc,
+    bcc,
     subject: mail.subject,
     html,
     text: mail.body,

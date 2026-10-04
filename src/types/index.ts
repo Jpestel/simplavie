@@ -50,6 +50,8 @@ export type Contact = {
   email?: string
   address?: string
   city?: string
+  /** Reçoit en copie CACHÉE tous les mails envoyés depuis SimplaVie. */
+  bccAlways?: boolean
 }
 
 export type Treatment = {

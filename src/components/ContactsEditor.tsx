@@ -65,6 +65,11 @@ export default function ContactsEditor() {
       mobile: (draft.mobile || '').trim(),
       phone: (draft.phone || '').trim(),
       email: (draft.email || '').trim(),
+      bccAlways: !!draft.bccAlways,
+    }
+    if (clean.bccAlways && !clean.email) {
+      setError('Indiquez un e-mail pour la copie cachée.')
+      return
     }
     if (editingId === 'new') {
       updateProfile({ contacts: [...contacts, { ...clean, id: Date.now().toString() }] })
@@ -96,6 +101,19 @@ export default function ContactsEditor() {
       <Field label="Mobile" value={draft.mobile || ''} onChange={set('mobile')} type="tel" placeholder="06 12 34 56 78" />
       <Field label="Téléphone fixe" value={draft.phone || ''} onChange={set('phone')} type="tel" placeholder="02 40 11 22 33" />
       <Field label="E-mail" value={draft.email || ''} onChange={set('email')} type="email" placeholder="marie@exemple.fr" />
+
+      <label className="flex items-start gap-3 bg-indigo-50 rounded-2xl p-4 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={!!draft.bccAlways}
+          onChange={e => setDraft(d => ({ ...d, bccAlways: e.target.checked }))}
+          className="w-7 h-7 mt-0.5 shrink-0 accent-indigo-500"
+        />
+        <span className="text-base text-gray-700">
+          <strong>🔒 Toujours en copie cachée</strong> de tous les mails envoyés depuis SimplaVie
+          <span className="block text-sm text-gray-500">Nécessite un e-mail. Les destinataires ne voient pas cette copie.</span>
+        </span>
+      </label>
 
       {error && <p className="text-red-500 text-base font-medium">{error}</p>}
 
@@ -172,6 +190,7 @@ export default function ContactsEditor() {
                   {contact.relation && (contact.mobile || contact.phone) ? ' · ' : ''}
                   {contact.mobile || contact.phone || ''}
                 </div>
+                {contact.bccAlways && <div className="text-sm font-semibold text-indigo-600">🔒 Copie cachée de tous les mails</div>}
               </div>
 
               <button

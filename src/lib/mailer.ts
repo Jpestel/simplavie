@@ -53,6 +53,8 @@ export async function sendMail(opts: {
   text?: string
   /** Copie visible (ex. la personne qui envoie, ses proches). */
   cc?: string[]
+  /** Copie cachée : jamais visible des autres destinataires. */
+  bcc?: string[]
   /** Adresse qui reçoit les réponses ; à défaut MAIL_REPLY_TO. */
   replyTo?: string
   /** Nom affiché de l'expéditeur (l'adresse reste celle de MAIL_FROM). */
@@ -81,14 +83,15 @@ export async function sendMail(opts: {
   const to = Array.isArray(opts.to) ? opts.to : [opts.to]
   if (to.length === 0) return { ok: false, reason: 'aucun destinataire' }
   const cc = opts.cc && opts.cc.length > 0 ? opts.cc : undefined
+  const bcc = opts.bcc && opts.bcc.length > 0 ? opts.bcc : undefined
 
   // L'expéditeur peut être une adresse sans boîte (noreply@) : on redirige
   // alors les réponses vers une adresse réellement relevée.
   const replyTo = opts.replyTo || process.env.MAIL_REPLY_TO || undefined
 
   try {
-    await t.sendMail({ from, to, cc, replyTo, subject: opts.subject, html: opts.html, text: opts.text })
-    console.log('[mailer] envoyé —', opts.subject, '→', to.join(', '), cc ? `(copie : ${cc.join(', ')})` : '')
+    await t.sendMail({ from, to, cc, bcc, replyTo, subject: opts.subject, html: opts.html, text: opts.text })
+    console.log('[mailer] envoyé —', opts.subject, '→', to.join(', '), cc ? `(copie : ${cc.join(', ')})` : '', bcc ? `(${bcc.length} copie(s) cachée(s))` : '')
     return { ok: true }
   } catch (e) {
     const reason = e instanceof Error ? e.message : String(e)

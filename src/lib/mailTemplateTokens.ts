@@ -64,13 +64,16 @@ export function fillTemplate(text: string, values: Record<string, string>): stri
   return text.replace(/\{\{(\w+)\}\}/g, (_, token: string) => values[token] ?? '')
 }
 
-export function buildMailtoUrl(to: string[], subject: string, body: string, cc: string[] = []): string {
+export function buildMailtoUrl(to: string[], subject: string, body: string, cc: string[] = [], bcc: string[] = []): string {
   // On n'utilise PAS URLSearchParams : son toString() encode les espaces en
   // "+" (format formulaire), que les clients mail n'interprètent pas dans une
   // URL mailto:. encodeURIComponent encode l'espace en %20, correct ici.
   let query = `subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
   if (cc.length > 0) {
     query += `&cc=${cc.map(a => encodeURIComponent(a)).join(',')}`
+  }
+  if (bcc.length > 0) {
+    query += `&bcc=${bcc.map(a => encodeURIComponent(a)).join(',')}`
   }
   // La virgule entre destinataires ne doit pas être encodée (séparateur du
   // schéma mailto:), donc on encode chaque adresse séparément.

@@ -171,7 +171,9 @@ export default function MailsPage() {
   }
 
   // Contacts (module Contacts) ayant un e-mail, proposés en copie.
-  const contactsWithEmail = (profile.contacts || []).filter(c => c.email && c.email.trim())
+  // Contacts « toujours en copie cachée » : ajoutés automatiquement, invisibles des destinataires.
+  const bccEmails = (profile.contacts || []).filter(c => c.bccAlways && c.email && c.email.trim()).map(c => c.email!.trim())
+  const contactsWithEmail = (profile.contacts || []).filter(c => c.email && c.email.trim() && !c.bccAlways)
 
   // Quentin est toujours mis en copie de ses propres mails (si son e-mail est
   // renseigné dans son profil), en plus des proches qu'il choisit.
@@ -560,13 +562,14 @@ export default function MailsPage() {
           <section className="bg-white rounded-2xl p-5 shadow-sm border-2 border-gray-100">
             <p className="text-xs text-gray-400 mb-1">À : {responsables.filter(r => selectedResp.includes(r.id)).map(r => r.email).join(', ')}</p>
             {ccEmails.length > 0 && <p className="text-xs text-gray-400 mb-1">Copie : {ccEmails.join(', ')}</p>}
+            {bccEmails.length > 0 && <p className="text-xs text-gray-400 mb-1">🔒 Copie cachée : {bccEmails.join(', ')}</p>}
             <p className="font-bold text-gray-800 mb-3">{finalSubject}</p>
             <p className="text-gray-600 whitespace-pre-wrap">{finalBody}</p>
           </section>
 
           <div className="space-y-3">
             <a
-              href={buildMailtoUrl(recipientEmails, finalSubject, finalBody, ccEmails)}
+              href={buildMailtoUrl(recipientEmails, finalSubject, finalBody, ccEmails, bccEmails)}
               className="block w-full text-center py-4 rounded-2xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-lg active:scale-95 transition-all"
             >
               📧 Envoyer par mail
@@ -638,7 +641,7 @@ export default function MailsPage() {
 
           <div className="space-y-3">
             <a
-              href={buildMailtoUrl(selectedDraft.recipients, selectedDraft.subject, selectedDraft.body, selectedDraft.cc || [])}
+              href={buildMailtoUrl(selectedDraft.recipients, selectedDraft.subject, selectedDraft.body, selectedDraft.cc || [], bccEmails)}
               className="block w-full text-center py-4 rounded-2xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-lg active:scale-95 transition-all"
             >
               📧 Envoyer par mail

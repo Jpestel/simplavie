@@ -445,7 +445,9 @@ export default function LiaisonPage() {
     setSelectedCcContacts(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
 
-  const contactsWithEmail = (profile.contacts || []).filter(c => c.email && c.email.trim())
+  // Contacts « toujours en copie cachée » : ajoutés automatiquement, invisibles des destinataires.
+  const bccEmails = (profile.contacts || []).filter(c => c.bccAlways && c.email && c.email.trim()).map(c => c.email!.trim())
+  const contactsWithEmail = (profile.contacts || []).filter(c => c.email && c.email.trim() && !c.bccAlways)
   const ccEmails = [
     ...(profile.email && profile.email.trim() ? [profile.email.trim()] : []),
     ...contactsWithEmail.filter(c => selectedCcContacts.includes(c.id)).map(c => c.email!.trim()),
@@ -1169,6 +1171,7 @@ export default function LiaisonPage() {
                   À : {recipientEmails.length > 0 ? recipientEmails.join(', ') : '(choisis au moins un responsable)'}
                 </p>
                 {ccEmails.length > 0 && <p className="text-xs text-gray-400 mb-1">Copie : {ccEmails.join(', ')}</p>}
+                {bccEmails.length > 0 && <p className="text-xs text-gray-400 mb-1">🔒 Copie cachée : {bccEmails.join(', ')}</p>}
                 <p className="font-bold text-gray-800 mb-3">{bilanSubject}</p>
                 <p className="text-gray-600 whitespace-pre-wrap break-words">{bilanBody}</p>
               </section>
@@ -1193,7 +1196,7 @@ export default function LiaisonPage() {
                 {selectedSendable.length > 0 && (
                   <div className="grid grid-cols-2 gap-2">
                     <a
-                      href={buildMailtoUrl(recipientEmails, bilanSubject, bilanBody, ccEmails)}
+                      href={buildMailtoUrl(recipientEmails, bilanSubject, bilanBody, ccEmails, bccEmails)}
                       onClick={() => markWeekSent('mailto')}
                       className="text-center py-3 rounded-xl border-2 border-gray-300 text-gray-600 font-semibold text-sm active:scale-95 transition-all hover:bg-gray-50"
                     >
