@@ -101,6 +101,8 @@ export default function LiaisonPage() {
   const [weekSentInfo, setWeekSentInfo] = useState<{ sentAt: string | null; recipients: string[]; method: string | null } | null>(null)
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState('')
+  // Confirmation d'envoi au centre de l'écran : reste affichée tant que « OK » n'est pas appuyé.
+  const [sentModal, setSentModal] = useState<{ to: string[]; cc: string[] } | null>(null)
   const [statsPeriod, setStatsPeriod] = useState<'semaine' | 'quatre'>('semaine')
   const [includeAidantSummary, setIncludeAidantSummary] = useState(true)
   const [showAddResp, setShowAddResp] = useState(false)
@@ -554,6 +556,7 @@ export default function LiaisonPage() {
           recipients: [...(data.to ?? []), ...(data.cc ?? [])],
           method: 'serveur',
         })
+        setSentModal({ to: data.to ?? [], cc: data.cc ?? [] })
       } else {
         setSendError(data.error || "L'envoi a échoué, réessaie dans un instant.")
       }
@@ -730,6 +733,23 @@ export default function LiaisonPage() {
 
   return (
     <main className="min-h-screen p-6 max-w-2xl mx-auto pb-8">
+      {sentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6" role="alertdialog" aria-modal="true" aria-labelledby="sent-title">
+          <div className="bg-green-50 border-4 border-green-500 rounded-3xl p-8 w-full max-w-md text-center shadow-2xl">
+            <p className="text-6xl mb-3">✅</p>
+            <h2 id="sent-title" className="text-2xl font-bold text-green-700 mb-2">Bilan envoyé !</h2>
+            <p className="text-green-700 font-semibold break-words mb-1">À : {sentModal.to.join(', ')}</p>
+            {sentModal.cc.length > 0 && <p className="text-sm text-green-700 break-words">Copie : {sentModal.cc.join(', ')}</p>}
+            <button
+              autoFocus
+              onClick={() => setSentModal(null)}
+              className="mt-6 w-full py-4 rounded-2xl bg-green-500 hover:bg-green-600 text-white font-bold text-xl active:scale-95 transition-all"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800">📔 Cahier de liaison</h1>
       </div>
@@ -787,6 +807,7 @@ export default function LiaisonPage() {
                 <p className="font-semibold text-red-700 mb-3">
                   {RATINGS.find(r => r.key === alertEntry.rating)!.emoji} Prévenir l&apos;agence maintenant ?
                 </p>
+                <p className="text-sm text-red-700 mb-3">Ce mail ne concerne que cette journée, pas la semaine complète. Cette évaluation sera aussi dans le bilan envoyé dimanche.</p>
                 <div className="flex gap-2">
                   <button
                     onClick={() => warnAgency(alertEntry)}
@@ -871,8 +892,11 @@ export default function LiaisonPage() {
                           onClick={() => warnAgency(e)}
                           className="mt-2 text-xs px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 font-semibold active:scale-95 transition-all"
                         >
-                          📧 Prévenir l&apos;agence
+                          📧 Prévenir l&apos;agence (cette journée seulement)
                         </button>
+                      )}
+                      {isBadRating(e.rating) && (
+                        <p className="text-xs text-gray-400 mt-1">Ce mail ne concerne que cette journée. Cette évaluation sera aussi dans le bilan de dimanche.</p>
                       )}
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
