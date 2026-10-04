@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAccess, isDenied, deny } from '@/lib/apiAuth'
+import { requireSession, requireAccess, isDenied, deny } from '@/lib/apiAuth'
 import { sendMail } from '@/lib/mailer'
 import { MAIL_DISCLAIMER } from '@/lib/mailTemplateTokens'
 import {
@@ -41,6 +41,10 @@ const toBilanEntry = (e: DbEntry): BilanEntry => ({
 })
 
 export async function POST(req: NextRequest) {
+  // Authentification d'abord : tout appel anonyme reçoit 401, quel que soit son contenu.
+  const session = await requireSession(req)
+  if (isDenied(session)) return deny(session)
+
   const body = await req.json().catch(() => ({}))
   const { userId, weekStart } = body
   const responsableIds = stringArray(body.responsableIds)
