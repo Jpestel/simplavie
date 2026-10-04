@@ -45,6 +45,7 @@ model User {
   liaisonWeekSent      LiaisonWeekSent[]
   liaisonMotifs        LiaisonMotif[]
   liaisonNoVisit       LiaisonNoVisit[]
+  liaisonSettings      LiaisonSettings?
 
   @@map("users")
 }
@@ -432,6 +433,22 @@ model LiaisonNoVisit {
 
   @@unique([userId, date])
   @@map("liaison_no_visit")
+}
+
+// Réglages du Cahier de liaison propres à un compte. `reminderTime` : heure ("HH:MM",
+// fuseau de REMINDERS_TZ) du rappel envoyé chaque dimanche pour que la personne pense
+// à envoyer son bilan ; vide = 20:30. Réglable par l'aidant/l'admin du compte.
+// `lastReminderWeek` : lundi (ISO) de la dernière semaine pour laquelle un rappel a été
+// envoyé — évite les doublons (redémarrage, deux passages du planificateur).
+model LiaisonSettings {
+  id               String   @id
+  reminderTime     String?  @map("reminder_time")
+  lastReminderWeek String?  @map("last_reminder_week")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [id], references: [id], onDelete: Cascade)
+
+  @@map("liaison_settings")
 }
 
 // Marque qu'un bilan hebdomadaire a été envoyé (ou copié) pour une semaine

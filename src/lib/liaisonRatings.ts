@@ -82,8 +82,8 @@ export function isoDate(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
-export function weekDates(offset: number = 0): string[] {
-  const monday = mondayOf(new Date())
+export function weekDates(offset: number = 0, from: Date = new Date()): string[] {
+  const monday = mondayOf(from)
   monday.setDate(monday.getDate() + offset * 7)
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday)
@@ -263,8 +263,11 @@ export function buildReminderMail(input: {
   firstName?: string | null
   missingDays: string[]
   canSend: boolean
+  /** Rappel envoyé en soirée (défaut) : « C'est dimanche soir ! », sinon « C'est dimanche ! ». */
+  evening?: boolean
 }): { subject: string; html: string; text: string } {
   const { base, firstName, missingDays, canSend } = input
+  const salut = (input.evening ?? true) ? "C'est dimanche soir !" : "C'est dimanche !"
   const lienBilan = `${base}/modules/liaison?tab=bilan`
   const lienResp = `${base}/modules/mails/reglages`
 
@@ -286,7 +289,7 @@ export function buildReminderMail(input: {
   const html = `
     <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
       <h2 style="color:#6366f1">📔 Cahier de liaison</h2>
-      <p style="color:#555">C'est dimanche soir !</p>
+      <p style="color:#555">${salut}</p>
       ${missingHtml}
       ${noticeHtml}
       <p style="text-align:center;margin:24px 0">
@@ -297,7 +300,7 @@ export function buildReminderMail(input: {
       <p style="color:#aaa;font-size:12px">SimplaVie — rappel automatique. Le bilan ne part jamais tout seul : c'est toi qui décides de l'envoyer, quand tu veux.</p>
     </div>
   `
-  const text = `Bonjour${firstName ? ' ' + firstName : ''},\n\nC'est dimanche soir !\n\n${missingText}${noticeText}${lienBilan}\n\nLe bilan ne part jamais tout seul : c'est toi qui décides de l'envoyer, quand tu veux.\n\n— SimplaVie`
+  const text = `Bonjour${firstName ? ' ' + firstName : ''},\n\n${salut}\n\n${missingText}${noticeText}${lienBilan}\n\nLe bilan ne part jamais tout seul : c'est toi qui décides de l'envoyer, quand tu veux.\n\n— SimplaVie`
 
   return { subject: '📔 Ton bilan de la semaine est prêt à relire', html, text }
 }
@@ -391,4 +394,46 @@ export function buildBilanMail(input: {
 
   const signature = firstName ? `\n\n${firstName}` : ''
   return { subject, body: `${intro}\n${globalLine}${countLines}${noVisitLine}${aidantLines}${detailLines}${signature}\n\n${disclaimer}` }
+}
+
+
+// ─── Heure du rappel du dimanche (réglable par compte) ────────────────────────
+
+export const DEFAULT_REMINDER_TIME = '20:30'
+/** Un rappel manqué (serveur redémarré à ce moment-là…) est encore envoyé pendant ces minutes. */
+export const REMINDER_CATCHUP_MINUTES = 10
+const REMINDER_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/
+
+export function isValidReminderTime(v: unknown): v is string {
+  return typeof v === 'string' && REMINDER_TIME_RE.test(v)
+}
+
+/** "20:30" → 1230 (minutes depuis minuit), ou null si l'heure est invalide. */
+export function minutesOfDay(hhmm: string | null | undefined): number | null {
+  if (!isValidReminderTime(hhmm)) return null
+  return parseInt(hhmm.slice(0, 2), 10) * 60 + parseInt(hhmm.slice(3, 5), 10)
+}
+
+/** Minutes écoulées depuis minuit à l'instant `now`, dans le fuseau demandé (indépendant du fuseau du serveur). */
+export function minutesOfDayInZone(now: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now)
+  const h = parseInt(parts.find(p => p.type === 'hour')?.value ?? '0', 10)
+  const m = parseInt(parts.find(p => p.type === 'minute')?.value ?? '0', 10)
+  return h * 60 + m
+}
+
+/**
+ * Le rappel est « à envoyer » à partir de l'heure réglée et pendant REMINDER_CATCHUP_MINUTES.
+ * Heure absente ou invalide = DEFAULT_REMINDER_TIME. Passé ce délai, on n'envoie plus : régler
+ * une heure déjà dépassée ne déclenche donc pas d'envoi immédiat.
+ */
+export function isReminderDue(nowMinutes: number, reminderTime: string | null | undefined): boolean {
+  const target = minutesOfDay(reminderTime) ?? minutesOfDay(DEFAULT_REMINDER_TIME)!
+  const elapsed = nowMinutes - target
+  return elapsed >= 0 && elapsed <= REMINDER_CATCHUP_MINUTES
+}
+
+/** Un rappel réglé avant 17h n'est plus « dimanche soir ». */
+export function isEveningTime(reminderTime: string | null | undefined): boolean {
+  return (minutesOfDay(reminderTime) ?? minutesOfDay(DEFAULT_REMINDER_TIME)!) >= 17 * 60
 }

@@ -6,7 +6,9 @@
 // Réglages facultatifs dans .env.local :
 //   REMINDERS_CRON=0 7 * * *      (par défaut : tous les jours à 7h)
 //   REMINDERS_TZ=Europe/Paris     (par défaut : Europe/Paris)
-//   LIAISON_REMINDER_CRON=30 20 * * 0  (par défaut : dimanche 20h30, même fuseau)
+//   LIAISON_REMINDER_CRON=* * * * 0    (par défaut : chaque minute du dimanche, même fuseau ;
+//                                        c'est le rythme de CONTRÔLE, l'heure du rappel de chaque
+//                                        compte se règle dans les réglages du Cahier de liaison)
 import cron from 'node-cron'
 import { sendDailyReminderDigests } from '@/lib/reminderDigest'
 import { sendWeeklyLiaisonReminders } from '@/lib/liaisonDigest'
@@ -46,7 +48,7 @@ export function startReminderScheduler() {
 
   console.log(`[rappels] planificateur démarré — « ${expression} » (${timezone})`)
 
-  const liaisonExpression = process.env.LIAISON_REMINDER_CRON ?? '30 20 * * 0'
+  const liaisonExpression = process.env.LIAISON_REMINDER_CRON ?? '* * * * 0'
   if (!cron.validate(liaisonExpression)) {
     console.error('[cahier de liaison] LIAISON_REMINDER_CRON invalide :', liaisonExpression, '— rappel non démarré')
     return
@@ -56,11 +58,14 @@ export function startReminderScheduler() {
     const startedAt = new Date().toISOString()
     try {
       const result = await sendWeeklyLiaisonReminders()
-      console.log('[cahier de liaison]', startedAt, '→', JSON.stringify(result))
+      // Le contrôle a lieu chaque minute : on ne journalise que quand il s'est passé quelque chose.
+      if (result.sent > 0 || result.failed > 0 || result.skippedAlreadySent > 0) {
+        console.log('[cahier de liaison]', startedAt, '→', JSON.stringify(result))
+      }
     } catch (e) {
       console.error('[cahier de liaison]', startedAt, '→ échec inattendu :', e)
     }
   }, { timezone })
 
-  console.log(`[cahier de liaison] rappel hebdomadaire démarré — « ${liaisonExpression} » (${timezone})`)
+  console.log(`[cahier de liaison] contrôle des rappels du dimanche démarré — « ${liaisonExpression} » (${timezone}), heure réglable par compte`)
 }

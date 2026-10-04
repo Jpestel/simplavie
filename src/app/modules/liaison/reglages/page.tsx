@@ -2,7 +2,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/lib/authContext'
-import { DEFAULT_MOTIFS } from '@/lib/liaisonRatings'
+import { useProfile } from '@/lib/profileContext'
+import { DEFAULT_MOTIFS, DEFAULT_REMINDER_TIME, isValidReminderTime } from '@/lib/liaisonRatings'
 
 type Motif = { id: string; label: string; kind: 'negatif' | 'positif'; order: number }
 
@@ -15,20 +16,53 @@ const input = 'w-full border-2 border-gray-200 rounded-xl p-3 text-gray-700 focu
 
 export default function LiaisonReglagesPage() {
   const { activeUserId } = useAuth()
+  const { profile } = useProfile()
   const [loading, setLoading] = useState(true)
   const [motifs, setMotifs] = useState<Motif[]>([])
   const [drafts, setDrafts] = useState<Record<string, string>>({ negatif: '', positif: '' })
   const [seeding, setSeeding] = useState(false)
+  const [reminderTime, setReminderTime] = useState(DEFAULT_REMINDER_TIME)
+  const [savedTime, setSavedTime] = useState(DEFAULT_REMINDER_TIME)
+  const [savingTime, setSavingTime] = useState(false)
+  const [timeMsg, setTimeMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
   const load = async () => {
     if (!activeUserId) return
     const res = await fetch(`/api/liaison-motifs?userId=${activeUserId}`)
     const data = res.ok ? await res.json() : []
     setMotifs(Array.isArray(data) ? data : [])
+    const st = await fetch(`/api/liaison-settings?userId=${activeUserId}`).then(r => (r.ok ? r.json() : null)).catch(() => null)
+    if (st && isValidReminderTime(st.reminderTime)) {
+      setReminderTime(st.reminderTime)
+      setSavedTime(st.reminderTime)
+    }
     setLoading(false)
   }
 
   useEffect(() => { load() }, [activeUserId])
+
+  const saveReminderTime = async () => {
+    if (!activeUserId || !isValidReminderTime(reminderTime)) return
+    setSavingTime(true)
+    setTimeMsg(null)
+    try {
+      const res = await fetch('/api/liaison-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: activeUserId, reminderTime }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setSavedTime(data.reminderTime)
+        setTimeMsg({ ok: true, text: `✓ Enregistré : rappel chaque dimanche à ${data.reminderTime}.` })
+      } else {
+        setTimeMsg({ ok: false, text: data.error || "Impossible d'enregistrer, réessaie dans un instant." })
+      }
+    } catch {
+      setTimeMsg({ ok: false, text: 'Impossible de joindre le serveur, réessaie dans un instant.' })
+    }
+    setSavingTime(false)
+  }
 
   const add = async (kind: Motif['kind']) => {
     const label = drafts[kind].trim()
@@ -70,6 +104,44 @@ export default function LiaisonReglagesPage() {
         <h1 className="text-2xl font-bold text-gray-800">📔 Réglages du cahier de liaison</h1>
         <p className="text-sm text-gray-400">Les motifs rapides se cochent en un appui au lieu d&apos;être tapés.</p>
       </div>
+
+      <section className="bg-white rounded-2xl p-5 shadow-sm mb-6">
+        <h2 className="text-base font-semibold text-gray-700">⏰ Rappel du dimanche</h2>
+        <p className="text-xs text-gray-400 mb-3">
+          Chaque dimanche à cette heure, un e-mail rappelle d&apos;envoyer le bilan de la semaine (seulement s&apos;il n&apos;a pas déjà été envoyé).
+          Le bilan, lui, ne part jamais tout seul : il faut appuyer sur « Envoyer ».
+        </p>
+        <div className="flex items-center gap-3">
+          <input
+            type="time"
+            value={reminderTime}
+            onChange={e => { setReminderTime(e.target.value); setTimeMsg(null) }}
+            aria-label="Heure du rappel du dimanche"
+            className="border-2 border-gray-200 rounded-xl p-3 text-2xl text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
+          />
+          <button
+            onClick={saveReminderTime}
+            disabled={savingTime || !isValidReminderTime(reminderTime) || reminderTime === savedTime}
+            className="px-5 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-semibold active:scale-95 transition-all disabled:opacity-40"
+          >
+            {savingTime ? '...' : 'Enregistrer'}
+          </button>
+        </div>
+        {timeMsg && (
+          <p className={`text-sm font-semibold mt-3 ${timeMsg.ok ? 'text-green-600' : 'text-red-500'}`}>{timeMsg.text}</p>
+        )}
+        <p className="text-xs text-gray-500 mt-3 break-words">
+          {profile.email && profile.email.trim()
+            ? `Le rappel est envoyé à ${profile.email.trim()}. Le changement s'applique dès le prochain dimanche (ou ce dimanche si l'heure n'est pas encore passée).`
+            : null}
+        </p>
+        {!(profile.email && profile.email.trim()) && (
+          <p className="text-sm text-orange-600 font-semibold mt-3">
+            ⚠️ Aucune adresse e-mail dans le profil : le rappel ne peut pas partir.{' '}
+            <Link href="/profil?section=contact" className="underline">Ajouter l&apos;e-mail →</Link>
+          </p>
+        )}
+      </section>
 
       {motifs.length === 0 && (
         <div className="bg-white rounded-2xl p-6 shadow-sm text-center mb-6">
