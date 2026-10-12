@@ -7,6 +7,7 @@
 // laisser dans les journaux). Sans CRON_SECRET défini côté serveur, la route est fermée.
 import { NextRequest, NextResponse } from 'next/server'
 import { sendWeeklyLiaisonReminders } from '@/lib/liaisonDigest'
+import { sendDailyLiaisonReminders } from '@/lib/liaisonDaily'
 import { minutesOfDay } from '@/lib/liaisonRatings'
 
 export async function GET(req: NextRequest) {
@@ -21,6 +22,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Paramètre at invalide (HH:MM).' }, { status: 400 })
   }
 
-  const result = await sendWeeklyLiaisonReminders({ dryRun: true, nowMinutes: simulated ?? undefined })
+  // `?daily=1` : vérification à blanc du rappel QUOTIDIEN (en minutes simulées avec `at`).
+  const run = req.nextUrl.searchParams.get('daily') === '1' ? sendDailyLiaisonReminders : sendWeeklyLiaisonReminders
+  const result = await run({ dryRun: true, nowMinutes: simulated ?? undefined })
   return NextResponse.json(result)
 }

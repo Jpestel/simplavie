@@ -446,6 +446,10 @@ model LiaisonSettings {
   id               String   @id
   reminderTime     String?  @map("reminder_time")
   lastReminderWeek String?  @map("last_reminder_week")
+  // Rappel QUOTIDIEN (désactivé par défaut) : e-mail du soir avec un lien d'évaluation en un appui.
+  dailyReminder         Boolean @default(false) @map("daily_reminder")
+  dailyReminderTime     String? @map("daily_reminder_time")
+  lastDailyReminderDate String? @map("last_daily_reminder_date")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [id], references: [id], onDelete: Cascade)

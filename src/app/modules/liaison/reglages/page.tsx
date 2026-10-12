@@ -24,6 +24,9 @@ export default function LiaisonReglagesPage() {
   const [reminderTime, setReminderTime] = useState(DEFAULT_REMINDER_TIME)
   const [savedTime, setSavedTime] = useState(DEFAULT_REMINDER_TIME)
   const [savingTime, setSavingTime] = useState(false)
+  const [daily, setDaily] = useState(false)
+  const [dailyTime, setDailyTime] = useState('20:00')
+  const [dailyMsg, setDailyMsg] = useState('')
   const [timeMsg, setTimeMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
   const load = async () => {
@@ -35,6 +38,10 @@ export default function LiaisonReglagesPage() {
     if (st && isValidReminderTime(st.reminderTime)) {
       setReminderTime(st.reminderTime)
       setSavedTime(st.reminderTime)
+    }
+    if (st) {
+      setDaily(st.dailyReminder === true)
+      if (isValidReminderTime(st.dailyReminderTime)) setDailyTime(st.dailyReminderTime)
     }
     setLoading(false)
   }
@@ -62,6 +69,24 @@ export default function LiaisonReglagesPage() {
       setTimeMsg({ ok: false, text: 'Impossible de joindre le serveur, réessaie dans un instant.' })
     }
     setSavingTime(false)
+  }
+
+  const saveDaily = async (patch: { dailyReminder?: boolean; dailyReminderTime?: string }) => {
+    if (!activeUserId) return
+    setDailyMsg('')
+    const res = await fetch('/api/liaison-settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: activeUserId, ...patch }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (res.ok) {
+      setDaily(data.dailyReminder === true)
+      setDailyTime(data.dailyReminderTime)
+      setDailyMsg(data.dailyReminder ? `✓ Rappel du soir activé à ${data.dailyReminderTime}.` : '✓ Rappel du soir désactivé.')
+    } else {
+      setDailyMsg(data.error || "Impossible d'enregistrer, réessaie dans un instant.")
+    }
   }
 
   const add = async (kind: Motif['kind']) => {
@@ -140,6 +165,32 @@ export default function LiaisonReglagesPage() {
             ⚠️ Aucune adresse e-mail dans le profil : le rappel ne peut pas partir.{' '}
             <Link href="/profil?section=contact" className="underline">Ajouter l&apos;e-mail →</Link>
           </p>
+        )}
+      </section>
+
+      <section className="bg-white rounded-2xl p-5 shadow-sm mb-6">
+        <h2 className="text-base font-semibold text-gray-700">🌙 Rappel du soir (évaluer en un appui)</h2>
+        <p className="text-xs text-gray-400 mb-3">
+          Chaque soir, si la journée n&apos;est pas encore évaluée, un e-mail envoie un lien : un appui sur l&apos;aidant, un appui sur la note, c&apos;est enregistré.
+          Le lien ne sert qu&apos;à évaluer cette journée (valable 3 jours).
+        </p>
+        <label className="flex items-center gap-3 mb-3 cursor-pointer">
+          <input type="checkbox" checked={daily} onChange={e => saveDaily({ dailyReminder: e.target.checked })} className="w-7 h-7 accent-indigo-500" />
+          <span className="font-semibold text-gray-700">Activer le rappel du soir</span>
+        </label>
+        {daily && (
+          <input
+            type="time"
+            value={dailyTime}
+            onChange={e => setDailyTime(e.target.value)}
+            onBlur={() => isValidReminderTime(dailyTime) && saveDaily({ dailyReminderTime: dailyTime })}
+            aria-label="Heure du rappel du soir"
+            className="border-2 border-gray-200 rounded-xl p-3 text-2xl text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
+          />
+        )}
+        {dailyMsg && <p className="text-sm font-semibold mt-3 text-gray-600">{dailyMsg}</p>}
+        {daily && !(profile.email && profile.email.trim()) && (
+          <p className="text-sm text-orange-600 font-semibold mt-3">⚠️ Aucune adresse e-mail dans le profil : le rappel ne peut pas partir.</p>
         )}
       </section>
 

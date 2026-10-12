@@ -10,7 +10,8 @@ function isPublic(pathname: string) {
   return (
     PUBLIC_ROUTES.includes(pathname) ||
     pathname.startsWith('/join') ||
-    pathname.startsWith('/reset-password')
+    pathname.startsWith('/reset-password') ||
+    pathname.startsWith('/liaison-rapide')
   )
 }
 

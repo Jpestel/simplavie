@@ -12,6 +12,7 @@
 import cron from 'node-cron'
 import { sendDailyReminderDigests } from '@/lib/reminderDigest'
 import { sendWeeklyLiaisonReminders } from '@/lib/liaisonDigest'
+import { sendDailyLiaisonReminders } from '@/lib/liaisonDaily'
 
 // Le module peut être évalué plusieurs fois (rechargement à chaud en dev) :
 // on garde l'état sur globalThis pour ne jamais planifier deux fois.
@@ -64,6 +65,17 @@ export function startReminderScheduler() {
       }
     } catch (e) {
       console.error('[cahier de liaison]', startedAt, '→ échec inattendu :', e)
+    }
+  }, { timezone })
+
+  // Rappel quotidien d'évaluation en un appui : contrôlé chaque minute, seuls les comptes qui l'ont activé sont concernés.
+  cron.schedule('* * * * *', async () => {
+    const startedAt = new Date().toISOString()
+    try {
+      const result = await sendDailyLiaisonReminders()
+      if (result.sent > 0 || result.failed > 0) console.log('[cahier de liaison — quotidien]', startedAt, '→', JSON.stringify(result))
+    } catch (e) {
+      console.error('[cahier de liaison — quotidien]', startedAt, '→ échec inattendu :', e)
     }
   }, { timezone })
 

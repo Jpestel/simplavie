@@ -1012,13 +1012,25 @@ export default function LiaisonPage() {
             )}
 
             {dayEntries.length === 0 && plannedVisits.length === 0 && lastDay && !noVisitDays.includes(entryDate) && (
-              <button
-                onClick={sameAsLastDay}
-                disabled={quickSaving !== null}
-                className="w-full mb-3 py-4 rounded-2xl bg-green-500 hover:bg-green-600 text-white font-bold text-lg active:scale-95 transition-all disabled:opacity-40"
-              >
-                {quickSaving === 'like-last' ? 'Enregistrement...' : `🔁 Comme ${formatDayFr(lastDay)}, tout bien`}
-              </button>
+              <div className="mb-3 bg-white rounded-2xl p-4 shadow-sm border-2 border-green-200">
+                <p className="text-sm text-gray-500 mb-2">{formatDayFr(lastDay)}, c&apos;était :</p>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {entries.filter(x => x.date === lastDay).map(x => (
+                    <span key={x.id} className="px-4 py-2 rounded-2xl bg-indigo-50 text-indigo-700 font-bold text-xl">
+                      {joinNames(x.aidants)}{momentInfo(x.moment) ? <span className="text-sm font-normal"> · {momentInfo(x.moment)!.label.toLowerCase()}</span> : null}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-sm font-semibold text-gray-600 mb-2">Ce sont les mêmes aujourd&apos;hui ?</p>
+                <button
+                  onClick={sameAsLastDay}
+                  disabled={quickSaving !== null}
+                  className="w-full py-4 rounded-2xl bg-green-500 hover:bg-green-600 text-white font-bold text-lg active:scale-95 transition-all disabled:opacity-40"
+                >
+                  {quickSaving === 'like-last' ? 'Enregistrement...' : '🔁 Oui, mêmes aidants — tout bien'}
+                </button>
+                <p className="text-xs text-gray-400 mt-2 text-center">Si ce n&apos;est pas eux, choisis plutôt l&apos;aidant ci-dessous.</p>
+              </div>
             )}
 
             {dayEntries.length === 0 && (
