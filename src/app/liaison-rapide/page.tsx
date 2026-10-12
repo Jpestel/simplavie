@@ -2,7 +2,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { RATINGS } from '@/lib/liaisonRatings'
+import { RATINGS, MOMENTS } from '@/lib/liaisonRatings'
 
 type Ctx = { firstName: string; dateLabel: string; aidants: string[]; suggested: string[]; done: { rating: string; aidants: string[] }[] }
 
@@ -11,6 +11,7 @@ function Quick() {
   const [ctx, setCtx] = useState<Ctx | null>(null)
   const [error, setError] = useState('')
   const [chosen, setChosen] = useState<string[]>([])
+  const [moment, setMoment] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [savedRating, setSavedRating] = useState<string | null>(null)
 
@@ -34,7 +35,7 @@ function Quick() {
       const res = await fetch('/api/liaison-quick', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ t, rating, aidants: chosen }),
+        body: JSON.stringify({ t, rating, aidants: chosen, moment }),
       })
       const d = await res.json().catch(() => ({}))
       if (res.ok) setSavedRating(rating)
@@ -78,6 +79,15 @@ function Quick() {
           </button>
         ))}
         {ctx.aidants.length === 0 && <p className="text-sm text-gray-400">Aucun aidant enregistré : <Link href="/modules/liaison" className="underline">ouvre l&apos;appli</Link>.</p>}
+      </div>
+      <p className="text-lg font-bold text-gray-700 mb-2">À quel moment ? <span className="text-sm font-normal text-gray-400">(facultatif)</span></p>
+      <div className="flex flex-wrap gap-2 mb-6">
+        {MOMENTS.map(m => (
+          <button key={m.key} onClick={() => setMoment(cur => (cur === m.key ? null : m.key))}
+            className={`px-5 py-3 rounded-2xl font-semibold border-2 active:scale-95 transition-all ${moment === m.key ? 'bg-amber-400 border-amber-400 text-white' : 'bg-white border-gray-200 text-gray-600'}`}>
+            {m.emoji} {m.label}
+          </button>
+        ))}
       </div>
       <div className="grid grid-cols-2 gap-3">
         {RATINGS.map(r => (

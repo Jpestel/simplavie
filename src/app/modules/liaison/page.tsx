@@ -93,6 +93,7 @@ export default function LiaisonPage() {
   const [quickSaving, setQuickSaving] = useState<string | null>(null)
   // Aidant(s) choisis dans l'écran « Qui est venu ? » (un appui sur la note les évalue tous).
   const [pickAidants, setPickAidants] = useState<string[]>([])
+  const [pickMoment, setPickMoment] = useState<MomentKey | null>(null)
   // Évaluation « Mal / Très mal » qui vient d'être enregistrée : on propose de prévenir l'agence tout de suite.
   const [alertEntry, setAlertEntry] = useState<Entry | null>(null)
 
@@ -204,6 +205,7 @@ export default function LiaisonPage() {
     setEditingId(null)
     setShowNoEvalChoices(false)
     setPickAidants([])
+    setPickMoment(null)
   }
 
   const resetToToday = () => {
@@ -427,10 +429,11 @@ export default function LiaisonPage() {
   const ratePicked = async (rating: RatingKey) => {
     if (!activeUserId || quickSaving || pickAidants.length === 0) return
     setQuickSaving('picked')
-    const saved = await postEntry({ rating, aidants: pickAidants, moment: null, motifs: [], comment: null })
+    const saved = await postEntry({ rating, aidants: pickAidants, moment: pickMoment, motifs: [], comment: null })
     setQuickSaving(null)
     if (saved) {
       setPickAidants([])
+      setPickMoment(null)
       if (isBadRating(rating)) { setAlertEntry(saved); startEdit(saved) }
     }
   }
@@ -1046,6 +1049,18 @@ export default function LiaisonPage() {
                   <p className="text-sm text-gray-400 text-center">Choisis un ou plusieurs aidants, puis la note.</p>
                 ) : (
                   <>
+                    <p className="text-sm font-semibold text-gray-600 mb-2">⏰ À quel moment ? <span className="font-normal text-gray-400">(facultatif)</span></p>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {MOMENTS.map(m => (
+                        <button
+                          key={m.key}
+                          onClick={() => setPickMoment(cur => cur === m.key ? null : m.key)}
+                          className={`px-4 py-3 rounded-2xl font-semibold border-2 active:scale-95 transition-all ${pickMoment === m.key ? 'bg-amber-400 border-amber-400 text-white' : 'bg-white border-gray-200 text-gray-600'}`}
+                        >
+                          {m.emoji} {m.label}
+                        </button>
+                      ))}
+                    </div>
                     <p className="text-sm font-semibold text-gray-600 mb-2">Comment s&apos;est passé le passage de <strong className="text-indigo-700">{joinNames(pickAidants)}</strong> ?</p>
                     <div className="grid grid-cols-4 gap-2">
                       {RATINGS.map(r => (

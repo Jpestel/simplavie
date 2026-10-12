@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { readQuickToken } from '@/lib/liaisonQuick'
-import { RATINGS, formatDayFr } from '@/lib/liaisonRatings'
+import { RATINGS, MOMENTS, formatDayFr } from '@/lib/liaisonRatings'
 
 // Évaluation en un appui depuis l'e-mail du soir. Pas de session : le jeton signé du lien
 // (voir liaisonQuick.ts) est la seule preuve, et il ne permet que d'ajouter une évaluation
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     where: { userId, date, rating: body.rating, createdAt: { gt: new Date(Date.now() - 30_000) } },
   })
   if (!dup) {
-    await prisma.liaisonEntry.create({ data: { userId, date, rating: body.rating, aidants: chosen, moment: null, motifs: [], comment: null } })
+    await prisma.liaisonEntry.create({ data: { userId, date, rating: body.rating, aidants: chosen, moment: MOMENTS.some(m => m.key === body.moment) ? body.moment : null, motifs: [], comment: null } })
     await prisma.liaisonNoVisit.deleteMany({ where: { userId, date } })
   }
   return NextResponse.json({ ok: true })
