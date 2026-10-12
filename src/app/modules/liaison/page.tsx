@@ -411,6 +411,24 @@ export default function LiaisonPage() {
     setQuickSaving(null)
   }
 
+  // « Comme [dernier jour évalué] » : recrée en « Bien » les passages (aidants + moments) de la
+  // dernière journée évaluée avant celle-ci. Modifiable ou supprimable ensuite.
+  const lastDay = useMemo(
+    () => [...new Set(entries.filter(e => e.date < entryDate).map(e => e.date))].sort().pop() ?? null,
+    [entries, entryDate],
+  )
+  const sameAsLastDay = async () => {
+    if (!activeUserId || !lastDay || quickSaving) return
+    setQuickSaving('like-last')
+    for (const e of entries.filter(x => x.date === lastDay)) {
+      const names: string[] = []
+      for (const n of e.aidants) names.push(await ensureAidant(n))
+      const saved = await postEntry({ rating: 'bien', aidants: names, moment: e.moment, motifs: [], comment: null })
+      if (!saved) break
+    }
+    setQuickSaving(null)
+  }
+
   // Prévenir l'agence tout de suite : on dépose un mail déjà rédigé pour le module Mails.
   const warnAgency = (e: Entry) => {
     const mail = buildIncidentMail(e, profile.firstName || '')
@@ -990,6 +1008,16 @@ export default function LiaisonPage() {
                 className="w-full py-4 rounded-2xl border-2 border-dashed border-indigo-300 text-indigo-600 font-bold active:scale-95 transition-all hover:bg-indigo-50"
               >
                 + Ajouter une évaluation{dayEntries.length > 0 ? ' (un autre aidant ?)' : ''}
+              </button>
+            )}
+
+            {dayEntries.length === 0 && plannedVisits.length === 0 && lastDay && !noVisitDays.includes(entryDate) && (
+              <button
+                onClick={sameAsLastDay}
+                disabled={quickSaving !== null}
+                className="w-full mb-3 py-4 rounded-2xl bg-green-500 hover:bg-green-600 text-white font-bold text-lg active:scale-95 transition-all disabled:opacity-40"
+              >
+                {quickSaving === 'like-last' ? 'Enregistrement...' : `🔁 Comme ${formatDayFr(lastDay)}, tout bien`}
               </button>
             )}
 
