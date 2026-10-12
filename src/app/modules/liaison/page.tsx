@@ -91,6 +91,8 @@ export default function LiaisonPage() {
   const [addingMotif, setAddingMotif] = useState(false)
   const [loadingMotifs, setLoadingMotifs] = useState(false)
   const [quickSaving, setQuickSaving] = useState<string | null>(null)
+  // Aidant(s) choisis dans l'écran « Qui est venu ? » (un appui sur la note les évalue tous).
+  const [pickAidants, setPickAidants] = useState<string[]>([])
   // Évaluation « Mal / Très mal » qui vient d'être enregistrée : on propose de prévenir l'agence tout de suite.
   const [alertEntry, setAlertEntry] = useState<Entry | null>(null)
 
@@ -201,6 +203,7 @@ export default function LiaisonPage() {
     setEntryDate(d)
     setEditingId(null)
     setShowNoEvalChoices(false)
+    setPickAidants([])
   }
 
   const resetToToday = () => {
@@ -417,16 +420,19 @@ export default function LiaisonPage() {
     () => [...new Set(entries.filter(e => e.date < entryDate).map(e => e.date))].sort().pop() ?? null,
     [entries, entryDate],
   )
-  const sameAsLastDay = async () => {
-    if (!activeUserId || !lastDay || quickSaving) return
-    setQuickSaving('like-last')
-    for (const e of entries.filter(x => x.date === lastDay)) {
-      const names: string[] = []
-      for (const n of e.aidants) names.push(await ensureAidant(n))
-      const saved = await postEntry({ rating: 'bien', aidants: names, moment: e.moment, motifs: [], comment: null })
-      if (!saved) break
-    }
+  const lastNames = useMemo(
+    () => (lastDay ? [...new Set(entries.filter(e => e.date === lastDay).flatMap(e => e.aidants))] : []),
+    [entries, lastDay],
+  )
+  const ratePicked = async (rating: RatingKey) => {
+    if (!activeUserId || quickSaving || pickAidants.length === 0) return
+    setQuickSaving('picked')
+    const saved = await postEntry({ rating, aidants: pickAidants, moment: null, motifs: [], comment: null })
     setQuickSaving(null)
+    if (saved) {
+      setPickAidants([])
+      if (isBadRating(rating)) { setAlertEntry(saved); startEdit(saved) }
+    }
   }
 
   // Prévenir l'agence tout de suite : on dépose un mail déjà rédigé pour le module Mails.
@@ -1011,25 +1017,52 @@ export default function LiaisonPage() {
               </button>
             )}
 
-            {dayEntries.length === 0 && plannedVisits.length === 0 && lastDay && !noVisitDays.includes(entryDate) && (
-              <div className="mb-3 bg-white rounded-2xl p-4 shadow-sm border-2 border-green-200">
-                <p className="text-sm text-gray-500 mb-2">{formatDayFr(lastDay)}, c&apos;était :</p>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {entries.filter(x => x.date === lastDay).map(x => (
-                    <span key={x.id} className="px-4 py-2 rounded-2xl bg-indigo-50 text-indigo-700 font-bold text-xl">
-                      {joinNames(x.aidants)}{momentInfo(x.moment) ? <span className="text-sm font-normal"> · {momentInfo(x.moment)!.label.toLowerCase()}</span> : null}
-                    </span>
-                  ))}
+            {dayEntries.length === 0 && plannedVisits.length === 0 && aidants.length > 0 && !noVisitDays.includes(entryDate) && (
+              <div className="mb-3 bg-white rounded-3xl p-4 shadow-sm border-2 border-indigo-200">
+                <p className="text-lg font-bold text-gray-700 mb-3">👤 Qui est venu ?</p>
+                {lastNames.length > 0 && (
+                  <button
+                    onClick={() => setPickAidants(lastNames)}
+                    className="w-full mb-3 py-3 rounded-2xl bg-indigo-50 text-indigo-700 font-semibold active:scale-95 transition-all"
+                  >
+                    🔁 Les mêmes que le {formatDayFr(lastDay!)} : <strong>{joinNames(lastNames)}</strong>
+                  </button>
+                )}
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {aidants.map(a => {
+                    const on = pickAidants.some(n => norm(n) === norm(a.prenom))
+                    return (
+                      <button
+                        key={a.id}
+                        onClick={() => setPickAidants(prev => on ? prev.filter(n => norm(n) !== norm(a.prenom)) : [...prev, a.prenom])}
+                        className={`px-6 py-4 rounded-2xl text-xl font-bold border-2 active:scale-95 transition-all ${on ? 'bg-indigo-500 border-indigo-500 text-white' : 'bg-white border-gray-200 text-gray-600'}`}
+                      >
+                        {on ? '✓ ' : ''}{a.prenom}
+                      </button>
+                    )
+                  })}
                 </div>
-                <p className="text-sm font-semibold text-gray-600 mb-2">Ce sont les mêmes aujourd&apos;hui ?</p>
-                <button
-                  onClick={sameAsLastDay}
-                  disabled={quickSaving !== null}
-                  className="w-full py-4 rounded-2xl bg-green-500 hover:bg-green-600 text-white font-bold text-lg active:scale-95 transition-all disabled:opacity-40"
-                >
-                  {quickSaving === 'like-last' ? 'Enregistrement...' : '🔁 Oui, mêmes aidants — tout bien'}
-                </button>
-                <p className="text-xs text-gray-400 mt-2 text-center">Si ce n&apos;est pas eux, choisis plutôt l&apos;aidant ci-dessous.</p>
+                {pickAidants.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center">Choisis un ou plusieurs aidants, puis la note.</p>
+                ) : (
+                  <>
+                    <p className="text-sm font-semibold text-gray-600 mb-2">Comment s&apos;est passé le passage de <strong className="text-indigo-700">{joinNames(pickAidants)}</strong> ?</p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {RATINGS.map(r => (
+                        <button
+                          key={r.key}
+                          onClick={() => ratePicked(r.key)}
+                          disabled={quickSaving !== null}
+                          aria-label={`${joinNames(pickAidants)} : ${r.label}`}
+                          className="py-4 rounded-2xl border-2 border-gray-200 text-3xl active:scale-95 hover:border-indigo-300 transition-all disabled:opacity-40"
+                        >
+                          {r.emoji}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2 text-center">Une note pour tous les aidants choisis. Pour des notes différentes, évalue-les un par un.</p>
+                  </>
+                )}
               </div>
             )}
 
