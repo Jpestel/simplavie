@@ -208,6 +208,16 @@ export default function LiaisonPage() {
     changeEntryDate(TODAY)
   }
 
+  // Va directement sur un jour (même d'une semaine passée) pour le compléter.
+  const goToDay = (d: string) => {
+    const mondayOf = (iso: string) => weekDates(0, new Date(iso + 'T12:00:00'))[0]
+    const diffDays = Math.round((new Date(mondayOf(d) + 'T12:00:00').getTime() - new Date(weekDates(0)[0] + 'T12:00:00').getTime()) / 86_400_000)
+    setWeekOffset(Math.min(0, Math.round(diffDays / 7)))
+    setView('journal')
+    changeEntryDate(d)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   const selectRating = (r: RatingKey) => {
     // Les motifs proposés dépendent du type d'évaluation : on repart de zéro si on change de camp.
     if (formRating && isBadRating(formRating) !== isBadRating(r)) setFormMotifs([])
@@ -494,6 +504,23 @@ export default function LiaisonPage() {
   const noVisitInWeek = useMemo(() => days.filter(d => noVisitDays.includes(d)), [days, noVisitDays])
   const daysDone = new Set([...weekEntries.map(e => e.date), ...noVisitInWeek])
   const missingDays = days.filter(d => !daysDone.has(d))
+
+  // Jours passés (4 dernières semaines, hors aujourd'hui) sans évaluation ni raison, à partir du
+  // premier jour renseigné : proposés en un appui pour pouvoir envoyer le bilan.
+  const pastMissing = useMemo(() => {
+    const filled = new Set([...entries.map(e => e.date), ...Object.keys(noVisitMap)])
+    if (filled.size === 0) return []
+    const first = [...filled].sort()[0]
+    const out: string[] = []
+    const cur = new Date(TODAY + 'T12:00:00')
+    for (let i = 0; i < 28; i++) {
+      cur.setDate(cur.getDate() - 1)
+      const d = isoDate(cur)
+      if (d < first) break
+      if (!filled.has(d)) out.push(d)
+    }
+    return out.reverse()
+  }, [entries, noVisitMap])
   const weekComplete = missingDays.length === 0
   const counts = RATINGS.map(r => ({ ...r, count: weekEntries.filter(e => e.rating === r.key).length }))
   const avgScore = averageScore(weekEntries.map(e => e.rating))
@@ -798,6 +825,24 @@ export default function LiaisonPage() {
       {/* ── JOURNAL ── */}
       {view === 'journal' && (
         <div className="space-y-6">
+          {pastMissing.length > 0 && (
+            <section className="bg-orange-50 border-2 border-orange-200 rounded-2xl p-4">
+              <p className="font-semibold text-orange-700 mb-1">📝 {pastMissing.length === 1 ? '1 jour à compléter' : `${pastMissing.length} jours à compléter`}</p>
+              <p className="text-xs text-orange-700/80 mb-3">Appuie sur un jour pour y aller. Tu peux aussi indiquer « pas d&apos;évaluation ce jour-là ».</p>
+              <div className="flex flex-wrap gap-2">
+                {pastMissing.map(d => (
+                  <button
+                    key={d}
+                    onClick={() => goToDay(d)}
+                    className={`px-4 py-3 rounded-2xl border-2 font-semibold active:scale-95 transition-all ${d === entryDate ? 'bg-orange-500 border-orange-500 text-white' : 'bg-white border-orange-300 text-orange-700'}`}
+                  >
+                    {formatDayFr(d)}
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
           <section>
             <div className="flex items-center justify-between gap-2 mb-4">
               <h2 className="text-base font-semibold text-gray-700">
@@ -1077,11 +1122,15 @@ export default function LiaisonPage() {
             <div className="bg-orange-50 border-2 border-orange-200 rounded-2xl p-5">
               <p className="font-semibold text-orange-700 mb-2">Il manque une évaluation pour :</p>
               <ul className="text-orange-700 text-sm space-y-1 mb-3">
-                {missingDays.map(d => <li key={d}>• {formatDayFr(d)}</li>)}
+                {missingDays.map(d => (
+                  <li key={d}>
+                    <button onClick={() => goToDay(d)} className="underline font-semibold text-left py-1">• {formatDayFr(d)} → compléter</button>
+                  </li>
+                ))}
               </ul>
               <p className="text-sm text-orange-600">
                 Le bilan ne peut être envoyé que lorsque chaque jour de la semaine a au moins une évaluation,
-                ou est marqué « personne n&apos;est passé ce jour-là ».
+                ou est marqué « pas d&apos;évaluation ce jour-là » (personne n&apos;est passé, oubli, absent…).
               </p>
             </div>
           ) : (
