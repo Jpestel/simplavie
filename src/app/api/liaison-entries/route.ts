@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAccess, isDenied, deny } from '@/lib/apiAuth'
 
-const MOMENTS = ['matin', 'midi', 'soir', 'nuit']
+const MOMENTS = ['matin', 'midi', 'aprem', 'soir', 'nuit']
 const RATING_KEYS = ['tres_bien', 'bien', 'mal', 'tres_mal']
 
 function cleanMoment(v: unknown): string | null {

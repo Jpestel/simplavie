@@ -106,11 +106,12 @@ export function formatShortFr(iso: string): string {
 
 // ─── Moment de la journée ─────────────────────────────────────────────────────
 
-export type MomentKey = 'matin' | 'midi' | 'soir' | 'nuit'
+export type MomentKey = 'matin' | 'midi' | 'aprem' | 'soir' | 'nuit'
 
 export const MOMENTS: { key: MomentKey; emoji: string; label: string; phrase: string }[] = [
   { key: 'matin', emoji: '🌅', label: 'Matin', phrase: 'le matin' },
   { key: 'midi', emoji: '☀️', label: 'Midi', phrase: 'le midi' },
+  { key: 'aprem', emoji: '🌤️', label: 'Après-midi', phrase: "l'après-midi" },
   { key: 'soir', emoji: '🌆', label: 'Soir', phrase: 'le soir' },
   { key: 'nuit', emoji: '🌙', label: 'Nuit', phrase: 'la nuit' },
 ]
@@ -125,7 +126,8 @@ export function momentFromTime(time?: string | null): MomentKey | null {
   if (Number.isNaN(h)) return null
   if (h < 5) return 'nuit'
   if (h < 11) return 'matin'
-  if (h < 15) return 'midi'
+  if (h < 14) return 'midi'
+  if (h < 18) return 'aprem'
   if (h < 21) return 'soir'
   return 'nuit'
 }
