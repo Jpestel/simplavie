@@ -397,6 +397,20 @@ export default function LiaisonPage() {
     }
   }
 
+  // « Tout s'est bien passé » : un seul appui note « Bien » tous les passages prévus pas encore évalués.
+  // Chaque évaluation reste modifiable ou supprimable ensuite (✏️ / 🗑️).
+  const rateAllWell = async () => {
+    if (!activeUserId || quickSaving) return
+    const todo = plannedVisits.filter(v => !doneEntryFor(v))
+    for (const v of todo) {
+      setQuickSaving(v.id)
+      const prenom = await ensureAidant(v.prenom)
+      const saved = await postEntry({ rating: 'bien', aidants: [prenom], moment: v.moment, motifs: [], comment: null })
+      if (!saved) break
+    }
+    setQuickSaving(null)
+  }
+
   // Prévenir l'agence tout de suite : on dépose un mail déjà rédigé pour le module Mails.
   const warnAgency = (e: Entry) => {
     const mail = buildIncidentMail(e, profile.firstName || '')
@@ -881,6 +895,15 @@ export default function LiaisonPage() {
             {plannedVisits.length > 0 && (
               <div className="mb-4">
                 <p className="text-sm font-semibold text-gray-600 mb-2">📅 Prévu ce jour-là</p>
+                {plannedVisits.filter(v => !doneEntryFor(v)).length >= 2 && (
+                  <button
+                    onClick={rateAllWell}
+                    disabled={quickSaving !== null}
+                    className="w-full mb-3 py-4 rounded-2xl bg-green-500 hover:bg-green-600 text-white font-bold text-lg active:scale-95 transition-all disabled:opacity-40"
+                  >
+                    {quickSaving !== null ? 'Enregistrement...' : '🙂 Tout s\'est bien passé'}
+                  </button>
+                )}
                 {plannedVisits.map(v => {
                   const done = doneEntryFor(v)
                   const mo = momentInfo(v.moment)
